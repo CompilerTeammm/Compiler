@@ -1,0 +1,57 @@
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "CMake: configure and build",
+            "command": "cmake",
+            "args": [
+                "-Bbuild",
+                "-GNinja",
+            ],
+            "options": {
+                "cwd": "/home/oslab/llvmlab/Frontend_Compiler-main"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "CMake 配置和构建任务。"
+        },
+        {
+            "type": "shell",
+            "label": "CMake: build",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build"
+            ],
+            "options": {
+                "cwd": "/home/oslab/llvmlab/Frontend_Compiler-main"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "CMake 构建任务。"
+        },
+        {
+            "label": "CMake: configure and build all",
+            "dependsOn": [
+                "CMake: configure and build",
+                "CMake: build"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "CMake 配置和构建所有任务。"
+        }
+    ],
+    "version": "2.0.0"
+}
