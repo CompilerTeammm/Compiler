@@ -2,6 +2,7 @@
 #include <string>
 #include <iostream>
 #include<stdbool.h>
+#include "Type.hpp"
 namespace llvm
 {
     class Value;
