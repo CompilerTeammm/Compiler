@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include "glog/logging.h"
-#include "common/position.h"
+#include "../position.h"
 class BaseAST
 {
 public:
