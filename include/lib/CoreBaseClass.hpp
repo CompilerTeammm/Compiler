@@ -1,15 +1,16 @@
-#include"Type.h"
+#include"Type.hpp"
 #include <string>
 #include <iostream>
 #include<stdbool.h>
 #include "Type.hpp"
-namespace llvm
-{
+// namespace llvm
+// {
     class Value;
     class Use;
     class User;
     class Instruction;  
-}
+    class UserList;
+// }
 
 class Value
 {
