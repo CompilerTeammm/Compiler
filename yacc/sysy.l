@@ -1,64 +1,70 @@
 %option noyywrap
 %option nounput
-%option noinput
 %option yylineno
-
+%option noinput
 %{
 #include <cstdlib>
 #include <string>
 #include "common/position.h"
 #include "sysy.tab.hpp"
 using namespace std;
-
-loc cur_pos;
-int col_record = 1;
+loc current;
+int CurCol = 1;
 %}
 
-WhiteSpace    [ \t\n\r]*
-LineComment   "//".*
-BlockComment  "/*"([^*]*\*)([^*/][^*]*\*)*"/"
-
-Identifier    [a-zA-Z_][a-zA-Z0-9_]*
+Id   [a-zA-Z_][a-zA-Z0-9_]*
 String        \"([^\"\\]|\\.)*\"
 
-Decimal       [1-9][0-9]*
-Octal         0[0-7]*
-Hexadecimal   0[xX][0-9a-fA-F]+
+Decimal        [1-9][0-9]*
+nDecimal       -[1-9][0-9]*
+Octal          0[0-7]*
+nOctal         -0[0-7]*
+Hexadecimal    0[xX][0-9a-fA-F]+
+nHexadecimal   -0[xX][0-9a-fA-F]+
+Float          [0-9]+"."[0-9]+  
+nFloat         -[0-9]+"."[0-9]+  
 
 %%
 
-"int"           { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_INT; col_record += 3;}
-"void"          { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_VOID; col_record += 4;}
-"const"         { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_CONST; col_record += 5;}
-"if"            { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_IF; col_record += 2;}
-"else"          { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_ELSE; col_record += 4;}
-"while"         { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_WHILE; col_record += 5;}
-"break"         { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_BREAK; col_record += 5;}
-"continue"      { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_CONTINUE; col_record += 8;}
-"return"        { cur_pos.line = yylineno; cur_pos.col = col_record; return Y_RETURN; col_record += 6;}
+"int"           { current.line = yylineno; current.col = CurCol; return Y_INT; CurCol += 3;}
+"float"         { current.line = yylineno; current.col = CurCol; return Y_FLOAT; CurCol += 5;}
+"void"          { current.line = yylineno; current.col = CurCol; return Y_VOID; CurCol += 4;}
+"const"         { current.line = yylineno; current.col = CurCol; return Y_CONST; CurCol += 5;}
+"if"            { current.line = yylineno; current.col = CurCol; return Y_IF; CurCol += 2;}
+"else"          { current.line = yylineno; current.col = CurCol; return Y_ELSE; CurCol += 4;}
+"while"         { current.line = yylineno; current.col = CurCol; return Y_WHILE; CurCol += 5;}
+"break"         { current.line = yylineno; current.col = CurCol; return Y_BREAK; CurCol += 5;}
+"continue"      { current.line = yylineno; current.col = CurCol; return Y_CONTINUE; CurCol += 8;}
+"return"        { current.line = yylineno; current.col = CurCol; return Y_RETURN; CurCol += 6;}
 
-{Identifier}    { yylval.str_val = new string(yytext); cur_pos.line = yylineno; cur_pos.col = yylineno - yyleng + 1; return _identifier; col_record += yyleng; }
-{String}        { yylval.str_val = new string(yytext); cur_pos.line = yylineno; cur_pos.col = yylineno - yyleng + 1; return _string; col_record += yyleng; }
+{Id}            { yylval.StrVal = new string(yytext); current.line = yylineno; current.col = yylineno - yyleng + 1; return Y_ID; CurCol += yyleng; }
+{String}        { yylval.StrVal = new string(yytext); current.line = yylineno; current.col = yylineno - yyleng + 1; return _string; CurCol += yyleng; }
 
-{Decimal}       { yylval.int_val = strtol(yytext, nullptr, 0); cur_pos.line = yylineno; cur_pos.col = yylineno - yyleng + 1; return _const_val; col_record += yyleng; }
-{Octal}         { yylval.int_val = strtol(yytext, nullptr, 0); cur_pos.line = yylineno; cur_pos.col = yylineno - yyleng + 1; return _const_val; col_record += yyleng; }
-{Hexadecimal}   { yylval.int_val = strtol(yytext, nullptr, 0); cur_pos.line = yylineno; cur_pos.col = yylineno - yyleng + 1; return _const_val; col_record += yyleng; }
+{Decimal}       { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
+{nDecimal}      { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
+{Octal}         { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
+{nOctal}        { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
+{Hexadecimal}   { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
+{nHexadecimal}  { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
+{Float}         { yylval.fVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_FLOAT; CurCol += yyleng; }
+{nFloat}        { yylval.fVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_FLOAT; CurCol += yyleng; }
 
-">"             { cur_pos.line = yylineno; cur_pos.col = col_record; return _greater; col_record += 1;}
-"<"             { cur_pos.line = yylineno; cur_pos.col = col_record; return _less; col_record += 1;}
-">="            { cur_pos.line = yylineno; cur_pos.col = col_record; return _greater_equal; col_record += 2;}
-"<="            { cur_pos.line = yylineno; cur_pos.col = col_record; return _less_equal; col_record += 2;}
-"=="            { cur_pos.line = yylineno; cur_pos.col = col_record; return _equal; col_record += 2;}
-"!="            { cur_pos.line = yylineno; cur_pos.col = col_record; return _nequal; col_record += 2;}
 
-"&&"            { cur_pos.line = yylineno; cur_pos.col = col_record; return _logical_and; col_record += 2;}
-"||"            { cur_pos.line = yylineno; cur_pos.col = col_record; return _logical_or; col_record += 2;}
+">"             { current.line = yylineno; current.col = CurCol; return Y_GREAT; CurCol += 1;}
+"<"             { current.line = yylineno; current.col = CurCol; return Y_LESS; CurCol += 1;}
+">="            { current.line = yylineno; current.col = CurCol; return Y_GREATEQ; CurCol += 2;}
+"<="            { current.line = yylineno; current.col = CurCol; return Y_LESSEQ; CurCol += 2;}
+"=="            { current.line = yylineno; current.col = CurCol; return Y_EQ; CurCol += 2;}
+"!="            { current.line = yylineno; current.col = CurCol; return Y_NOTEQ; CurCol += 2;}
 
-\"[\s\S]*\"     { yylval.str_val = new string(yytext); cur_pos.line = yylineno; cur_pos.col = yylineno - yyleng + 1; return _string; col_record += yyleng; }
-\n              { col_record = 0; }
-{WhiteSpace}    { col_record++; }
-{LineComment}   { }
-{BlockComment}  { }
-.               { return yytext[0]; col_record ++; }
+"&&"            { current.line = yylineno; current.col = CurCol; return Y_AND; CurCol += 2;}
+"||"            { current.line = yylineno; current.col = CurCol; return Y_OR; CurCol += 2;}
+
+\"[\s\S]*\"     { yylval.StrVal = new string(yytext); current.line = yylineno; current.col = yylineno - yyleng + 1; return _string; CurCol += yyleng; }
+\n              { CurCol = 0; }
+[ \t\n\r]*      { CurCol++; }
+"//".*          {}
+"/*"([^*]*\*)([^*/][^*]*\*)*"/"  {}
+.               { return yytext[0]; CurCol++; }
 
 %%
