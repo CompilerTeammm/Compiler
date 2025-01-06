@@ -1,5 +1,13 @@
 #include "../include/Backend/RISCVAsmPrinter.hpp"
 
+SegmentType __oldtype =TEXT;
+SegmentType* oldtype =&__oldtype;
+
+SegmentType ChangeSegmentType(SegmentType newtype){
+    return newtype;
+}
+
+
 //AsmPrinter 初始化一个实例 
 //LLVM 的 Module 类代表了一个编译单元（Compilation Unit）
 RISCVAsmPrinter::RISCVAsmPrinter(std::string filename,Moudle* unit, RISCVLoweringContext& ctx): filename(filename){
