@@ -1,4 +1,4 @@
-#include "../../lib/CFG.hpp"
+#include "../../lib/cfg/cfgg.hpp"
 #include <vector>
 // 搭建支配树
 class DominantTree

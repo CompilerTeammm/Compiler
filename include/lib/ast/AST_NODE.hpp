@@ -6,10 +6,62 @@
 #include <string>
 #include <list>
 #include <vector>
-#include"ast/base_ast.h"
+#include "symtable/symbol_table.h"
+#include "common/initvalT.h"
+#include "common/base_ast.hpp"
+#include "common/enum.h"
+#include "common/visualize.h"
 
 extern class Visualize visual;
+class NumberAST;
 
+class NumberAST : public BaseAST
+{
+public:
+    enum class NumberType { Int, Float } numType;
+    int intNum;
+    float floatNum;
+
+    void Dump() const override
+    {
+        std::cout << "NumberAST {\n";
+        if (numType == NumberType::Int)
+        {
+            std::cout << intNum;
+        }
+        else
+        {
+            std::cout << floatNum;
+        }
+        std::cout << "\n}(NumberAST ends) ";
+    }
+
+    std::string type(void) const override
+    {
+        std::unique_ptr<std::string> TypeStr(new std::string("NumberAST"));
+        return *TypeStr;
+    }
+
+    bool GetConstVal(int &val) const override
+    {
+        if (numType == NumberType::Int)
+        {
+            val = this->intNum;
+            return false;
+        }
+        return true; // Float type does not directly return an int value
+    }
+
+    bool GetConstVal(float &val) const override
+    {
+        if (numType == NumberType::Float)
+        {
+            val = this->floatNum;
+            return true;
+        }
+        return false;
+    }
+};
 
 class CompUnitAST : public BaseAST
 {
@@ -24,19 +76,19 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("CompUnitAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("CompUnitAST"));
+    return *TypeStr;
   }
 };
 
 class CompunitAST : public BaseAST
 {
 public:
-  std::vector<BaseAST *> decl_list;
+  std::vector<BaseAST *> DeclList;
   void Dump() const override
   {
     int idx_visual = 0;
-    for (auto &it : decl_list)
+    for (auto &it : DeclList)
     {
       visual.add_pair(std::string("CompunitAST"), std::string("FuncDefAST_instance_") + std::to_string(idx_visual), true);
       it->Dump();
@@ -45,8 +97,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("CompunitAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("CompunitAST"));
+    return *TypeStr;
   }
 };
 
@@ -63,8 +115,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("DeclAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("DeclAST"));
+    return *TypeStr;
   }
 
 
@@ -72,12 +124,12 @@ public:
 class VarDeclAST : public BaseAST
 {
 public:
-  VarType BType;
+  VarType Type;
   std::vector<BaseAST *> VarDefVec;
   void Dump() const override
   {
     std::cout << "VarDeclAst {\n";
-    std::cout << "vartype:" << EnumToString(BType);
+    std::cout << "vartype:" << EnumToString(Type);
     for (auto &it : VarDefVec)
     {
       it->Dump();
@@ -114,12 +166,12 @@ public:
 class ConstDeclAST : public BaseAST
 {
 public:
-  VarType BType;
+  VarType Type;
   std::vector<BaseAST *> ConstDefVec;
   void Dump() const override
   {
     std::cout << "DeclAST {\n"
-              << "vartype:" << EnumToString(BType);
+              << "vartype:" << EnumToString(Type);
     for (auto &it : ConstDefVec)
     {
       it->Dump();
@@ -128,8 +180,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("ConstDeclAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("ConstDeclAST"));
+    return *TypeStr;
   }
 
   void HandleSymbol() const;
@@ -147,17 +199,12 @@ public:
     std::cout << "FuncDefAST {\n";
     std::string instance_name;
     if (int t = visual.find_map(std::string("CompunitAST"), instance_name)) {
-      DLOG(WARNING) << "CompunitAST found " << t;
       std::string id = std::string("FunctionId_") + *ident;
-      DLOG(WARNING) << "ID is " << id;
       visual.add_pair(std::string(instance_name), std::string("FuncTypeAST_") + std::string(*ident), false);
-      DLOG(WARNING) << "first add pair success";
       visual.add_pair(std::string(instance_name), std::string(id), false);
       visual.add_pair(std::string(instance_name), std::string("FuncFParamsAST_") + std::string(*ident), false);
       visual.add_pair(std::string(instance_name), std::string("Block_") + std::string(*ident), false);
-      DLOG(WARNING) << "add pair finished";
       visual.remove_map(std::string("CompunitAST"), instance_name);
-      DLOG(WARNING) << "remove map";
     }
     std::cout << ", " << *ident << ", ";
     if (func_fparams != nullptr)
@@ -167,8 +214,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("FuncDefAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("FuncDefAST"));
+    return *TypeStr;
   }
 };
 
@@ -184,8 +231,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("FuncTypeAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("FuncTypeAST"));
+    return *TypeStr;
   }
 };
 class FuncFParamsAST : public BaseAST
@@ -203,8 +250,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("FuncFParamsAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("FuncFParamsAST"));
+    return *TypeStr;
   }
 };
 
@@ -216,6 +263,7 @@ public:
   std::string *ident;
   std::vector<int> dimension;
   bool EmitHighestDimFlag;
+
   void Dump() const override
   {
     std::cout << "FuncFParamAST {\n";
@@ -225,14 +273,39 @@ public:
     }
     else if (tp == ArgsType::Int32Array)
     {
-      // func_fparam->Dump();
+      // 打印 Int32 数组类型的逻辑
+      std::cout << "Btype:Int32Array, " << *ident << ", dimensions: [";
+      for (size_t i = 0; i < dimension.size(); ++i)
+      {
+        std::cout << dimension[i];
+        if (i < dimension.size() - 1)
+          std::cout << ", ";
+      }
+      std::cout << "]";
+    }
+    else if (tp == ArgsType::Float32)
+    {
+      std::cout << "Btype:Float32, " << *ident;
+    }
+    else if (tp == ArgsType::Float32Array)
+    {
+      // 打印 Float32 数组类型的逻辑
+      std::cout << "Btype:Float32Array, " << *ident << ", dimensions: [";
+      for (size_t i = 0; i < dimension.size(); ++i)
+      {
+        std::cout << dimension[i];
+        if (i < dimension.size() - 1)
+          std::cout << ", ";
+      }
+      std::cout << "]";
     }
     std::cout << "\n}(FuncFParamAST ends) ";
   }
+
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("FuncFParamAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("FuncFParamAST"));
+    return *TypeStr;
   }
 };
 
@@ -248,28 +321,28 @@ class StringAST:public BaseAST
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("StringAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("StringAST"));
+    return *TypeStr;
   }
 };
 
-class FuncRParamsAST : public BaseAST
+class CallParamsAST : public BaseAST
 {
 public:
   std::vector<BaseAST *> exp;
   void Dump() const override
   {
-    std::cout << "FuncRParamsAST {\n";
+    std::cout << "CallParamsAST {\n";
     for (auto &it : exp)
     {
       it->Dump();
     }
-    std::cout << "\n}(FuncRParamsAST ends) ";
+    std::cout << "\n}(CallParamsAST ends) ";
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("FuncRParamsAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("CallParamsAST"));
+    return *TypeStr;
   }
 };
 
@@ -286,8 +359,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("BlockAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("BlockAST"));
+    return *TypeStr;
   }
 };
 
@@ -304,8 +377,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("blockAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("blockAST"));
+    return *TypeStr;
   }
 };
 
@@ -322,8 +395,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("BlockItemAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("BlockItemAST"));
+    return *TypeStr;
   }
 };
 class AssignAST : public BaseAST
@@ -341,8 +414,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("AssignAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("AssignAST"));
+    return *TypeStr;
   }
 };
 class LValAST : public BaseAST
@@ -364,11 +437,12 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("LValAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("LValAST"));
+    return *TypeStr;
   }
 
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 
 class StmtAST : public BaseAST
@@ -413,8 +487,8 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("StmtAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("StmtAST"));
+    return *TypeStr;
   }
 };
 
@@ -430,10 +504,11 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("ExpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("ExpAST"));
+    return *TypeStr;
   }
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 
 class LOrExpAST : public BaseAST
@@ -457,10 +532,11 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("LOrExpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("LOrExpAST"));
+    return *TypeStr;
   }
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 
 class LAndExpAST : public BaseAST
@@ -484,10 +560,11 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("LAndExpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("LAndExpAST"));
+    return *TypeStr;
   }
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 
 class EqExpAST : public BaseAST
@@ -511,10 +588,11 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("EqExpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("EqExpAST"));
+    return *TypeStr;
   }
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 
 class RelExpAST : public BaseAST
@@ -538,10 +616,11 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("RelExpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("RelExpAST"));
+    return *TypeStr;
   }
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 class AddExpAST : public BaseAST
 {
@@ -564,11 +643,12 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("AddExpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("AddExpAST"));
+    return *TypeStr;
   }
 
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 
 class MulExpAST : public BaseAST
@@ -592,10 +672,11 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("MulExpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("MulExpAST"));
+    return *TypeStr;
   }
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 
 class UnaryExpAST : public BaseAST
@@ -628,56 +709,44 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("UnaryExpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("UnaryExpAST"));
+    return *TypeStr;
   }
   bool GetConstVal(int &val) const override;
+  bool GetConstVal(float &val) const override;
 };
 
-class PrimaryExpAST : public BaseAST
-{
+class PrimaryExpAST : public BaseAST {
 public:
-  PrimaryType tp;
-  BaseAST *exp;
-  BaseAST *number;
-  BaseAST* lval;
-  void Dump() const override
-  {
-    std::cout << "PrimaryExpAST {\n";
-    if (tp == PrimaryType::Exp)
-      exp->Dump();
-    else if (tp == PrimaryType::Num)
-      number->Dump();
-    else{
-      lval->Dump();
+    PrimaryType tp;          // PrimaryType: Exp, num_INT, num_FLOAT, Lval
+    BaseAST* exp;            // 表达式节点
+    BaseAST* lval;           // 左值节点
+    NumberAST* number;       // 存储数字（指向 NumberAST 对象）
+
+    void Dump() const override {
+        std::cout << "PrimaryExpAST {\n";
+        if (tp == PrimaryType::Exp) {
+            exp->Dump();
+        } else if (tp == PrimaryType::NumInt) {
+            std::cout << "Integer: " << number->intNum;  // 直接访问 intNum
+        } else if (tp == PrimaryType::NumFloat) {
+            std::cout << "Float: " << number->floatNum;  // 直接访问 floatNum
+        } else {  // Lval 类型
+            lval->Dump();
+        }
+        std::cout << "\n}(PrimaryExpAST ends) ";
     }
-    std::cout << "\n}(PrimaryExpAST ends) ";
-  }
-  std::string type(void) const override
-  {
-    std::unique_ptr<std::string> rst_ptr(new std::string("PrimaryExpAST"));
-    return *rst_ptr;
-  }
-  bool GetConstVal(int &val) const override;
+
+    std::string type(void) const override {
+        std::unique_ptr<std::string> TypeStr(new std::string("PrimaryExpAST"));
+        return *TypeStr;
+    }
+
+    bool GetConstVal(int &val) const override;
+    bool GetConstVal(float &val) const override;
 };
 
-class NumberAST : public BaseAST
-{
-public:
-  int num;
-  void Dump() const override
-  {
-    std::cout << "NumberAST {\n";
-    std::cout << num;
-    std::cout << "\n}(NumberAST ends) ";
-  }
-  std::string type(void) const override
-  {
-    std::unique_ptr<std::string> rst_ptr(new std::string("NumberAST"));
-    return *rst_ptr;
-  }
-  bool GetConstVal(int &val) const override;
-};
+
 
 class UnaryOpAST : public BaseAST
 {
@@ -691,8 +760,10 @@ public:
   }
   std::string type(void) const override
   {
-    std::unique_ptr<std::string> rst_ptr(new std::string("UnaryOpAST"));
-    return *rst_ptr;
+    std::unique_ptr<std::string> TypeStr(new std::string("UnaryOpAST"));
+    return *TypeStr;
   }
+
 };
+
 #endif
