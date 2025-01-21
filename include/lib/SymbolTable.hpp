@@ -1,8 +1,11 @@
 #pragma once
 #include "CoreBaseClass.hpp"
+#include <cassert>
 #include<stack>
 #include<string>
 #include<map>
+#include <unordered_map>
+#include<vector>
 
 //  std::vector<std::map<std::string, Type>> 
 //  std::map<std::string, std::vector<Type>>.
