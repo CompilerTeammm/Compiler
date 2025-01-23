@@ -1,59 +1,90 @@
 #pragma once
-#include "CoreBaseClass.hpp"
-#include <cassert>
-#include<stack>
-#include<string>
-#include<map>
+#include "cfg/cfgg.hpp"
+#include <map>
+#include <vector>
 #include <unordered_map>
-#include<vector>
+#include <mutex>
+#include <memory>
+#include <cassert>
+#include <string>
 
-//  std::vector<std::map<std::string, Type>> 
-//  std::map<std::string, std::vector<Type>>.
+/// @brief same layer with same name is illegal
 class SymbolTable
 {
-protected:
-    // scope 作用域
-    using scope = std::stack<Value*>*;
-    std::map<std::string,std::unique_ptr<std::stack<Value*>>> table;
-    // 使用二维数组的原因是为了记录不同层次的作用域
-    std::vector<std::vector<scope>> record;
+private:
+    using recoder = std::vector<Value *>;
+    std::map<std::string, std::unique_ptr<recoder>> mp;
+    std::vector<std::vector<recoder *>> rec;
+    std::unordered_map<std::string, Value *> cache; // 缓存最近访问的符号
+    std::mutex mtx;                                 // 用于线程安全
+
+    // 版本管理：支持符号重定义
+    std::unordered_map<std::string, int> version_counter;
+
 public:
+    // 增加作用域层级
     void layer_increase()
     {
-        record.push_back(std::vector<scope>());
+        rec.push_back(std::vector<recoder *>());
     }
 
+    // 减少作用域层级
     void layer_decrease()
     {
-        // record.back()是获取了一维数组，里面装着该层次中栈的指针
-        for(auto &e:record.back())
+        for (auto &i : rec.back())
         {
-            if(!e->empty()) 
-                e->pop();
+            if (!i->empty())
+            {
+                i->pop_back(); // 弹出栈顶元素
+            }
         }
-        record.pop_back();
+        rec.pop_back();
     }
 
-    Value* GetValueByName(std::string name)
+    // 根据名字获取符号的值
+    Value *GetValueByName(const std::string &name)
     {
-        auto &i = table[name];
-        assert(i!=nullptr && !i->empty());
-        return i->top();
+        std::lock_guard<std::mutex> lock(mtx); // 加锁确保线程安全
+
+        // 优先从缓存获取
+        if (cache.find(name) != cache.end())
+        {
+            return cache[name];
+        }
+
+        auto &i = mp[name];
+        assert(i != nullptr && !i->empty());
+        Value *val = i->back(); // 获取栈顶值
+        cache[name] = val;      // 缓存
+        return val;
     }
 
-    void Register(std::string name,Value* val)
+    // 注册一个新的符号，处理符号重定义
+    void Register(const std::string &name, Value *val)
     {
-        auto &i = table[name];
-        if(i==nullptr)
-            i.reset(new std::stack<Value*>());
-        if(!table.empty()) 
-            record.back().push_back(i.get());
-        i->push(val);
+        std::lock_guard<std::mutex> lock(mtx); // 加锁确保线程安全
+
+        auto &i = mp[name];
+        if (i == nullptr)
+        {
+            i.reset(new recoder()); // 初始化栈
+        }
+        if (!rec.empty())
+        {
+            rec.back().push_back(i.get()); // 将当前栈加入当前作用域
+        }
+
+        // 处理重定义：增加版本号并设置版本
+        version_counter[name]++;
+        val->SetVersion(version_counter[name]);
+
+        i->push_back(val); // 将符号值压入栈中
     }
-    // 适合用于生成与特定字符串相关的唯一编号或标识符  
-    int IR_number(std::string str)
+
+    // 返回某个符号的 IR 编号，用于唯一标识符的处理
+    int IR_number(const std::string &str)
     {
-        static std::unordered_map<std::string,int> cnt;
+        static std::unordered_map<std::string, int> cnt;
         return cnt[str]++;
     }
 };
