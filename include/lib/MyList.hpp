@@ -43,7 +43,7 @@ public:
       EraseFromManager();
   }
 
-  void SetParent(Manager *_manager) { manager = _manager; }
+  void SetManager(Manager *_manager) { manager = _manager; }
   Manager *GetParent() const { return manager; }
   Staff *GetNextNode() const { return next; }
   Staff *GetPrevNode() const { return prev; }
@@ -143,7 +143,7 @@ public:
       }
       else
       {
-        _node->SetParent(ptr->manager);
+        _node->SetManager(ptr->manager);
         _node->prev = ptr->prev;
         _node->next = ptr;
         ptr->prev->next = _node;
@@ -162,7 +162,7 @@ public:
       }
       else
       {
-        _node->SetParent(ptr->manager);
+        _node->SetManager(ptr->manager);
         _node->next = ptr->next;
         _node->prev = ptr;
         ptr->next->prev = _node;
@@ -186,7 +186,7 @@ public:
     size = 0;
     for (auto node = front; node; node = node->next)
     {
-      node->SetParent(static_cast<Manager *>(this));
+      node->SetManager(static_cast<Manager *>(this));
       size++;
     }
   }
@@ -223,7 +223,7 @@ public:
 
   void push_back(Staff *_node)
   {
-    _node->SetParent(static_cast<Manager *>(this));
+    _node->SetManager(static_cast<Manager *>(this));
     if (!front)
     {
       front = back = _node;
@@ -239,7 +239,7 @@ public:
 
   void push_front(Staff *_node)
   {
-    _node->SetParent(static_cast<Manager *>(this));
+    _node->SetManager(static_cast<Manager *>(this));
     if (!front)
     {
       front = back = _node;
