@@ -1,6 +1,6 @@
 #pragma once
-#include "../cfg/cfgg.hpp"
-#include "base_ast.hpp"
+#include "../CoreClass.hpp"
+#include "BaseAst.hpp"
 
 enum AST_Type
 {

@@ -1,5 +1,5 @@
 #pragma once
-#include "cfg/cfgg.hpp"
+#include "CoreClass.hpp"
 #include <map>
 #include <vector>
 #include <unordered_map>

@@ -7,7 +7,8 @@
 #include <unordered_map>
 #include <algorithm>
 #include "Type.hpp"
-#include "../Singleton.hpp"
+#include "Singleton.hpp"
+#include "MyList.hpp"
 
 class Use;
 class User;
@@ -504,72 +505,75 @@ class AllocaInst : public Instruction
 {
 }; //...
 
-class BasicBlock : public Value
+// BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构
+// 块内是是实现给vector的，双向链表直接继承mylist的，有操作在MyList文件里写
+// 使用的时候根据自己要实现的功能选择合适的数据结构
+class BasicBlock : public Value, public List<BasicBlock, Instruction>, public Node<Function, BasicBlock>
 {
 public:
   int LoopDepth;  // 嵌套深度
   bool visited;   // 是否被访问过
   int index;      // 基本块序号
   bool reachable; // 是否可达
+  int size_Inst = 0;
   // BasicBlock包含Instruction
   using InstPtr = std::unique_ptr<Instruction>;
   // 当前基本块的指令
   std::vector<InstPtr> instructions;
   // 前驱&后续基本块列表
-  std::vector<BasicBlock *> PredBlocks;
-  std::vector<BasicBlock *> NextBlocks;
+  std::vector<BasicBlock *> PredBlocks = {};
+  std::vector<BasicBlock *> NextBlocks = {};
 
-  std::vector<InstPtr> &GetInst() { return instructions; }
+  std::vector<InstPtr> &GetInsts() { return instructions; }
 
-  BasicBlock() : Value(nullptr), LoopDepth(0), visited(false), index(0), reachable(false) {}
+  BasicBlock() : Value(VoidType::NewVoidTypeGet()), LoopDepth(0), visited(false), index(0), reachable(false) {}
+
   virtual ~BasicBlock() = default;
 
-  virtual void clear()
+  virtual void init_Insts()
   {
     instructions.clear();
-    LoopDepth = 0;
-    visited = false;
-    index = 0;
-    reachable = false;
+    // LoopDepth = 0;
+    // visited = false;
+    // index = 0;
+    // reachable = false;
     NextBlocks.clear();
     PredBlocks.clear();
   }
-
-  virtual BasicBlock *clone(std::unordered_map<Value *, Value *> &mapping) override
+  // 复制mylist
+  BasicBlock *BasicBlock::clone(std::unordered_map<Operand, Operand> &mapping) override
   {
-    // 创建新基本块并加入映射
-    auto *clonedBlock = new BasicBlock();
-    mapping[this] = clonedBlock;
-
-    // 克隆指令列表
-    for (const auto &inst : instructions)
-    {
-      clonedBlock->GetInst().push_back(std::unique_ptr<Instruction>(
-          dynamic_cast<Instruction *>(inst->clone(mapping))));
-    }
-
-    // 克隆后继块，但前驱关系由外部逻辑维护
-    clonedBlock->NextBlocks = NextBlocks;
-
-    clonedBlock->LoopDepth = LoopDepth;
-    clonedBlock->visited = visited;
-    clonedBlock->index = index;
-    clonedBlock->reachable = reachable;
-
-    return clonedBlock;
+    if (mapping.find(this) != mapping.end())
+      return dynamic_cast<BasicBlock *>(mapping[this]);
+    auto temp = new BasicBlock();
+    mapping[this] = temp;
+    for (auto i : (*this))
+      temp->push_back(dynamic_cast<Instruction *>(i->clone(mapping)));
+    return temp;
   }
+  // 同时复制vector和mylist
+  //  BasicBlock *BasicBlock::clone(std::unordered_map<Operand, Operand> &) override { return this; };
 
   virtual void print()
   {
+    // vector
     std::cout << "BasicBlock " << GetName() << " (Index: " << index << ", LoopDepth: " << LoopDepth << "):\n";
     for (const auto &inst : instructions)
     {
       std::cout << "  ";
       inst->print();
     }
+
+    // List
+    //  std::cout << GetName() << ":\n";
+    //  for (auto i : (*this))
+    //  {
+    //    std::cout << "  ";
+    //    i->print();
+    //  }
   }
   // 获取后继基本块列表
-  std::vector<BasicBlock *> GetNextBlock() const { return NextBlocks; }
+  std::vector<BasicBlock *> GetNextBlocks() const { return NextBlocks; }
   // 获取前驱基本块
   const std::vector<BasicBlock *> &GetPredBlocks() const { return PredBlocks; }
   // 添加后继基本块
@@ -579,16 +583,18 @@ public:
   // 移除前驱基本块
   void RemovePredBlock(BasicBlock *pre)
   {
+    // 首先从PredBlocks中删除，if最后没用到该功能，可删
     PredBlocks.erase(
         std::remove(PredBlocks.begin(), PredBlocks.end(), pre),
         PredBlocks.end());
+    // to be...从链表中删除：管理的instruction和被Function管理
   }
 
-  bool is_empty() const { return instructions.empty(); }
+  bool is_empty_Insts() const { return instructions.empty(); }
   // 获取基本块的最后一条指令
-  Instruction *GetLastInst() const
+  Instruction *GetLastInsts() const
   {
-    return is_empty() ? nullptr : instructions.back().get();
+    return is_empty_Insts() ? nullptr : instructions.back().get();
   }
   // 替换后继块中的某个基本块
   void ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
@@ -616,8 +622,8 @@ public:
   }
 };
 
-// 管理BasicBlock
-class Function : public Value
+// 既提供了vector线性管理BasicBlock，又实现了双向链表
+class Function : public Value, public List<Function, BasicBlock>
 {
 public:
   // 参数和基本块//Function包含BasicBlock
@@ -631,12 +637,13 @@ public:
   Function(IR_DataType _type, const std::string &_id)
       : Value(GetTypeFromIRDataType(_type)), id(_id)
   {
-    // push_back(new BasicBlock());
+    // 构造默认vector和mylist双开
+    push_back(new BasicBlock());
   }
   ~Function() = default;
 
   std::vector<ParamPtr> &GetParams() { return params; }
-  std::vector<BBPtr> &GetBasicBlock() { return BBs; }
+  std::vector<BBPtr> &GetBBs() { return BBs; }
   auto begin() { return BBs.begin(); }
   auto end() { return BBs.end(); }
   void Function::print()
@@ -652,24 +659,26 @@ public:
         std::cout << ", ";
     }
     std::cout << "){\n";
-    for (auto &BB : (*this))
+    for (auto &BB : (*this)) // 链表打印
       BB->print();
     std::cout << "}\n";
   }
   virtual Function *clone(std::unordered_map<Value *, Value *> &) override { return this; };
 
-  void add_block(BasicBlock *BB)
+  // 单指vector加入
+  void add_BBs(BasicBlock *BB)
   {
     BBs.push_back(std::unique_ptr<BasicBlock>(BB));
     size_BB++;
   }
-  // 尾插一个基本块
-  void push_BB(BasicBlock *BB)
+  // 同时操作mylist和vector
+  void push_both_BB(BasicBlock *BB)
   {
-    add_block(BB);
+    add_BBs(BB);
+    push_back(BB);
   }
-  // 中插（在特定位置插入基本块）
-  void Insert_BB(BasicBlock *BB, size_t pos)
+  // 中插
+  void Insert_BBs(BasicBlock *BB, size_t pos)
   {
     if (pos > BBs.size())
     {
@@ -678,7 +687,10 @@ public:
     BBs.insert(BBs.begin() + pos, std::unique_ptr<BasicBlock>(BB));
     size_BB++;
   }
-  void Remove_BB(BasicBlock *BB)
+  void Insert_BB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert);
+  void Insert_BB(BasicBlock *curr, BasicBlock *insert);
+
+  void Remove_BBs(BasicBlock *BB)
   {
     auto it = std::find_if(BBs.begin(), BBs.end(),
                            [BB](const BBPtr &ptr)
@@ -690,13 +702,13 @@ public:
     }
   }
 
-  void init_BB()
+  void init_BBs()
   {
     BBs.clear();
     size_BB = 0;
   }
   // 查找基本块
-  BasicBlock *Find_BB(const std::string &name)
+  BasicBlock *Find_BBs(const std::string &name)
   {
     for (const auto &BB : BBs)
     {
@@ -708,6 +720,7 @@ public:
     return nullptr;
   }
   void push_param();
+  std::vector<BasicBlock *> GetRetBlock();
 };
 
 class Module

@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include <cassert>
-#include "../position.h"
+#include "../Position.hpp"
 class BaseAST
 {
 public:
