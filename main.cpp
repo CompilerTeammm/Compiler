@@ -13,6 +13,8 @@ int main()
         lt.add_edge(u,v);
     }
 
+
+    lt.Run();
     lt.dump();
     return 0;
 }

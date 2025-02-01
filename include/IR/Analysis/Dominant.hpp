@@ -21,9 +21,12 @@ public:
         std::vector<Node*> pre;
         std::vector<Node*> succ;
 
+        // sdom  idom 是在node中声明
+        Node* sdom;
+        Node* idom;
+
         int flag = 0;
-        static int order_num;
-    
+        int order_num = 0;
         bool isVisited()
         {
             return flag != 0;
@@ -44,12 +47,16 @@ public:
 
     int node_num;
     int edge_num;
-    int dfs_cnt = 0;
+    // static int order_num;
+    // int dfs_cnt = 0;
     std::vector<Node> CFG;
-    std::vector<Node*> DFS_order;
 
-    std::vector<Node*> sdom;
-    std::vector<Node*> idom;
+    // DFS_order[1] = 1   1号节点，第 1 个在dfs树上被访问
+    // DFS_order[5] = 2   5号节点，第 2 个在dfs树上被访问
+    // 我使用 vector<int> 实际上达到了一种映射关系 
+    std::vector<int> DFS_order;
+    // std::vector<Node*> sdom;
+    // std::vector<Node*> idom;
 };
 
 
