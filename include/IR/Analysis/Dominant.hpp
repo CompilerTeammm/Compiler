@@ -44,6 +44,7 @@ public:
     void dump();
     void Run();
     void DFS_func();
+    void get_idom();
 
     int node_num;
     int edge_num;

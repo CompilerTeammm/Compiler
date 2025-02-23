@@ -1,5 +1,18 @@
+#pragma once
+#include"Passbase.hpp"
+#include "CoreClass.hpp"
 
-class PassManager
+// 用来管理Passes
+class FunctionPassManager;
+class MoudlePassManager;
+enum PassName {
+    mem2reg,
+
+};
+
+class _AnalysisManager:
+    public _AnalysisManagerBase<_AnalysisManager,Function>
 {
-
+    void InitPass(_AnalysisManager pass)
+    { }
 };

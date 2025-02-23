@@ -49,6 +49,11 @@ void Lengauer_Tarjan::dump()
 
 }
 
+void Lengauer_Tarjan::get_idom()
+{
+    
+}
+
     // for(int i = 1; i <= edge_num; i++)
     // {
     //     for(auto e:CFG[i].pre)
