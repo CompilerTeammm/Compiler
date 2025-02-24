@@ -30,3 +30,40 @@ struct GetInstState
   BasicBlock *break_block;
   BasicBlock *continue_block;
 };
+
+class HasOperand : public BaseAST
+{
+public:
+  virtual Operand GetOperand(BasicBlock *block) = 0;
+};
+
+class Stmt : public BaseAST
+{
+public:
+  virtual BasicBlock *GetInst(GetInstState) = 0;
+};
+
+template <typename T>
+class BaseExp : public HasOperand
+{
+public:
+  std::list<AST_Type> OpList; // 操作符
+  BaseList<T> DataList;       // 数据
+
+  void push_back(AST_Type _tp)
+  {
+    OpList.push_back(_tp);
+  }
+  void push_front(AST_Type _tp)
+  {
+    OpList.push_front(_tp);
+  }
+  void push_back(T *_data)
+  {
+    DataList.push_back(_data);
+  }
+  void push_front(T *_data)
+  {
+    DataList.push_front(_data);
+  }
+};

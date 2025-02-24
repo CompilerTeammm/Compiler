@@ -16,9 +16,9 @@ private:
     std::map<std::string, std::unique_ptr<recoder>> mp;
     std::vector<std::vector<recoder *>> rec;
     std::unordered_map<std::string, Value *> cache; // 缓存最近访问的符号
-    std::mutex mtx;                                 // 用于线程安全
+    std::mutex mtx;                                 // 线程安全
 
-    // 版本管理：支持符号重定义
+    // 支持符号重定义
     std::unordered_map<std::string, int> version_counter;
 
 public:

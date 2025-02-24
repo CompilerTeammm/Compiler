@@ -32,24 +32,6 @@ public:
     IR_DataType GetTypeEnum() { return type; }
 
     virtual void print() = 0;
-
-    // 根据枚举类型创建相应的子类对象
-    static Type *NewTypeByEnum(IR_DataType _type)
-    {
-        switch (_type)
-        {
-        case IR_Value_INT:
-            return IntType::NewIntTypeGet();
-        case IR_Value_VOID:
-            return VoidType::NewVoidTypeGet();
-        case IR_Value_Float:
-            return FloatType::NewFloatTypeGet();
-        case IR_PTR:
-            return PointerType::NewPointerTypeGet(NewTypeByEnum(IR_Value_INT));
-        default:
-            assert(0);
-        }
-    }
 };
 
 class IntType : public Type
@@ -246,7 +228,7 @@ Type *GetTypeFromIRDataType(IR_DataType _type)
     case IR_DataType::IR_Value_VOID:
         return VoidType::NewVoidTypeGet();
     case IR_DataType::IR_PTR:
-        return PointerType::NewPointerTypeGet(Type::NewTypeByEnum(IR_Value_INT));
+        return PointerType::NewPointerTypeGet(GetTypeFromIRDataType(IR_Value_INT));
     default:
         return nullptr;
     }
