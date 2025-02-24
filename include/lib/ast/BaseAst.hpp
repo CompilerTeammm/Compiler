@@ -10,7 +10,7 @@ class BaseAST
 public:
   loc position;
   virtual ~BaseAST() = default;
-  virtual void Dump() const = 0;
+  // virtual void Dump() const = 0;
   virtual void codegen()
   {
     std::cerr << "codegen() is not implemented for this AST node.\n";

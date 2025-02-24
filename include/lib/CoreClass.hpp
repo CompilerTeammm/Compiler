@@ -500,7 +500,7 @@ public:
   }
 };
 
-// 示例子类指令，继承自Instruction
+// 示例子类指令，继承自Instruction,放到CFG实现
 class AllocaInst : public Instruction
 {
 }; //...
@@ -541,7 +541,7 @@ public:
     PredBlocks.clear();
   }
   // 复制mylist
-  BasicBlock *BasicBlock::clone(std::unordered_map<Operand, Operand> &mapping) override
+  BasicBlock *clone(std::unordered_map<Operand, Operand> &mapping) override
   {
     if (mapping.find(this) != mapping.end())
       return dynamic_cast<BasicBlock *>(mapping[this]);
@@ -620,6 +620,10 @@ public:
       }
     }
   }
+
+  // 暂未实现，只有声明
+  Operand BasicBlock::GenerateBinaryInst(BasicBlock *bb, Operand _A,
+                                         BinaryInst::Operation op, Operand _B);
 };
 
 // 既提供了vector线性管理BasicBlock，又实现了双向链表

@@ -8,7 +8,6 @@
 #include <cassert>
 #include <string>
 
-/// @brief same layer with same name is illegal
 class SymbolTable
 {
 private:
