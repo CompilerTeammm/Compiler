@@ -1,18 +1,22 @@
 #include "../../lib/CoreClass.hpp"
 #include "Passbase.hpp"
 
-class PromoteMem2Reg:public _PassManagerBase<PromoteMem2Reg>
+class PromoteMem2Reg
 {
 public:
   // 遍历基本块中的指令，将指令进行一个消除 alloca/ store / load指令
-  void promoteMemoryToRegister();
-  bool isAllocaPromotable(AllocaInst *AI)
-  {
-    return true;
-  }
-  void reNameValue();
+    void promoteMemoryToRegister();
+    bool isAllocaPromotable(AllocaInst *AI)
+    {
+      return true;
+    }
+    void reNameValue();
+    bool promoteMemoryToRegister(Function *func);
 
-  void run();
+    void run();
+
+private:
+    std::vector<AllocaInst*> Allocas;
 };
 
 // mem2reg pass 对应类是 PromoteLegacyPass  是一个FunctionPass  调用 函数

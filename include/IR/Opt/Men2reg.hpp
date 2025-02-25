@@ -5,17 +5,12 @@
 #include "../../lib/CoreClass.hpp"
 #include "PassManager.hpp"
 
-static bool promoteMemoryToRegister(Function* func)
+// Mem2reg的实现需要大量的数据结构取供给
+class Mem2reg;
+class Mem2reg : public _PassBase<Mem2reg ,Function>
 {
-    std::vector<AllocaInst*> Allocas;
-
-    // 需要用到一个函数
-    isAllocaPromotable();
-}
-
-class Mem2reg : public _PassManagerBase<Mem2reg,Function>{
 public:
-    Mem2reg(Function* function,_AnalysisManager &AM) :_func(function),_AM(AM)
+    Mem2reg(Function* function, _AnalysisBase &AM) :_func(function),_AM(AM)
     {}
 
     bool RunOnFunction()
@@ -24,7 +19,7 @@ public:
     }
 private:
     Function *_func;
-    _AnalysisManager &_AM;
+    _AnalysisBase<,Function> &_AM;
 };
 
 

@@ -2,31 +2,18 @@
 #include "CoreClass.hpp"
 #include "CFG.hpp"
 #include "PassManager.hpp"
-
-// 这个类完全为一个抽象类，之后的PassManager继承这个
-// = 0,是纯虚函数 Pure Virtual Function ，强制子类必须实现这个函数
-// =defualt 是生成默认的构造函数
-// template<class Pass,class myType>
-// class _AnalysisManagerBase{
-// private:
-//     virtual void InitPass(Pass pass) = 0;
-// public:
-//     _AnalysisManagerBase() = default;
-// };
-
-// template<class Pass,class myType>
-// class _PassManagerBase{
-// private:
-//     virtual void InitPass(Pass pass) = 0;
-// public:
-//     virtual bool Run() = 0;
-//     _PassManagerBase() = default;
-//     // virtual ~_PassManagerBase() = default;
-// };
-
+// 参考了学长们的代码，我认为他们的设计其实并不合理，这里我给出我自己理解的设计
 // 设计为一个抽象类
-template<typename Pass>
-class _PassManagerBase
+
+template<typename MyPass,typename MyType>
+class _PassBase
 {
-    // 
+    
+};
+
+// 数据
+template<typename MyAnalysis,typename MyType>
+class _AnalysisBase
+{
+    
 };

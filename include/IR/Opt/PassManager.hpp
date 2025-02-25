@@ -5,53 +5,16 @@
 #include <memory>
 #include <type_traits>
 
-// using namespace std;
-// 用来管理Passes
-// class Function;
-// class Module;
-// template <> class _PassManagerBase<class Pass, class myType>;
-
-// enum PassName {
-//     mem2reg,
-
-// };
-
-// class _AnalysisManager:
-//     public _AnalysisManagerBase<_AnalysisManager,Function>
-// {
-   
-// };
-
-// class _PassManager:
-//     public _PassManagerBase<_PassManager,Function>
-// {
-//     bool Run();
-
-// public:
-//     // 检查条件为 true ： name的类型为void 模板正常实例化
-//     template<typename Pass, typename name = std::enable_if_t<std::is_base_of_v<_PassManagerBase<Pass,Module>,Pass>>>
-//     bool RunImpl(Module* mod,_AnalysisManager &AM){
-//         auto pass = std::make_unique<Pass>(mod,AM);
-//         return pass->Run();
-//     }
-
-//     template<typename Pass,typename name = std::enable_if_t<std::is_base_of_v<_PassManagerBase<Pass,Function>,Pass>>>
-//     bool RunImpl(Function* func,_AnalysisManager &AM)
-//     {
-//         auto pass = std::make_unique<Pass>(func,AM);
-//         return pass->Run();
-//     }
-// };
-
-
+// 我这里是参考了他们的用队列来储存我自己的优化Passes的名字，依次出队列进行遍历
 enum PassName
 {
-    Mem2reg ,
+    mem2reg ,
     pre,
-    Inline,
+    inline,
 };
 
-class PassManager:public _PassManagerBase<PassManager>
+// 仅仅是叫Manager 用来管理Passes
+class PassManager
 {   
 private:
     std::queue<PassName> Passque;
@@ -65,17 +28,18 @@ public:
         Passque.pop();
         return pass;
     }
-    PassManager() = default;
+    // 我这里从前端获取到内存形式的 M-SSA 
+    PassManager() { mod = &Singleton<Module>(); }
     void RunOnTest();
 
-    template<typename Pass>
-    bool RunImpl(Function *func)
+    // 这个我希望可以作为我设计的核心函数，MyPass 代表我的passes ， 而 MyType 我这里将 Function 和 Module泛型化了
+    template<typename MyPass,typename MyType>
+    bool RunImpl(MyType *func)
     {
-        auto pass = std::make_unique<Pass>(func);
+        auto pass = std::make_unique<MyPass>(func);
         return pass->run();
     }
 };
-
 
 void PassManager::RunOnTest()
 {
@@ -90,7 +54,7 @@ void PassManager::RunOnTest()
         }
             break;
         default:
-            for(int i = 0; i<module.GetFuncTion().size();i++)
+            for(int i = 0; i < mod->GetFuncTion().size(); i++)
             {
                 switch (name)
                 {
