@@ -46,8 +46,9 @@
 
 enum PassName
 {
-    Mem2reg,
+    Mem2reg ,
     pre,
+    Inline,
 };
 
 class PassManager:public _PassManagerBase<PassManager>
@@ -57,12 +58,52 @@ private:
     Function* func;
     Module* mod;
 public:
-    void addPass(PassName& pass) { Passque.emplace(pass); }
-    PassName& pushPass()
+    void addPass(PassName pass) { Passque.emplace(pass); }
+    PassName pushPass()
     {
-        PassName& pass = Passque.front();
+        PassName pass = Passque.front();
         Passque.pop();
         return pass;
     }
     PassManager() = default;
+    void RunOnTest();
+
+    template<typename Pass>
+    bool RunImpl(Function *func)
+    {
+        auto pass = std::make_unique<Pass>(func);
+        return pass->run();
+    }
 };
+
+
+void PassManager::RunOnTest()
+{
+    while(!Passque.empty())
+    {
+        auto name = Passque.front();
+        Passque.pop();
+        switch (name)
+        {
+        case Inline:{
+
+        }
+            break;
+        default:
+            for(int i = 0; i<module.GetFuncTion().size();i++)
+            {
+                switch (name)
+                {
+                case Mem2reg:
+                {
+
+                }
+                    break;
+                
+                default:
+                    break;
+                }
+            }
+        }
+    }
+}

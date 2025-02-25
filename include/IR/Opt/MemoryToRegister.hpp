@@ -1,6 +1,7 @@
 #include "../../lib/CoreClass.hpp"
+#include "Passbase.hpp"
 
-class PromoteMem2Reg
+class PromoteMem2Reg:public _PassManagerBase<PromoteMem2Reg>
 {
 public:
   // 遍历基本块中的指令，将指令进行一个消除 alloca/ store / load指令
