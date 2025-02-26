@@ -287,3 +287,42 @@ bool isBinaryBool(BinaryInst::Operation op)
     return false;
   }
 }
+
+class ZextInst : public Instruction
+{
+public:
+  ZextInst(Type *_tp) : Instruction(_tp, Op::Zext) {};
+  ZextInst(Operand ptr) : Instruction(IntType::NewIntTypeGet(), Op::Zext)
+  {
+    add_use(ptr);
+  }
+
+  ZextInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class SextInst : public Instruction
+{
+public:
+  SextInst(Type *_tp) : Instruction(_tp, Op::Sext) {};
+  SextInst(Operand ptr) : Instruction(Int64Type::NewInt64TypeGet(), Op::Sext)
+  {
+    add_use(ptr);
+  }
+
+  SextInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class TruncInst : public Instruction
+{
+public:
+  TruncInst(Type *_tp) : Instruction(_tp, Op::Trunc) {};
+  TruncInst(Operand ptr) : Instruction(IntType::NewIntTypeGet(), Op::Trunc)
+  {
+    add_use(ptr);
+  }
+
+  TruncInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
