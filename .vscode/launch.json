@@ -1,85 +1,58 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-      {
-        // 名字
-        "name": "C++ Launch",
-        // 使用 gdb 或 lldb 调试 c++ 程序 
-        "type": "cppdbg",
-        // 还有一种 attach，唯一一次用到是 qemu 调试 linux kernel
-        // 可能嵌入式用到的比较多？
-        "request": "launch",
-        // 对应 task 的 label 
-        // "preLaunchTask": "Build CMake Project",
-        // 需要调试的程序
-        "program": "${workspaceFolder}/test/a.out",
-        // working directory
-        "cwd": "${workspaceFolder}",
-        // 这个我记得好像是可选项...,，目标架构
-        "targetArchitecture": "x64",
-        // 启动程序时的参数
-        // "args": [
-        //   "-S",
-        //   "-o",
-        //   "${workspaceFolder}/test/test.s",
-        //   "${workspaceFolder}/test/test.sy"
-        // ], //, "--ece","--pre","--simplifycfg"
-        // true的话，开了会在 main 函数开始时停下来
-        "args": [
-          "${workspaceFolder}/test/test.txt",
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C++ Launch",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/test/a.out",
+      "cwd": "${workspaceFolder}",
+      "targetArchitecture": "x64",
+      "args": [
+        "${workspaceFolder}/test/test.txt"
       ],
-        "stopAtEntry": true,
-        // 给 gdb 或 lldb 的参数
-        "setupCommands": [
-          {
-            "description": "为 gdb 启用整齐打印",
-            "text": "-enable-pretty-printing",
-            "ignoreFailures": true
-          }
-        ],
-        // "environment": [
-        //   {
-        //     "name": "LSAN_OPTIONS",
-        //     "value": "verbosity=1:log_threads=1"
-        //   }
-        // ],
-        "linux": {
-          "MIMode": "gdb",
-          "miDebuggerPath": "/usr/bin/gdb"
+      "stopAtEntry": true,
+      "setupCommands": [
+        {
+          "description": "为 gdb 启用整齐打印",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
         }
-      },
-      {
-        "name": "C++ Launch(MacOS)",
-        "type": "cppdbg",
-        "request": "launch",
-        "preLaunchTask": "CMake: build",
-        "program": "${workspaceFolder}/build/SYSY-compiler",
-        "cwd": "${workspaceFolder}",
-        "targetArchitecture": "x64",
-        // "args": [
-        //   "${workspaceFolder}/function_test/test.c",
-        //   "--mem2reg",
-        //   "--pre"
-        // ],
-        "stopAtEntry": false,
-        // "setupCommands": [
-        //   {
-        //       "description": "为 lldb 启用整齐打印",
-        //       "text": "-enable-pretty-printing",
-        //       "ignoreFailures": true
-        //   }
-        // ],
-        // "environment": [
-        //   {
-        //     "name": "LSAN_OPTIONS",
-        //     "value": "verbosity=1:log_threads=1"
-        //   }
-        // ],
-        "MIMode": "lldb",
-        // "miDebuggerPath": "/usr/bin/lldb"
+      ],
+      "linux": {
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb"
       }
-    ]
-  }
+    },
+    {
+      "name": "C++ Launch(MacOS)",
+      "type": "cppdbg",
+      "request": "launch",
+      "preLaunchTask": "CMake: build",
+      "program": "${workspaceFolder}/build/SYSY-compiler",
+      "cwd": "${workspaceFolder}",
+      "targetArchitecture": "x64",
+      "stopAtEntry": false,
+      "MIMode": "lldb"
+    },
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": [],
+      "stopAtEntry": false,
+      "externalConsole": true,
+      "cwd": "c:/Users/30478/vscode daima/Compiler",
+      "program": "c:/Users/30478/vscode daima/Compiler/build/Debug/outDebug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}
