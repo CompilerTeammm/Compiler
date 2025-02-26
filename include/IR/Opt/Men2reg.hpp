@@ -3,6 +3,7 @@
 #include <vector>
 #include "./Passbase.hpp"
 #include "../../lib/CoreClass.hpp"
+#include "../../lib/CFG.hpp"
 #include "PassManager.hpp"
 
 // 数据的分析如何与Men2reg进行对接，我不了解
@@ -14,19 +15,27 @@ class Mem2reg;
 class Mem2reg : public _PassBase<Mem2reg ,Function>,public PromoteMem2Reg
 {
 using BBPtr = std::unique_ptr<BasicBlock>;
+using InstPtr = std::unique_ptr<Instruction>;
 public:
     Mem2reg(Function* function, DominantTree* tree) :_func(function), _tree(tree)
     {
         std::vector<BBPtr> BasicBlocks = _func->GetBBs();
         for(int i = 0; i < BasicBlocks.size(); i++)
         {
-            auto instructions = BasicBlocks[i]->instructions;
-            for(int i = 0; i <instructions.size();i++)
+            // static_cast 派生类强转为基类
+            // auto insts = BasicBlocks[i]->GetInsts();
+            std::vector<InstPtr> insts = BasicBlocks[i] ->GetInsts();
+            for(int i = 0; i <insts.size();i++)
             {
-                // 判断是不是 allocas
-                if(instructions[i])
+                auto& inst_ptr = insts[i];
+                Instruction* raw_ptr = inst_ptr.get();
+                AllocaInst* allca = dynamic_cast<AllocaInst*> (raw_ptr);
+                if(allca)
                 {
-                    Allocas.pop_back(static_cast<AllocaInst>(instructions[i]));
+                    if(isAllocaPromotable(allca))
+                    {
+                        Allocas.push_back(allca);
+                    }
                 }
             }
         }
@@ -41,13 +50,7 @@ private:
 
 void Mem2reg::run()
 {
-    for(auto AI : Allocas)
-    {
-        if(isAllocaPromotable(AI))
-        {
-            
-        }
-    }
+    
 }
 
 
