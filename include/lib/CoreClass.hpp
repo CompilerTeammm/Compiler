@@ -245,7 +245,7 @@ public:
   virtual ~User() = default;
 
   // 将User的指针转换为 Value *
-  Value *GetDef() { return dynamic_cast<Value *>(this); }
+  virtual Value *GetDef() { return dynamic_cast<Value *>(this); }
   // 获取Use的序号
   int GetUseIndex(Use *_use)
   {
@@ -361,6 +361,7 @@ public:
 
   Instruction();
   Instruction(Type *_type, Op _Op) : User(_type), id(_Op) {}
+  // Instruction(Type *_type) : User(_type) {}
 
   Op GetInstId() const { return id; }
 
@@ -501,9 +502,9 @@ public:
 };
 
 // 示例子类指令，继承自Instruction,放到CFG实现
-class AllocaInst : public Instruction
-{
-}; //...
+// class AllocaInst : public Instruction
+// {
+// }; //...
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构
 // 块内是是实现给vector的，双向链表直接继承mylist的，有操作在MyList文件里写
@@ -622,8 +623,8 @@ public:
   }
 
   // 暂未实现，只有声明
-  Operand BasicBlock::GenerateBinaryInst(BasicBlock *bb, Operand _A,
-                                         BinaryInst::Operation op, Operand _B);
+  Operand GenerateBinaryInst(BasicBlock *_BB, Operand _A,
+                             BinaryInst::Operation _op, Operand _B);
 };
 
 // 既提供了vector线性管理BasicBlock，又实现了双向链表

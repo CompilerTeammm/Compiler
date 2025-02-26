@@ -1,45 +1,9 @@
 #include "CoreClass.hpp"
 #include "Type.hpp"
+// #include <cassert>
+#include <sstream>
 
 // 这边的类都还暂未实现，先放，占位
-class BinaryInst : public Instruction
-{
-public:
-  enum Operation
-  {
-    Op_Add,
-    Op_Sub,
-    Op_Mul,
-    Op_Div,
-    Op_Mod,
-    Op_And,
-    Op_Or,
-    Op_Xor,
-    // cmp
-    Op_E,
-    Op_NE,
-    Op_GE,
-    Op_L,
-    Op_LE,
-    Op_G
-  };
-
-private:
-  Operation op;
-  bool Atomic = false;
-
-public:
-  BinaryInst(Type *_tp) : Instruction(_tp, Op::BinaryUnknown) {};
-  BinaryInst(Operand _A, Operation __op, Operand _B, bool Atom = false);
-  BinaryInst *clone(std::unordered_map<Operand, Operand> &) override;
-  bool IsCmpInst() { return (op - Op_Add) > 7; }
-  void print() final;
-  void SetOperand(int index, Value *val);
-  std::string GetOperation();
-  Operation getopration();
-  void setoperation(Operation _op) { op = _op; }
-  static BinaryInst *CreateInst(Operand _A, Operation __op, Operand _B, User *place = nullptr);
-};
 
 // 所有常量数据的基类
 class ConstantData : public Value
@@ -78,7 +42,14 @@ public:
 class ConstIRBoolean : public ConstantData
 {
   bool val;
-  ConstIRBoolean(bool);
+  ConstIRBoolean(bool _val)
+      : ConstantData(BoolType::NewBoolTypeGet()), val(_val)
+  {
+    if (val)
+      name = "true";
+    else
+      name = "false";
+  };
 
 public:
   static ConstIRBoolean *GetNewConstant(bool _val = false)
@@ -96,7 +67,11 @@ public:
 class ConstIRInt : public ConstantData
 {
   int val;
-  ConstIRInt(int);
+  ConstIRInt(int _val)
+      : ConstantData(IntType::NewIntTypeGet()), val(_val)
+  {
+    name = std::to_string(val);
+  };
 
 public:
   static ConstIRInt *GetNewConstant(int _val = 0)
@@ -112,18 +87,203 @@ public:
 class ConstIRFloat : public ConstantData
 {
   float val;
-  ConstIRFloat(float);
+  ConstIRFloat(float _val)
+      : ConstantData(FloatType::NewFloatTypeGet()), val(_val)
+  {
+    // double更精确处理浮点数二进制
+    double tmp = val;
+    std::stringstream hexStream;
+    // 十六进制
+    hexStream << "0x" << std::hex << *(reinterpret_cast<long long *>(&tmp));
+    name = hexStream.str();
+  };
 
 public:
-  static ConstIRFloat *GetNewConstant(float = 0);
-  float GetVal();
+  static ConstIRFloat *GetNewConstant(float _val = 0)
+  {
+    static std::map<float, ConstIRFloat *> float_const_map;
+    if (float_const_map.find(_val) == float_const_map.end())
+      float_const_map[_val] = new ConstIRFloat(_val);
+    return float_const_map[_val];
+  }
+  float GetVal() { return val; }
   double GetValAsDouble() const { return static_cast<double>(val); }
 };
 
 class ConstPtr : public ConstantData
 {
-  ConstPtr(Type *);
+  ConstPtr(Type *_tp) : ConstantData(_tp) {}
 
 public:
-  static ConstPtr *GetNewConstant(Type *);
+  static ConstPtr *GetNewConstant(Type *_tp)
+  {
+    static ConstPtr *const_ptr = new ConstPtr(_tp);
+    return const_ptr;
+  }
 };
+
+// 所有Inst
+// 通用的clone,print方法暂时都还没有写
+class LoadInst : public Instruction
+{
+public:
+  LoadInst(Type *_tp) : Instruction(_tp, Op::Load) {};
+  // 处理指针载入
+  LoadInst(Operand _src) : Instruction(dynamic_cast<PointerType *>(_src->GetType())->GetSubType(), Op::Load)
+  {
+    assert(GetTypeEnum() == IR_Value_INT || GetTypeEnum() == IR_Value_Float ||
+           GetTypeEnum() == IR_PTR);
+    add_use(_src);
+  }
+  LoadInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
+  void print() final;
+};
+
+class StoreInst : public Instruction
+{
+public:
+  bool isUsed = false;
+  StoreInst(Type *_tp) : Instruction(_tp, Op::Store) {};
+  StoreInst(Operand _A, Operand _B)
+  {
+    add_use(_A);
+    add_use(_B);
+    name = "StoreInst";
+    id = Op::Store;
+  }
+  Operand GetDef() final { return nullptr; }
+
+  StoreInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
+  void print() final;
+};
+
+class AllocaInst : public Instruction
+{
+public:
+  bool isUsed()
+  {
+    auto &ValUseList = GetValUseList();
+    if (ValUseList.is_empty())
+      return false;
+    return true;
+  }
+  bool AllZero = false;
+  bool HasStored = false;
+  AllocaInst(Type *_tp) : Instruction(_tp, Op::Alloca) {};
+  // AllocaInst(std::string str, Type *_tp){}
+
+  AllocaInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class CallInst : public Instruction
+{
+public:
+  CallInst(Type *_tp) : Instruction(_tp, Op::Call) {};
+  CallInst(Value *_func, std::vector<Operand> &_args, std::string label = "")
+      : Instruction(_func->GetType(), Op::Call)
+  {
+    name += label;
+    add_use(_func);
+    for (auto &n : _args)
+      add_use(n);
+  }
+
+  CallInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class RetInst : public Instruction
+{
+public:
+  RetInst() { id = Op::Ret; }
+  RetInst(Type *_tp) : Instruction(_tp, Op::Ret) {};
+  RetInst(Operand op)
+  {
+    add_use(op);
+    id = Op::Ret;
+  }
+  Operand GetDef() final { return nullptr; }
+
+  RetInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class CondInst : public Instruction
+{
+public:
+  CondInst(Type *_tp) : Instruction(_tp, Op::Cond) {};
+  CondInst(Operand _cond, BasicBlock *_true, BasicBlock *_false)
+  {
+    add_use(_cond);
+    add_use(_true);
+    add_use(_false);
+    id = Op::Cond;
+  }
+  Operand GetDef() final { return nullptr; }
+
+  CondInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class UnCondInst : public Instruction
+{
+public:
+  UnCondInst(Type *_tp) : Instruction(_tp, Op::UnCond) {};
+  UnCondInst(BasicBlock *_BB)
+  {
+    add_use(_BB);
+    id = Op::UnCond;
+  }
+  Operand GetDef() final { return nullptr; }
+
+  UnCondInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class BinaryInst : public Instruction
+{
+public:
+  enum Operation
+  {
+    Op_Add,
+    Op_Sub,
+    Op_Mul,
+    Op_Div,
+    Op_Mod,
+    Op_And,
+    Op_Or,
+    Op_Xor,
+    // cmp
+    Op_E,
+    Op_NE,
+    Op_GE,
+    Op_L,
+    Op_LE,
+    Op_G
+  };
+
+private:
+  Operation op;
+  bool Atomic = false;
+
+public:
+  BinaryInst(Type *_tp) : Instruction(_tp, Op::BinaryUnknown) {};
+  BinaryInst(Operand _A, Operation _op, Operand _B, bool Atom = false);
+};
+
+bool isBinaryBool(BinaryInst::Operation op)
+{
+  switch (op)
+  {
+  case BinaryInst::Op_E:
+  case BinaryInst::Op_NE:
+  case BinaryInst::Op_G:
+  case BinaryInst::Op_GE:
+  case BinaryInst::Op_L:
+  case BinaryInst::Op_LE:
+    return true;
+  default:
+    return false;
+  }
+}

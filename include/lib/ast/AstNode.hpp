@@ -243,6 +243,6 @@ public:
 };
 
 using UnaryExp = BaseExp<HasOperand>; // 基本
-using MulExp = BaseExp<UnaryExp>;     // 乘除
 using AddExp = BaseExp<MulExp>;       // 加减
+using MulExp = BaseExp<UnaryExp>;     // 乘除
 using RelExp = BaseExp<AddExp>;       // 逻辑
