@@ -8,9 +8,9 @@
 class Mem2Reg;
 int main()
 {
-   Function* func;
+   auto func = Get();
    auto passManager = std::make_unique<PassManager> ();
-   passManager->addPass(Mem2reg);
-   passManager->RunImpl<PromoteMem2Reg>(func);
+   passManager->addPass(mem2reg);
+   passManager->RunImpl<Mem2Reg,Function>(func);
    
 }

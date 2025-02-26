@@ -8,12 +8,12 @@ public:
     void promoteMemoryToRegister();
     bool isAllocaPromotable(AllocaInst *AI)
     {
-      return true;
+      if(1)
+        return false;
     }
     void reNameValue();
     bool promoteMemoryToRegister(Function *func);
 
-    void run();
 
 private:
     std::vector<AllocaInst*> Allocas;

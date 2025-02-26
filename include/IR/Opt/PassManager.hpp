@@ -10,7 +10,7 @@ enum PassName
 {
     mem2reg ,
     pre,
-    inline,
+    hello,  // 瞎写的
 };
 
 // 仅仅是叫Manager 用来管理Passes
@@ -34,33 +34,36 @@ public:
 
     // 这个我希望可以作为我设计的核心函数，MyPass 代表我的passes ， 而 MyType 我这里将 Function 和 Module泛型化了
     template<typename MyPass,typename MyType>
-    bool RunImpl(MyType *func)
+    bool RunImpl(MyType *mytype)
     {
-        auto pass = std::make_unique<MyPass>(func);
+        auto pass = std::make_unique<MyPass>(std::make_unique(mytype));
         return pass->run();
     }
 };
 
+// 遍历可以执行的优化
 void PassManager::RunOnTest()
 {
     while(!Passque.empty())
-    {
+    {   //针对于module 的优化
         auto name = Passque.front();
         Passque.pop();
         switch (name)
         {
-        case Inline:{
+        case hello:{
 
         }
             break;
         default:
+            // 测试的阶段 针对于 Function 的优化
             for(int i = 0; i < mod->GetFuncTion().size(); i++)
             {
                 switch (name)
                 {
-                case Mem2reg:
+                case mem2reg:
                 {
-
+                    auto func = mod->GetFuncTion();
+                    RunImpl<Mem2reg,Function*>(func);
                 }
                     break;
                 

@@ -9,7 +9,7 @@
 // 4. 正序遍历一遍得到正确的 idom
 // 详情见论文
 
-class Lengauer_Tarjan
+class DominantTree
 {
 
 };
