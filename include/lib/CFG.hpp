@@ -326,3 +326,92 @@ public:
   TruncInst *clone(std::unordered_map<Operand, Operand> &) override;
   void print() final;
 };
+
+class MaxInst : public Instruction
+{
+public:
+  MaxInst(Type *_tp) : Instruction(_tp, Op::Max) {};
+  MaxInst(Operand _A, Operand _B)
+  {
+    add_use(_A);
+    add_use(_B);
+    id = Op::Max;
+  }
+
+  MaxInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class MinInst : public Instruction
+{
+public:
+  MinInst(Type *_tp) : Instruction(_tp, Op::Min) {};
+  MinInst(Operand _A, Operand _B)
+  {
+    add_use(_A);
+    add_use(_B);
+    id = Op::Min;
+  }
+
+  MinInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class SelectInst : public Instruction
+{
+public:
+  SelectInst(Type *_tp) : Instruction{_tp, Op::Select} {}
+  SelectInst(Operand _cond, Operand _true, Operand _false)
+      : Instruction(_true->GetType(), Op::Select)
+  {
+    add_use(_cond);
+    add_use(_true);
+    add_use(_false);
+  }
+
+  SelectInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+// 前端给框架？中端写自己要用的？
+class PhiInst : public Instruction
+{
+  int oprandNum;
+  PhiInst(Type *_tp) : oprandNum(0), Instruction(_tp, Op::Phi) {}
+  PhiInst(Instruction *BeforeInst, Type *_tp) : oprandNum(0), Instruction(_tp, Op::Phi) {}
+  PhiInst(Instruction *BeforeInst) : oprandNum(0) { id = Op::Phi; }
+
+  PhiInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
+
+class GepInst : public Instruction
+{
+public:
+  GepInst(Type *_tp) : Instruction(_tp, Op::Gep) {}
+  GepInst(Operand base)
+  {
+    add_use(base);
+    id = Op::Gep;
+  }
+  // 有arg
+  GepInst(Operand base, std::vector<Operand> &args)
+  {
+    add_use(base);
+    for (auto &&i : args)
+      add_use(i);
+    id = Op::Gep;
+  }
+  void AddArg(Value *arg) { add_use(arg); }
+  Type *GetType(); // 暂未实现
+  std::vector<Operand> GetIndexs()
+  {
+    std::vector<Operand> indexs;
+    for (int i = 1; i < useruselist.size(); i++)
+      indexs.push_back(useruselist[i]->GetValue());
+    return indexs;
+  }
+
+  GepInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final;
+};
