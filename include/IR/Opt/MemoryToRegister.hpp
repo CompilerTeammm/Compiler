@@ -1,23 +1,32 @@
 #include "../../lib/CoreClass.hpp"
+#include "../../lib/CFG.hpp"
+#include "../Analysis/Dominant.hpp"
 #include "Passbase.hpp"
+#pragma once
+
+class AllocaInfo 
+{
+
+};
+
+class BlockInfo 
+{
+
+};
 
 class PromoteMem2Reg
 {
 public:
   // 遍历基本块中的指令，将指令进行一个消除 alloca/ store / load指令
-    void promoteMemoryToRegister();
-    bool isAllocaPromotable(AllocaInst *AI)
-    {
-      if(1)
-        return false;
-    }
-    void reNameValue();
-    bool promoteMemoryToRegister(Function *func);
+    bool isAllocaPromotable(AllocaInst* AI);
 
-
+    void reName();
+    static bool promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas);
 private:
-    std::vector<AllocaInst*> Allocas;
+    // ValUseList& listPtr;
 };
+
+
 
 // mem2reg pass 对应类是 PromoteLegacyPass  是一个FunctionPass  调用 函数
 //  promoteMemoryToRegister  收集 Promotable 的 AllocaInst 然后调用函数 PromoteMemToReg

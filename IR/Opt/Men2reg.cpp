@@ -1,16 +1,27 @@
+#pragma once
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
 #include "../../include/IR/Opt/Men2reg.hpp"
 
-void PromoteMem2Reg::run()
+static bool promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas)
 {
     
 }
 
-bool PromoteMem2Reg::promoteMemoryToRegister(Function* func)
+void Mem2reg::run()
 {
-    // 需要用到一个函数
-    for(auto& e :Allocas)
+    if(Allocas.empty())
     {
-        isAllocaPromotable(e);
+        std::cout << "Allocas is empty" << std::endl;
+        return;
     }
+    // 通过构造临时对象去执行优化
+    bool value =PromoteMem2Reg::promoteMemoryToRegister(_tree,_func,Allocas);
+    if(!value)
+        std::cout << "promoteMemoryToRegister failed "<<std::endl; 
+}
+
+bool PromoteMem2Reg::isAllocaPromotable(AllocaInst* AI)
+{
+    ValUseList& listPtr = AI->GetValUseList();
+    for(Use* use: AI->GetUserUseList())
 }
