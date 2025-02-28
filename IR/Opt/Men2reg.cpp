@@ -20,8 +20,31 @@ void Mem2reg::run()
         std::cout << "promoteMemoryToRegister failed "<<std::endl; 
 }
 
+// could be Promoteable? 
 bool PromoteMem2Reg::isAllocaPromotable(AllocaInst* AI)
 {
-    ValUseList& listPtr = AI->GetValUseList();
-    for(Use* use: AI->GetUserUseList())
+    // ValUseList& listPtr = AI->GetValUseList();
+    // Use* use --->  ValUseList 
+    for(Use* use : AI->GetValUseList())
+    {
+        User* user = use->GetUser();
+        // dynamic_cast 用于多态类型的 向下转型， 将基类指针转换为派生类指针
+        // 如果user 实际指向的是 LoadInst 对象或其派生类对象，转换成功，返回有效指针
+        if(LoadInst* LInst = dynamic_cast<LoadInst*>(user))
+        {
+            assert(LInst && "Linst is nullptr and the turning is failed");
+        }
+        else if(StoreInst *SInst = dynamic_cast<StoreInst*>(user))
+        {
+            if(SInst->GetUserUseList()[0]->GetValue() == AI)
+            {
+                return false;
+            }
+        }
+        else if()
+        {
+            return false;
+        }
+    }
+    return true;
 }

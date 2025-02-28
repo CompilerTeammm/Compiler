@@ -25,74 +25,6 @@ using Operand = Value *;
 
 // 所有都设为public:,后期再来改
 
-class Value
-{
-public:
-  ValUseList valuselist;
-  std::string name;
-  Type *type;
-  int version;
-  virtual bool isGlobal() { return false; }
-  virtual bool isConst() { return false; }
-
-  // 构造至少需要类型，可以不要value
-  Value() = delete;
-  Value(Type *_type) : type(_type), version(0)
-  {
-    name = "t";
-    // name += std::to_string(Singleton<Module>().IR_number("."));
-    //  结果：t1,t2,t3
-    //  单例
-  }
-  Value(Type *_type, const std::string &_name) : type(_type), name(_name), version(0) {}
-  Value::~Value()
-  {
-    while (!valuselist.is_empty())
-      delete valuselist.front()->user;
-  }
-
-  // 基本操作：获取&设置各种值
-  virtual Type *GetType() const { return type; };
-  IR_DataType GetTypeEnum() const { return GetType()->GetTypeEnum(); }
-  const std::string &GetName() const { return name; }
-  void SetName(const std::string &_name) { this->name = _name; }
-  void SetType(Type *_type) { type = _type; }
-  ValUseList &GetValUseList() { return valuselist; };
-  int GetValUseListSize() { return valuselist.GetSize(); }
-  void SetVersion(int new_version) { version = new_version; }
-  int GetVersion() const { return version; }
-
-  // 克隆，以Value*形式返回
-  virtual Value *clone(std::unordered_map<Value *, Value *> &mapping)
-  {
-    if (isGlobal())
-      return this;
-    if (mapping.find(this) != mapping.end())
-      return mapping[this];
-    Value *newval = new Value(this->GetType());
-    mapping[this] = newval;
-    return newval;
-  }
-
-  void print()
-  {
-    if (isConst())
-      std::cout << GetName();
-    else if (isGlobal())
-      std::cout << "@" << GetName();
-    else if (auto temp = dynamic_cast<Function *>(this))
-      std::cout << "@" << temp->GetName();
-    // else if (auto temp = dynamic_cast<BuildInFunction *>(this))
-    //   std::cout << "@" << temp->GetName();
-    else if (GetName() == "undef")
-      std::cout << GetName();
-    else
-      std::cout << "%" << GetName();
-  }
-
-  void add_use(Use *_use) { valuselist.push_front(_use); }
-};
-
 class Use
 {
 public:
@@ -108,10 +40,7 @@ public:
   // 禁止无参构造
   Use() = delete;
   // 构造赋值
-  Use(User *_user, Value *_usee) : user(_user), usee(_usee)
-  {
-    usee->add_use(this);
-  }
+  Use(User *_user, Value *_usee);
   // 析构删除
   ~Use()
   {
@@ -126,25 +55,12 @@ public:
   User *GetUser() { return user; }
 
   // 定义具体的删除操作
-  void RemoveFromValUseList(User *_user)
-  {
-    assert(_user == user); // 必须是User
-    usee->GetValUseList().GetSize()--;
-    if (*prev != nullptr)
-      *prev = next;
-    if (next != nullptr)
-      next->prev = prev;
-    if (usee->GetValUseList().GetSize() == 0 && next != nullptr)
-      assert(0);
-    user = nullptr;
-    usee = nullptr;
-    prev = nullptr;
-    next = nullptr;
-  }
+  void RemoveFromValUseList(User *_user);
 };
 
 // 如果仅定义一个Value中的Use* UseList，不方便管理，长度等等
 // 包含迭代器类，用于遍历管理的Use
+// dh: is UesrList, value finds ----> User 
 class ValUseList
 {
 public:
@@ -232,6 +148,77 @@ public:
     size = 0;
   }
 };
+
+
+class Value
+{
+public:
+  // (Value) this is the key to find Users 
+  ValUseList valuselist;
+  std::string name;
+  Type *type;
+  int version;
+  virtual bool isGlobal() { return false; }
+  virtual bool isConst() { return false; }
+
+  // 构造至少需要类型，可以不要value
+  Value() = delete;
+  Value(Type *_type) : type(_type), version(0)
+  {
+    name = "t";
+    // name += std::to_string(Singleton<Module>().IR_number("."));
+    //  结果：t1,t2,t3
+    //  单例
+  }
+  Value(Type *_type, const std::string &_name) : type(_type), name(_name), version(0) {}
+  Value::~Value()
+  {
+    while (!valuselist.is_empty())
+      delete valuselist.front()->user;
+  }
+
+  // 基本操作：获取&设置各种值
+  virtual Type *GetType() const { return type; };
+  IR_DataType GetTypeEnum() const { return GetType()->GetTypeEnum(); }
+  const std::string &GetName() const { return name; }
+  void SetName(const std::string &_name) { this->name = _name; }
+  void SetType(Type *_type) { type = _type; }
+  ValUseList &GetValUseList() { return valuselist; };
+  int GetValUseListSize() { return valuselist.GetSize(); }
+  void SetVersion(int new_version) { version = new_version; }
+  int GetVersion() const { return version; }
+
+  // 克隆，以Value*形式返回
+  virtual Value *clone(std::unordered_map<Value *, Value *> &mapping)
+  {
+    if (isGlobal())
+      return this;
+    if (mapping.find(this) != mapping.end())
+      return mapping[this];
+    Value *newval = new Value(this->GetType());
+    mapping[this] = newval;
+    return newval;
+  }
+
+  void print()
+  {
+    if (isConst())
+      std::cout << GetName();
+    else if (isGlobal())
+      std::cout << "@" << GetName();
+    else if (auto temp = dynamic_cast<Function *>(this))
+      std::cout << "@" << temp->GetName();
+    // else if (auto temp = dynamic_cast<BuildInFunction *>(this))
+    //   std::cout << "@" << temp->GetName();
+    else if (GetName() == "undef")
+      std::cout << GetName();
+    else
+      std::cout << "%" << GetName();
+  }
+
+  void add_use(Use *_use) { valuselist.push_front(_use); }
+};
+
 
 class User : public Value
 {
