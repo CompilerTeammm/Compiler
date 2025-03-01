@@ -186,7 +186,7 @@ public:
   size_t GetUserUseListSize() const;
 };
 
-class Instruction : public User
+class Instruction : public User,public Node<BasicBlock,Instruction>
 {
 public:
   enum Op

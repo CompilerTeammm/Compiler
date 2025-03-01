@@ -307,7 +307,7 @@ bool Instruction::operator==(Instruction &other)
   return id == other.id && GetUserUseList().size() == other.GetUserUseList().size();
 }
 
-Value *Instruction::GetOperand(size_t idx)
+inline Operand Instruction::GetOperand(size_t idx)
 {
   assert(idx < GetUserUseList().size() && "Operand index out of range!");
   return GetUserUseList()[idx]->GetValue();
