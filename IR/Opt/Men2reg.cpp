@@ -2,6 +2,52 @@
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
 #include "../../include/IR/Opt/Men2reg.hpp"
 
+// %op0 = alloca i32       开辟空间
+// %op1 = add i32 1,2
+// store i32 %op1, i32* %op0   定义，defB 
+// %op2 = load i32, i32* %op0     使用 usingB
+void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
+{
+    // 确定 该条 alloca 的使用情况 value->Use ->User
+    for(Use*use : AI->GetValUseList())
+    {
+        User* user = use->GetUser();
+        BasicBlock* tmpBB;
+        // 到这里的指令仅仅是store 和 load 这两种，其他的不可能
+        if(StoreInst* SInst = dynamic_cast<StoreInst*>(user))
+        {
+            // 储存bbs instrution -> bbs
+            // BasicBlock* parent = nullptr; //临时测试用的
+            tmpBB = SInst->GetParent();
+            DefBlocks.push_back(tmpBB);
+            // BasicBlocknums++;  说实话，这个鸡肋了，因为 defBlocks就可以求出里面的个数
+            OnlyStoreInst =SInst;
+        }
+        else{
+            LoadInst* LInst = dynamic_cast<LoadInst*>(user);
+            tmpBB = LInst->GetParent();
+            // BasicBlock* parent = nullptr; //临时测试用的
+            UsingBlocks.push_back(tmpBB);
+        }
+
+        if(OnlyInSingleBlockRW)
+        {
+            if(!OnlyOneBk)
+                OnlyOneBk = tmpBB;
+            else if(OnlyOneBk != tmpBB)   // 这个是精华  判断这个load 和 store 是否都再一个基本块中
+                OnlyInSingleBlockRW = false;
+            else 
+                continue;
+        }
+    }
+    // 到这里任然存在问题，有待去解决
+    // if(BasicBlocknums <= 1)
+    // {
+    //     OnlyInSingleBlockRW = true;
+    // }
+}
+
+
 void PromoteMem2Reg::RemoveFromAList(unsigned& AllocaNum)
 {
     Allocas[AllocaNum] = Allocas.back();
@@ -9,24 +55,88 @@ void PromoteMem2Reg::RemoveFromAList(unsigned& AllocaNum)
     AllocaNum--;
 }
 
-void PromoteMem2Reg::rewriteSingleStoreAlloca(unsigned& AllocaNum)
+bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  BlockInfo& BBInfo)
 {
+    StoreInst* OnlySInst = info.OnlyStoreInst;
+    bool GlobalVal = false;
 
+    Value *value = OnlySInst->GetOperand(0);
+    User * user = dynamic_cast<User*> (value);  // 如果是const的变量会转换失败的
+
+    if(user == nullptr)
+        GlobalVal = true;
+    BasicBlock* storeBB = OnlySInst->GetParent();
+
+    info.UsingBlocks.clear();
+    
+
+}
+
+
+void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst* AI)
+{
+    for(auto UI = AI->GetValUseList().begin(),UE = AI->GetValUseList().end(); UI!=UE;)
+    {
+        Instruction* inst = dynamic_cast<Instruction*> ((*UI)->GetUser());
+        ++UI;
+        if(dynamic_cast<LoadInst*> (inst) || dynamic_cast<StoreInst*>(inst))
+            continue;
+
+        if ((inst->GetType())->GetTypeEnum() != IR_Value_VOID)
+        {
+            for (auto UUI = inst->GetValUseList().begin(), UUE = inst->GetValUseList().end(); UUI != UUE;)
+            {
+                Instruction *AInst = dynamic_cast<Instruction*>((*UUI)->GetUser());
+                ++UUI;
+                delete AInst;
+                // AInst->
+            }
+        }
+        delete inst;
+        // I->eraseFromParent();
+    }
 }
 
 bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas)
 {
+    AllocaInfo Info;
+    BlockInfo BkInfo;
     // 移除没有users 的 alloca指令
     for(unsigned AllocaNum = 0; AllocaNum != Allocas.size(); ++AllocaNum){
         AllocaInst* AI = Allocas[AllocaNum];
+        // ？？？
+        // removeLifetimeIntrinsicUsers(AI);
+
+         // 移除没有users 的 alloca指令
         if(!AI->isUsed()){
             delete AI;
             RemoveFromAList(AllocaNum);
             // continue; // 可有可无
         }
+        // 到接下来为止，我需要记录一些信息
+        //例如：记录alloca的定义个数  在不在同一个基本块 支配的信息
 
-        auto it = Allocas[AllocaNum]->GetValUseList();
+        Info.AnalyzeAlloca(AI);
+        // 开始分析
+        if(Info.DefBlocks.size() == 1) // 仅仅只有一个定义的基本块
+        {
+            if(rewriteSingleStoreAlloca(Info,AI,BkInfo)) 
+            {
+                RemoveFromAList(AllocaNum);
+                //continue; 这里我确实不理解
+            }
+        }
+
+        if(Info.OnlyInSingleBlockRW)
+        {
+            RemoveFromAList(AllocaNum);
+        }
+
+        // 
     }
+
+    // Rename 
+
 
     return true;
 }

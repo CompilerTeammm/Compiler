@@ -4,12 +4,29 @@
 #include "Passbase.hpp"
 #pragma once
 
-// 
+// 寻找定义和使用 alloc 的基本块
 class AllocaInfo 
 {
+public:
+    std::vector<BasicBlock*> DefBlocks;
+    std::vector<BasicBlock*> UsingBlocks;
+    
+    BasicBlock * OnlyOneBk; // 记录alloca 的def 和 users的唯一的一个基本块
+    StoreInst* OnlyStoreInst;   // store 语句实际上是对alloca 的def ,判断cfg中的store语句
+    bool OnlyInSingleBlockRW;  // alloca 的读写操作判断是不是均在一个基本块中完成的
+    size_t  BasicBlocknums; // 记录一下storeinst 的数目
+
+    void AnalyzeAlloca(AllocaInst* AI);
+
+    AllocaInfo()
+      :OnlyOneBk(nullptr), OnlyStoreInst(nullptr),OnlyInSingleBlockRW(true),BasicBlocknums(0)
+    {  
+      DefBlocks.clear(),UsingBlocks.clear();
+    }
 
 };
 
+// BlockInfo 用于记录和获取同一基本块中出现的 load 和 store 指令的先后顺序
 class BlockInfo 
 {
 
@@ -26,8 +43,8 @@ public:
     void reName();
     bool promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas);
     void RemoveFromAList(unsigned& AllocaNum);
-    void rewriteSingleStoreAlloca(unsigned& AllocaNum);
-
+    void removeLifetimeIntrinsicUsers(AllocaInst* AI);
+    bool rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  BlockInfo& BBInfo);
      
 protected:
     Function *_func;

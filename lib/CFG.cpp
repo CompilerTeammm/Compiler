@@ -1,4 +1,5 @@
 #include"../include/lib/CFG.hpp"
+#include"../include/lib/CoreClass.hpp"
 
 ConstantData::ConstantData(Type *_tp) : Value(_tp) {}
 
