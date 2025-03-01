@@ -19,6 +19,7 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
             // 储存bbs instrution -> bbs
             // BasicBlock* parent = nullptr; //临时测试用的
             tmpBB = SInst->GetParent();
+            AllocaPointerVal = SInst->GetOperand(0);
             DefBlocks.push_back(tmpBB);
             // BasicBlocknums++;  说实话，这个鸡肋了，因为 defBlocks就可以求出里面的个数
             OnlyStoreInst =SInst;
@@ -28,14 +29,15 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
             tmpBB = LInst->GetParent();
             // BasicBlock* parent = nullptr; //临时测试用的
             UsingBlocks.push_back(tmpBB);
+            AllocaPointerVal = LInst;
         }
 
-        if(OnlyInSingleBlockRW)
+        if(OnlyUsedInOneBlock)
         {
             if(!OnlyOneBk)
                 OnlyOneBk = tmpBB;
             else if(OnlyOneBk != tmpBB)   // 这个是精华  判断这个load 和 store 是否都再一个基本块中
-                OnlyInSingleBlockRW = false;
+                OnlyUsedInOneBlock = false;
             else 
                 continue;
         }
@@ -43,7 +45,7 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
     // 到这里任然存在问题，有待去解决
     // if(BasicBlocknums <= 1)
     // {
-    //     OnlyInSingleBlockRW = true;
+    //     OnlyUsedInOneBlock = true;
     // }
 }
 
@@ -59,6 +61,7 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
 {
     StoreInst* OnlySInst = info.OnlyStoreInst;
     bool GlobalVal = false;
+    int StoreIndex = -1;
 
     Value *value = OnlySInst->GetOperand(0);
     User * user = dynamic_cast<User*> (value);  // 如果是const的变量会转换失败的
@@ -69,6 +72,19 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
 
     info.UsingBlocks.clear();
     
+    for(Use* use :AI->GetValUseList())
+    {
+        User* user = use->GetUser();
+        LoadInst* LInst = dynamic_cast<LoadInst*> (user);
+        if(!LInst)
+            continue;
+
+        // 我们需要知道 store 和 load 指令的先后关系
+        if(!GlobalVal)
+        {   
+            
+        }
+    }
 
 }
 
@@ -127,7 +143,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
             }
         }
 
-        if(Info.OnlyInSingleBlockRW)
+        if(Info.OnlyUsedInOneBlock)
         {
             RemoveFromAList(AllocaNum);
         }
@@ -157,6 +173,7 @@ void Mem2reg::run()
 // could be Promoteable?  M-> R alloca 指令
 bool PromoteMem2Reg::isAllocaPromotable(AllocaInst* AI)
 {
+    // Only allow direct and non-volatile loads and stores...  llvm 原话 但是 .sy语言恐怕是没有volatile关键字
     // ValUseList& listPtr = AI->GetValUseList();
     // Use* use --->  ValUseList 
     for(Use* use : AI->GetValUseList())  // value -> use -> user
@@ -168,12 +185,13 @@ bool PromoteMem2Reg::isAllocaPromotable(AllocaInst* AI)
         }
         else if(StoreInst* SInst = dynamic_cast<StoreInst*> (user))
         {
-            // 这种情况是将地址进行存储的情况  store 语句的特点是仅仅只有一个 Use啊
+            // 这种情况是将地址进行存储的情况  store 语句的特点是仅仅只有一个 Use 
             if(SInst->GetOperand(0) == AI)   // user -> use -> value
                 return false;
         }
         else if(GepInst* GInst = dynamic_cast<GepInst*> (user))
         {
+            // 可以与else 归结到一起
             // 其实这个判断可有可无
             return false;
         }

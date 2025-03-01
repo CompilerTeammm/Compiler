@@ -13,13 +13,15 @@ public:
     
     BasicBlock * OnlyOneBk; // 记录alloca 的def 和 users的唯一的一个基本块
     StoreInst* OnlyStoreInst;   // store 语句实际上是对alloca 的def ,判断cfg中的store语句
-    bool OnlyInSingleBlockRW;  // alloca 的读写操作判断是不是均在一个基本块中完成的
-    size_t  BasicBlocknums; // 记录一下storeinst 的数目
+    bool OnlyUsedInOneBlock;  // alloca 的读写操作判断是不是均在一个基本块中完成的
+    //size_t  BasicBlocknums; // 记录一下storeinst 的数目 真鸡肋，，，
+
+    Value* AllocaPointerVal;  //llvm中的，作用现在未知
 
     void AnalyzeAlloca(AllocaInst* AI);
 
     AllocaInfo()
-      :OnlyOneBk(nullptr), OnlyStoreInst(nullptr),OnlyInSingleBlockRW(true),BasicBlocknums(0)
+      :OnlyOneBk(nullptr), OnlyStoreInst(nullptr),OnlyUsedInOneBlock(true)
     {  
       DefBlocks.clear(),UsingBlocks.clear();
     }
