@@ -217,7 +217,7 @@ public:
     }
 };
 
-Type *GetTypeFromIRDataType(IR_DataType _type)
+Type *NewTypeFromIRDataType(IR_DataType _type)
 {
     switch (_type)
     {
@@ -228,7 +228,7 @@ Type *GetTypeFromIRDataType(IR_DataType _type)
     case IR_DataType::IR_Value_VOID:
         return VoidType::NewVoidTypeGet();
     case IR_DataType::IR_PTR:
-        return PointerType::NewPointerTypeGet(GetTypeFromIRDataType(IR_Value_INT));
+        return PointerType::NewPointerTypeGet(NewTypeFromIRDataType(IR_Value_INT));
     default:
         return nullptr;
     }

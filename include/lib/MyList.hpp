@@ -10,18 +10,13 @@
 template <typename T>
 class BaseList : public std::list<std::unique_ptr<T>>
 {
+private:
   using BaseList = std::list<std::unique_ptr<T>>;
   using DataType = std::unique_ptr<T>;
 
 public:
-  void push_front(T *_data)
-  {
-    BaseList::push_front(DataType(_data));
-  }
-  void push_back(T *_data)
-  {
-    BaseList::push_back(DataType(_data));
-  }
+  void push_front(T *_data);
+  void push_back(T *_data);
 };
 
 // 对于节点，关心前后节点prev&next
@@ -30,61 +25,23 @@ class Node
 {
   friend class List<Manager, Staff>;
 
-  Staff *prev = nullptr;
-  Staff *next = nullptr;
-  Manager *manager = nullptr;
-
-public:
-  Node() = default;
-
-  virtual ~Node()
-  {
-    if (manager)
-      EraseFromManager();
-  }
-
-  void SetManager(Manager *_manager) { manager = _manager; }
-  Manager *GetParent() const { return manager; }
-  Staff *GetNextNode() const { return next; }
-  Staff *GetPrevNode() const { return prev; }
-
-  virtual void EraseFromManager()
-  {
-    if (prev)
-      prev->next = next;
-    if (next)
-      next->prev = prev;
-    if (!prev)
-      manager->front = next;
-    if (!next)
-      manager->back = prev;
-
-    manager->size--;
-    manager = nullptr;
-    prev = nullptr;
-    next = nullptr;
-  }
-
-  void ReplaceNode(Staff *other)
-  {
-    if (!prev)
-      manager->front = other;
-    if (!next)
-      manager->back = other;
-    if (prev)
-      prev->next = other;
-    if (next)
-      next->prev = other;
-
-    other->prev = prev;
-    other->next = next;
-    other->manager = manager;
-
-    prev = nullptr;
-    next = nullptr;
-    manager = nullptr;
-  }
-};
+  private:
+    Staff *prev = nullptr;
+    Staff *next = nullptr;
+    Manager *manager = nullptr;
+  
+  public:
+    Node() = default;
+    virtual ~Node();
+  
+    void SetManager(Manager *_manager);
+    Manager *GetParent() const;
+    Staff *GetNextNode() const;
+    Staff *GetPrevNode() const;
+  
+    virtual void EraseFromManager();
+    void ReplaceNode(Staff *other);
+  };
 
 // 对于列表整体，关心首尾节点head&back
 template <typename Manager, typename Staff>
@@ -92,15 +49,16 @@ class List
 {
   friend class Node<Manager, Staff>;
 
+private:
   Staff *front = nullptr;
   Staff *back = nullptr;
   int size = 0;
 
 public:
-  virtual ~List() { clear(); }
-
-  Staff *GetFront() const { return front; }
-  Staff *GetBack() const { return back; }
+  virtual ~List();
+  
+  Staff *GetFront() const;
+  Staff *GetBack() const;
 
   class iterator
   {
@@ -114,207 +72,34 @@ public:
     using reference = Staff *&;
 
     iterator() = default;
-    iterator(Staff *node) : ptr(node) {}
+    iterator(Staff *node);
 
-    iterator &operator++()
-    {
-      if (ptr)
-        ptr = ptr->next;
-      return *this;
-    }
+    iterator &operator++();
+    iterator &operator--();
+    value_type operator*() const;
+    bool operator==(const iterator &other) const;
+    bool operator!=(const iterator &other) const;
 
-    iterator &operator--()
-    {
-      if (ptr)
-        ptr = ptr->prev;
-      return *this;
-    }
-
-    value_type operator*() const { return ptr; }
-    bool operator==(const iterator &other) const { return ptr == other.ptr; }
-    bool operator!=(const iterator &other) const { return ptr != other.ptr; }
-
-    iterator InsertBefore(Staff *_node)
-    {
-      assert(ptr && ptr->manager && _node && "Invalid iterator");
-      if (ptr == ptr->manager->front)
-      {
-        ptr->manager->push_front(_node);
-      }
-      else
-      {
-        _node->SetManager(ptr->manager);
-        _node->prev = ptr->prev;
-        _node->next = ptr;
-        ptr->prev->next = _node;
-        ptr->prev = _node;
-        ptr->manager->size++;
-      }
-      return iterator(_node);
-    }
-
-    iterator InsertAfter(Staff *_node)
-    {
-      assert(ptr && ptr->manager && _node && "Invalid iterator");
-      if (ptr == ptr->manager->back)
-      {
-        ptr->manager->push_back(_node);
-      }
-      else
-      {
-        _node->SetManager(ptr->manager);
-        _node->next = ptr->next;
-        _node->prev = ptr;
-        ptr->next->prev = _node;
-        ptr->next = _node;
-        ptr->manager->size++;
-      }
-      return iterator(_node);
-    }
+    iterator InsertBefore(Staff *_node);
+    iterator InsertAfter(Staff *_node);
   };
 
-  iterator begin() { return iterator(front); }
-  iterator end() { return iterator(nullptr); }
-  iterator rbegin() { return iterator(back); }
-  iterator rend() { return iterator(nullptr); }
+  iterator begin();
+  iterator end();
+  iterator rbegin();
+  iterator rend();
 
-  void CollectList(Staff *begin, Staff *end)
-  {
-    assert(!front && !back && "List must be empty for collection");
-    front = begin;
-    back = end;
-    size = 0;
-    for (auto node = front; node; node = node->next)
-    {
-      node->SetManager(static_cast<Manager *>(this));
-      size++;
-    }
-  }
+  void CollectList(Staff *begin, Staff *end);
+  std::pair<Staff *, Staff *> SplitList(Staff *begin, Staff *end);
+  int Size() const;
 
-  std::pair<Staff *, Staff *> SplitList(Staff *begin, Staff *end)
-  {
-    assert(begin && end && "Invalid split range");
-    assert(begin->manager == static_cast<Manager *>(this) &&
-           end->manager == static_cast<Manager *>(this) && "Nodes not in this list");
+  void push_back(Staff *_node);
+  void push_front(Staff *_node);
+  void ReplaceList(Staff *begin, Staff *end, std::list<Staff *> &sequence);
+  void clear();
 
-    if (begin == front)
-      front = end->next;
-    if (end == back)
-      back = begin->prev;
-
-    if (begin->prev)
-      begin->prev->next = end->next;
-    if (end->next)
-      end->next->prev = begin->prev;
-
-    begin->prev = nullptr;
-    end->next = nullptr;
-
-    size = 0;
-    for (auto node = front; node; node = node->next)
-    {
-      size++;
-    }
-
-    return {begin, end};
-  }
-
-  int Size() const { return size; }
-
-  void push_back(Staff *_node)
-  {
-    _node->SetManager(static_cast<Manager *>(this));
-    if (!front)
-    {
-      front = back = _node;
-    }
-    else
-    {
-      back->next = _node;
-      _node->prev = back;
-      back = _node;
-    }
-    size++;
-  }
-
-  void push_front(Staff *_node)
-  {
-    _node->SetManager(static_cast<Manager *>(this));
-    if (!front)
-    {
-      front = back = _node;
-    }
-    else
-    {
-      front->prev = _node;
-      _node->next = front;
-      front = _node;
-    }
-    size++;
-  }
-
-  void ReplaceList(Staff *begin, Staff *end, std::list<Staff *> &sequence)
-  {
-    assert(!sequence.empty() && "Sequence can't be empty");
-
-    auto prev = begin->prev;
-    auto next = end->next;
-
-    if (!prev)
-      front = sequence.front();
-    for (auto node : sequence)
-    {
-      assert(node->GetParent() == this && "Nodes in sequence must belong to this list");
-      node->prev = prev;
-      if (prev)
-        prev->next = node;
-      prev = node;
-    }
-    sequence.back()->next = next;
-    if (next)
-      next->prev = sequence.back();
-  }
-
-  void clear()
-  {
-    while (front)
-    {
-      auto temp = front;
-      front = front->next;
-      delete temp;
-    }
-    back = nullptr;
-    size = 0;
-  }
-
-  // 寻找符合cond的节点
   template <typename Condition>
-  Staff *find(Condition cond)
-  {
-    for (auto it = begin(); it != end(); ++it)
-    {
-      if (cond(*it))
-      {
-        return *it;
-      }
-    }
-    return nullptr;
-  }
+  Staff *find(Condition cond);
 
-  // 删除_node节点
-  void erase(Staff *_node)
-  {
-    if (!_node || _node->GetParent() != this)
-      return;
-    if (_node->prev)
-      _node->prev->next = _node->next;
-    if (_node->next)
-      _node->next->prev = _node->prev;
-    if (_node == front)
-      front = _node->next;
-    if (_node == back)
-      back = _node->prev;
-    size--;
-    delete _node;
-  }
+  void erase(Staff *_node);
 };
