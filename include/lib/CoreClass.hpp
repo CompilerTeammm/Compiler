@@ -63,10 +63,9 @@ public:
 // dh: is UesrList, value finds ----> User 
 class ValUseList
 {
-public:
   int size = 0;
   Use *head = nullptr;
-
+public:
   // 默认构造
   ValUseList() = default;
 
@@ -152,12 +151,13 @@ public:
 
 class Value
 {
-public:
+
   // (Value) this is the key to find Users 
   ValUseList valuselist;
   std::string name;
   Type *type;
   int version;
+public:
   virtual bool isGlobal() { return false; }
   virtual bool isConst() { return false; }
 
@@ -222,11 +222,11 @@ public:
 
 class User : public Value
 {
-public:
+
   using UsePtr = std::unique_ptr<Use>;
   using UseList = std::vector<UsePtr>;
   UseList useruselist;
-
+public:
   User() = default;
   explicit User(Type *_type) : Value(_type) {};
   virtual ~User() = default;
@@ -403,7 +403,7 @@ public:
   {
     return id == other.id && GetUserUseList().size() == other.GetUserUseList().size();
   }
-  // 获取指定索引的操作数
+  // 获取指定索引的操作数  User 获取 value的一个接口
   Value *GetOperand(size_t idx)
   {
     assert(idx < GetUserUseList().size() && "Operand index out of range!");
@@ -498,7 +498,7 @@ public:
 // 使用的时候根据自己要实现的功能选择合适的数据结构
 class BasicBlock : public Value, public List<BasicBlock, Instruction>, public Node<Function, BasicBlock>
 {
-public:
+
   int LoopDepth;  // 嵌套深度
   bool visited;   // 是否被访问过
   int index;      // 基本块序号
@@ -511,7 +511,7 @@ public:
   // 前驱&后续基本块列表
   std::vector<BasicBlock *> PredBlocks = {};
   std::vector<BasicBlock *> NextBlocks = {};
-
+public:
   std::vector<InstPtr> &GetInsts() { return instructions; }
 
   BasicBlock() : Value(VoidType::NewVoidTypeGet()), LoopDepth(0), visited(false), index(0), reachable(false) {}
@@ -617,7 +617,7 @@ public:
 // 既提供了vector线性管理BasicBlock，又实现了双向链表
 class Function : public Value, public List<Function, BasicBlock>
 {
-public:
+
   // 参数和基本块//Function包含BasicBlock
   using ParamPtr = std::unique_ptr<Value>;
   using BBPtr = std::unique_ptr<BasicBlock>;
@@ -625,7 +625,7 @@ public:
   std::vector<BBPtr> BBs;
   std::string id;
   int size_BB = 0;
-
+public:
   Function(IR_DataType _type, const std::string &_id)
       : Value(GetTypeFromIRDataType(_type)), id(_id)
   {
@@ -717,10 +717,11 @@ public:
 
 class Module
 {
-public:
+
   // Module包含Function
   using FunctionPtr = std::unique_ptr<Function>;
   std::vector<FunctionPtr> functions;
+public:
   std::vector<FunctionPtr> &GetFuncTion() { return functions; }
 
   Module() = default;

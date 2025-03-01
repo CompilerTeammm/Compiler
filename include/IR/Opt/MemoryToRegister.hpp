@@ -4,6 +4,7 @@
 #include "Passbase.hpp"
 #pragma once
 
+// 
 class AllocaInfo 
 {
 
@@ -18,12 +19,20 @@ class PromoteMem2Reg
 {
 public:
   // 遍历基本块中的指令，将指令进行一个消除 alloca/ store / load指令
+    PromoteMem2Reg(Function* function, DominantTree* tree) 
+                  :_func(function), _tree(tree) {}
     bool isAllocaPromotable(AllocaInst* AI);
 
     void reName();
-    static bool promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas);
-private:
-    // ValUseList& listPtr;
+    bool promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas);
+    void RemoveFromAList(unsigned& AllocaNum);
+    void rewriteSingleStoreAlloca(unsigned& AllocaNum);
+
+     
+protected:
+    Function *_func;
+    DominantTree * _tree;
+    std::vector<AllocaInst *> Allocas;
 };
 
 
