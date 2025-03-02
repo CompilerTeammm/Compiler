@@ -5,11 +5,12 @@
       "name": "C++ Launch",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/test/a.out",
+      "preLaunchTask": "Build CMake Project",
+      "program": "${workspaceFolder}/build/SYSY-compiler",
       "cwd": "${workspaceFolder}",
       "targetArchitecture": "x64",
       "args": [
-        "${workspaceFolder}/test/test.txt"
+        "${workspaceFolder}/test/test.c"
       ],
       "stopAtEntry": true,
       "setupCommands": [
@@ -32,6 +33,11 @@
       "program": "${workspaceFolder}/build/SYSY-compiler",
       "cwd": "${workspaceFolder}",
       "targetArchitecture": "x64",
+      "args": [
+        "${workspaceFolder}/function_test/test.c",
+        "--mem2reg",
+        "--pre"
+      ],
       "stopAtEntry": false,
       "MIMode": "lldb"
     },
@@ -41,9 +47,9 @@
       "request": "launch",
       "args": [],
       "stopAtEntry": false,
-      "externalConsole": true,
-      "cwd": "c:/Users/30478/vscode daima/Compiler",
-      "program": "c:/Users/30478/vscode daima/Compiler/build/Debug/outDebug",
+      "externalConsole": false,
+      "cwd": "/home/lmc/Compiler-3/Compiler",
+      "program": "/home/lmc/Compiler-3/Compiler/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

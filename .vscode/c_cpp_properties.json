@@ -2,15 +2,23 @@
     "configurations": [
         {
             "name": "Linux",
-            "compilerPath": "/usr/bin/g++",
+            "compilerPath": "/usr/lib/llvm-14/bin/clang++",
             "includePath": [
-                "${workspaceFolder}/**",
-                "/home/dh/Compiler/Compiler/**"
+                "${workspaceFolder}/**"
             ],
             "defines": [],
             "cStandard": "c17",
             "cppStandard": "c++17",
             "configurationProvider": "ms-vscode.cmake-tools"
+        },
+        {
+            "name": "MacOS",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "cStandard": "c17",
+            "cppStandard": "c++17"
         }
     ],
     "version": 4
