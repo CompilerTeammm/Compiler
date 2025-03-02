@@ -2,7 +2,7 @@
     "configurations": [
         {
             "name": "Linux",
-            "compilerPath": "/usr/lib/llvm-14/bin/clang++",
+            "compilerPath": "/usr/bin/clang++",
             "includePath": [
                 "${workspaceFolder}/**"
             ],

@@ -40,6 +40,8 @@ private:
 
 public:
     Node &GetNode(int index) {}
+
+    bool dominates(BasicBlock* bb1,BasicBlock* bb2);
 };
 
 

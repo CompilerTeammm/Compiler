@@ -61,9 +61,21 @@ bool BlockInfo::isInterestingInstruction(List<BasicBlock, Instruction>::iterator
 // 确定load 和 store 指令的先后顺序
 int BlockInfo:: GetInstIndex(Instruction* Inst)
 {
+    // 建立好了map之后的事情了这是
     auto iterator = InstNumbersIndex.find(Inst);
     if(iterator != InstNumbersIndex.end())
-        return 
+        return iterator->second;
+    
+    int num = 0;
+    BasicBlock* BB = Inst->GetParent();
+    for(auto inst = BB->begin();inst !=BB->end();++inst){
+        if(isInterestingInstruction(inst))
+        {
+            InstNumbersIndex[*inst] = num++;
+        }
+    }
+
+    return InstNumbersIndex[Inst];
 }
 
 
@@ -82,7 +94,7 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
 
     Value* value = OnlySInst->GetOperand(0);
     User* user = dynamic_cast<User*>( value);
-    if( user == nullptr)
+    if( user == nullptr)  // 继承不一样会出现转换失败的情况
         GlobalVal = true;
     BasicBlock* StoreBB = OnlySInst->GetParent();
 
@@ -92,22 +104,22 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
     {
         User* AIuser = use->GetUser();
         LoadInst* LInst = dynamic_cast<LoadInst*> (user);
-        if(!LInst)
+        if(!LInst)  // 只让LoadInst 语句下去
             continue;
 
         if(!GlobalVal) {
-            if(LInst->GetParent == StoreBB) {  // 这个是和store语句在同一个BB中
+            if(LInst->GetParent() == StoreBB) {  // 这个是和store语句在同一个BB中
                 if(StoreIndex == -1) // 如果调试的时候仍然出错，尝试用 dynamic_cast <> 去转换成功它
                     StoreIndex = BBInfo.GetInstIndex(OnlySInst);  // 不理解为什么不可以直接传参数过去，应该是可以发生隐式类型转换的
                 int LoadIndex = BBInfo.GetInstIndex(LInst);
-                if(LoadIndex < StoreIndex) 
+                if(LoadIndex < StoreIndex) // undef 去赋值需要
                 {
                     info.UsingBlocks.push_back(StoreBB);
                     continue;
                 }
             }  // 不在同一个BB中    一个支配关系
             else if( LInst->GetParent() != StoreBB 
-            && )
+            && _tree->dominates(StoreBB, LInst->GetParent()))
             {
                 info.UsingBlocks.push_back(LInst->GetParent());
                 continue;
@@ -171,7 +183,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         if(!AI->isUsed()){
             delete AI;
             RemoveFromAList(AllocaNum);
-            // continue; // 可有可无
+            continue; // 可有可无
         }
         // 到接下来为止，我需要记录一些信息
         //例如：记录alloca的定义个数  在不在同一个基本块 支配的信息
@@ -185,7 +197,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
             if(rewriteSingleStoreAlloca(Info,AI,BkInfo)) 
             {
                 RemoveFromAList(AllocaNum);
-                continue;  //这里我确实不理解 为啥要有continue
+                continue; 
             }
         }
 

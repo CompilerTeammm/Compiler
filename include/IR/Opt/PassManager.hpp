@@ -2,6 +2,7 @@
 #include<queue>
 #include"Passbase.hpp"
 #include "CoreClass.hpp"
+#include "CFG.hpp"
 #include <memory>
 #include <type_traits>
 
