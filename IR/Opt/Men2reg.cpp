@@ -49,6 +49,16 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
     // }
 }
 
+int BlockInfo:: GetInstIndex(Instruction* Inst)
+{
+    auto It = InstNumbersIndex.find(Inst);
+    if(It != InstNumbersIndex.end())
+        return It->second;
+    
+    int num = 0;
+    
+}
+
 
 void PromoteMem2Reg::RemoveFromAList(unsigned& AllocaNum)
 {
@@ -87,9 +97,15 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
             {
                 // Instruction* hello;
                 // Instruction* hello = dynamic_cast<Instruction*>(OnlySInst);
-                auto inst = dynamic_cast<Instruction*>(OnlySInst);
+                // auto inst = dynamic_cast<Instruction*>(OnlySInst);
                 if(StoreIndex == -1){
+                    // OnlySInst* 时 StoreInst 指令，继承自 Instruction，tmd为啥不能隐式类型转换呢 ??
                     StoreIndex = BBInfo.GetInstIndex(OnlySInst);
+                }
+                // OnlySInst* 时 LoadInst 指令，继承自 Instruction，tmd为啥不能隐式类型转换呢 ??? 我迟一点研究一下这个问题
+                int LoadIndex = BBInfo.GetInstIndex(LInst);
+                if(LoadIndex < StoreIndex){
+
                 }
             }
         }

@@ -89,6 +89,7 @@ public:
     StoreInst(Type *_tp);
     StoreInst(Operand _A, Operand _B);
 
+    virtual void test() {}
     Operand GetDef() final;
     StoreInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
     void print() final;

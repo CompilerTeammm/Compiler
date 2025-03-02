@@ -1,3 +1,4 @@
+#pragma once
 #include"../include/lib/CFG.hpp"
 #include"../include/lib/CoreClass.hpp"
 

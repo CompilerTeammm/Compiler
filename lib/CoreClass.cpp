@@ -1,4 +1,6 @@
+#pragma once
 #include"../include/lib/CoreClass.hpp"
+#include"../include/lib/CFG.hpp"
 
 //Use
 Use::Use(User *_user, Value *_usee) : user(_user), usee(_usee)

@@ -1,15 +1,16 @@
 {
     "configurations": [
         {
-            "name": "linux",
+            "name": "Linux",
+            "compilerPath": "/usr/bin/g++",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/home/dh/Compiler/Compiler/include/**"
+                "/home/dh/Compiler/Compiler/**"
             ],
             "defines": [],
-            "cStandard": "${default}",
-            "cppStandard": "${default}",
-            "intelliSenseMode": "linux-gcc-x64"
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "configurationProvider": "ms-vscode.cmake-tools"
         }
     ],
     "version": 4

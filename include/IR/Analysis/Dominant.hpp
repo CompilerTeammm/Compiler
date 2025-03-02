@@ -1,5 +1,7 @@
 // #include "../../lib/cfg/cfgg.hpp"
-#include <mutex>
+// #include "CoreClass.hpp"
+#include "../../lib/CoreClass.hpp"
+#include "../../lib/CFG.hpp"
 #include <vector>
 #include<iostream>
 // 搭建支配树
@@ -11,8 +13,39 @@
 
 class DominantTree
 {
+public:
+    //并查集压缩路径
+    class DSU{
 
+    };
+    // 每一个节点
+    class Node{
+
+    };
+    // 支配边界
+    class DF{
+
+    };
+
+    std::vector<Node> node;
+private:
+    int vertex[10000] = {0}; //节点
+    std::vector<int> bucket[20000]; // bucket[u] 代表sdom为u的点击
+    std::vector<DSU> dsu;   //辅助数据结构实现路径压缩
+    std::vector<std::vector<int>> Dest; // CFG中的后继
+    std::vector<Node*> dfs_dom;
+    Function* thisFunc;
+    int block_num,count; //count 是当前dfs的序号
+    bool IsDFSValid;
+
+public:
+    Node &GetNode(int index) {}
 };
+
+
+
+
+
 
 
 
