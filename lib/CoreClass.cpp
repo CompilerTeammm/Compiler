@@ -1,6 +1,8 @@
 #pragma once
 #include"../include/lib/CoreClass.hpp"
 #include"../include/lib/CFG.hpp"
+#include <variant>
+
 
 //Use
 Use::Use(User *_user, Value *_usee) : user(_user), usee(_usee)
@@ -186,6 +188,16 @@ void Value::print()
 
 void Value::add_use(Use *_use) { valuselist.push_front(_use); }
 
+bool Value::isConstZero() {
+  if (auto num = dynamic_cast<ConstIRBoolean *>(this))
+    return num->GetVal() == false;
+  else if (auto num = dynamic_cast<ConstIRInt *>(this))
+    return num->GetVal() == 0;
+  else if (auto num = dynamic_cast<ConstIRFloat *>(this))
+    return num->GetVal() == 0;
+  else
+    return false;
+}
 
 //User
 Value *User::GetDef() { return dynamic_cast<Value *>(this); }
@@ -315,6 +327,7 @@ inline Operand Instruction::GetOperand(size_t idx)
   return GetUserUseList()[idx]->GetValue();
 }
 
+//给print用
 const char *Instruction::OpToString(Op op)
 {
   switch (op)
@@ -493,9 +506,122 @@ void BasicBlock::ReplacePreBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
   }
 }
 
-Operand BasicBlock::GenerateBinaryInst(BasicBlock *_BB, Operand _A,
-    BinaryInst::Operation _op, Operand _B){
-        //...
+template <typename A, typename B>
+std::variant<float, int> calc(A a, BinaryInst::Operation op, B b) {
+  switch (op) {
+    case BinaryInst::Op_Add: return a + b;
+    case BinaryInst::Op_Sub: return a - b;
+    case BinaryInst::Op_Mul: return a * b;
+    case BinaryInst::Op_Div: return a / b;
+    case BinaryInst::Op_And: return (a != 0) && (b != 0);
+    case BinaryInst::Op_Or: return (a != 0) || (b != 0);
+    case BinaryInst::Op_Mod: return (int)a % (int)b;
+    case BinaryInst::Op_E: return a == b;
+    case BinaryInst::Op_NE: return a != b;
+    case BinaryInst::Op_G: return a > b;
+    case BinaryInst::Op_GE: return a >= b;
+    case BinaryInst::Op_L: return a < b;
+    case BinaryInst::Op_LE: return a <= b;
+    default: assert(0); break;
+  }
+}
+
+bool isBinaryBool(BinaryInst::Operation _op)
+{
+  switch (_op)
+  {
+  case BinaryInst::Op_E:
+  case BinaryInst::Op_NE:
+  case BinaryInst::Op_G:
+  case BinaryInst::Op_GE:
+  case BinaryInst::Op_L:
+  case BinaryInst::Op_LE:
+    return true;
+  default:
+    return false;
+  }
+}
+
+
+Operand BasicBlock::GenerateBinaryInst(Operand _A, BinaryInst::Operation op, Operand _B) {
+  bool tpA = (_A->GetTypeEnum() == IR_DataType::IR_Value_INT);
+  bool tpB = (_B->GetTypeEnum() == IR_DataType::IR_Value_INT);
+  BinaryInst *tmp;
+
+  if (tpA != tpB) {
+    assert(op != BinaryInst::Op_And && op != BinaryInst::Op_Or && op != BinaryInst::Op_Mod);
+    if (tpA) {
+      tmp = new BinaryInst(GenerateSI2FPInst(_A), op, _B);
+    } else {
+      tmp = new BinaryInst(_A, op, GenerateSI2FPInst(_B));
+    }
+  } else {
+    if (_A->GetTypeEnum() == IR_Value_INT) {
+      bool isBooleanA = (_A->GetType() == IntType::NewIntTypeGet());
+      bool isBooleanB = (_B->GetType() == IntType::NewIntTypeGet());
+
+      if (isBooleanA != isBooleanB) {
+        if (!isBooleanA) {
+          _A = GenerateZextInst(_A);
+        } else {
+          _B = GenerateZextInst(_B);
+        }
+      }
+    }
+    tmp = new BinaryInst(_A, op, _B);
+  }
+
+  push_back(tmp);
+  return Operand(tmp->GetDef());
+}
+
+
+Operand BasicBlock::GenerateBinaryInst(BasicBlock *bb, Operand _A, BinaryInst::Operation op, Operand _B) {
+  if (_A->isConst() && _B->isConst()) {
+    if (op == BinaryInst::Op_Div && _B->isConstZero()) {
+      assert(_A->GetType() != BoolType::NewBoolTypeGet() &&
+             _B->GetType() != BoolType::NewBoolTypeGet() && "InvalidType");
+      return (_A->GetType() == IntType::NewIntTypeGet())
+             ? UndefValue::Get(IntType::NewIntTypeGet())
+             : UndefValue::Get(FloatType::NewFloatTypeGet());
+    }
+
+    std::variant<float, int> result;
+    if (auto A = dynamic_cast<ConstIRInt *>(_A)) {
+      if (auto B = dynamic_cast<ConstIRInt *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+      else if (auto B = dynamic_cast<ConstIRFloat *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+      else if (auto B = dynamic_cast<ConstIRBoolean *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+    } else if (auto A = dynamic_cast<ConstIRFloat *>(_A)) {
+      if (auto B = dynamic_cast<ConstIRInt *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+      else if (auto B = dynamic_cast<ConstIRFloat *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+      else if (auto B = dynamic_cast<ConstIRBoolean *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+    } else if (auto A = dynamic_cast<ConstIRBoolean *>(_A)) {
+      if (auto B = dynamic_cast<ConstIRInt *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+      else if (auto B = dynamic_cast<ConstIRFloat *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+      else if (auto B = dynamic_cast<ConstIRBoolean *>(_B)) result = calc(A->GetVal(), op, B->GetVal());
+    }
+
+    if (isBinaryBool(op)) return ConstIRBoolean::GetNewConstant(std::get<int>(result));
+    else if (std::holds_alternative<int>(result)) return ConstIRInt::GetNewConstant(std::get<int>(result));
+    else return ConstIRFloat::GetNewConstant(std::get<float>(result));
+  } else {
+    assert(bb != nullptr);
+    return bb->GenerateBinaryInst(_A, op, _B);
+  }
+}
+
+
+
+Operand BasicBlock::GenerateSI2FPInst(Operand _A) {
+  auto temp = new SI2FPInst(_A);
+  push_back(temp);
+  return Operand(temp->GetDef());
+}
+
+Operand BasicBlock::GenerateFP2SIInst(Operand _A) {
+  auto temp = new FP2SIInst(_A);
+  push_back(temp);
+  return Operand(temp->GetDef());
 }
 
 //Function

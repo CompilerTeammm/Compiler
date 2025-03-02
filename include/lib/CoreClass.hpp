@@ -150,6 +150,7 @@ public:
 
   void print();
   void add_use(Use *_use);
+  bool isConstZero();
 };
 
 class User : public Value
@@ -257,7 +258,7 @@ public:
   Value *GetOperand(size_t idx);
   // 将指令类型转换为字符串,便于调试
   static const char *OpToString(Op op);
-
+  
   virtual ~Instruction() = default;
 };
 
@@ -327,8 +328,22 @@ public:
   void ReplacePreBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
 
   // 暂未实现，只有声明
-  Operand GenerateBinaryInst(BasicBlock *_BB, Operand _A,
-                             BinaryInst::Operation _op, Operand _B);
+    Operand GenerateBinaryInst(Operand _A,BinaryInst::Operation op,Operand _B);
+    static Operand GenerateBinaryInst(BasicBlock*,Operand,BinaryInst::Operation,Operand);
+    Operand GenerateLoadInst(Operand);
+    Operand GenerateGEPInst(Operand);
+    Operand GenerateZextInst(Operand);
+    void GenerateCondInst(Operand,BasicBlock*,BasicBlock*);
+    void GenerateUnCondInst(BasicBlock*);
+    void GenerateRetInst(Operand);
+    void GenerateRetInst();
+    Operand GenerateCallInst(std::string,std::vector<Operand>,int);
+    void GenerateStoreInst(Operand,Operand);
+    AllocaInst* GenerateAlloca(Type*,std::string);
+    Operand GenerateSI2FPInst(Operand _A);
+    Operand GenerateFP2SIInst(Operand _A);
+    BasicBlock* GenerateNewBlock();
+    BasicBlock* GenerateNewBlock(std::string);
 };
 
 // 既提供了vector线性管理BasicBlock，又实现了双向链表

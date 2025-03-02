@@ -69,6 +69,15 @@ public:
   }
 };
 
+class UndefValue:public ConstantData{
+  UndefValue(Type* Ty):ConstantData(Ty){name="undef";}
+public:
+  static UndefValue* Get(Type *Ty);
+
+  virtual UndefValue* clone(std::unordered_map<Operand,Operand>&) override;
+  void print();
+};
+
 // 所有Inst
 // 通用的clone,print方法暂时都还没有写
 class LoadInst : public Instruction
@@ -262,6 +271,30 @@ std::vector<Operand> GetIndexs();
 GepInst *clone(std::unordered_map<Operand, Operand> &) override;
 void print() final;
 };
+
+//类型转换指令
+class FP2SIInst:public Instruction
+{
+    public:
+    FP2SIInst(Type* _tp):Instruction(_tp,Op::FP2SI){};
+    FP2SIInst(Operand _A): Instruction(IntType::NewIntTypeGet(),Op::FP2SI) {
+      add_use(_A);
+    }
+    FP2SIInst* clone(std::unordered_map<Operand,Operand>&)override;
+    void print()final;
+};
+
+class SI2FPInst:public Instruction
+{
+    public:
+    SI2FPInst(Type* _tp):Instruction(_tp,Op::SI2FP){};
+    SI2FPInst(Operand _A): Instruction(FloatType::NewFloatTypeGet(),Op::SI2FP) {
+      add_use(_A);
+    }
+    SI2FPInst* clone(std::unordered_map<Operand,Operand>&)override;
+    void print()final;
+};
+
 
 
 // 前端给框架？中端写自己要用的？
