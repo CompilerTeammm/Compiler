@@ -1,9 +1,24 @@
-#include "BackEndPass.hpp"
+#include "../../include/Backend/BackEndPass.hpp"
 #include "../../include/lib/Module.hpp"
 
-// ¶¨Òå LLVM IR µ½ RISCV ×ª»»µÄÀà
-class RISCVModuleLowing : BackEndPass<Module>
+// å®šä¹‰ LLVM IR åˆ° RISCV è½¬æ¢çš„ç±»
+class RISCVModuleLowering : BackEndPass<Module>
 {
-  void operator()(RISCVFunction *); // ³õÊ¼»¯»ò´¦ÀíÕû¸öº¯Êı
-  RISCVFunction *&GetCurFunction(); // »ñÈ¡µ±Ç°ÕıÔÚ´¦ÀíµÄº¯Êı
+public:
+  bool run(Module *);
+
+private:
+  RISCVLoweringContext ctx;
+  void LowerGlobalArgument(Module *);
 };
+
+class RISCVFunctionLowering : BackEndPass<Function>
+{
+public:
+  bool run(Module *);
+  RISCVFunctionLowering(RISCVLoweringContext &ctx, RISCVAsmPrinter *&asmprinter);
+
+private:
+  RISCVLoweringContext &ctx;
+  RISCVAsmPrinter *&asmprinter;
+}

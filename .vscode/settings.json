@@ -59,6 +59,10 @@
     "sstream": "cpp",
     "stop_token": "cpp",
     "thread": "cpp",
+    "variant": "cpp",
+    "any": "cpp",
+    "forward_list": "cpp",
+    "set": "cpp",
     "unordered_set": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",
@@ -66,7 +70,7 @@
   "C_Cpp_Runner.debuggerPath": "gdb",
   "C_Cpp_Runner.cStandard": "",
   "C_Cpp_Runner.cppStandard": "",
-  "C_Cpp_Runner.msvcBatchPath": "C:/Program Files/Microsoft Visual Studio/VR_NR/Community/VC/Auxiliary/Build/vcvarsall.bat",
+  "C_Cpp_Runner.msvcBatchPath": "",
   "C_Cpp_Runner.useMsvc": false,
   "C_Cpp_Runner.warnings": [
     "-Wall",
