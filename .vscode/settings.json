@@ -59,6 +59,10 @@
     "sstream": "cpp",
     "stop_token": "cpp",
     "thread": "cpp",
+    "variant": "cpp",
+    "any": "cpp",
+    "forward_list": "cpp",
+    "set": "cpp",
     "unordered_set": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",

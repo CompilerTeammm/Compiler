@@ -1,6 +1,6 @@
 #pragma once
-#include"../include/lib/CFG.hpp"
 #include"../include/lib/CoreClass.hpp"
+#include"../include/lib/CFG.hpp"
 
 ConstantData::ConstantData(Type *_tp) : Value(_tp) {}
 
@@ -104,6 +104,14 @@ double ConstIRFloat::GetValAsDouble() const
 {
     return static_cast<double>(val);
 }
+
+UndefValue *UndefValue::Get(Type *_ty) {
+    static std::map<Type *, UndefValue *> Undefs;
+    UndefValue *&UnVal = Undefs[_ty];
+    if (!UnVal)
+    UnVal = new UndefValue(_ty);
+    return UnVal;
+  }
 
 
 LoadInst::LoadInst(Type *_tp) 
@@ -280,21 +288,21 @@ void UnCondInst::print()
 }
 
 
-bool isBinaryBool(BinaryInst::Operation op)
-{
-  switch (op)
-  {
-  case BinaryInst::Op_E:
-  case BinaryInst::Op_NE:
-  case BinaryInst::Op_G:
-  case BinaryInst::Op_GE:
-  case BinaryInst::Op_L:
-  case BinaryInst::Op_LE:
-    return true;
-  default:
-    return false;
-  }
-}
+// bool isBinaryBool(BinaryInst::Operation _op)
+// {
+//   switch (_op)
+//   {
+//   case BinaryInst::Op_E:
+//   case BinaryInst::Op_NE:
+//   case BinaryInst::Op_G:
+//   case BinaryInst::Op_GE:
+//   case BinaryInst::Op_L:
+//   case BinaryInst::Op_LE:
+//     return true;
+//   default:
+//     return false;
+//   }
+// }
 
 
 
@@ -456,6 +464,48 @@ GepInst *GepInst::clone(std::unordered_map<Operand, Operand> &mapping)
 void GepInst::print()
 {
   
+}
+
+//类型转换
+Operand ToFloat(Operand op,BasicBlock* bb){
+    if(op->GetType()==FloatType::NewFloatTypeGet())
+        return op;
+    if(op->isConst()){
+        if(auto op_int=dynamic_cast<ConstIRInt*>(op))
+            return ConstIRFloat::GetNewConstant((float)op_int->GetVal());
+        else if(auto op_float=dynamic_cast<ConstIRBoolean*>(op))
+            return ConstIRFloat::GetNewConstant((float)op_float->GetVal());
+        else
+            assert(false);
+    }
+    else{
+        assert(bb!=nullptr);
+        if(op->GetType()==IntType::NewIntTypeGet())
+            return bb->GenerateSI2FPInst(op);
+        else
+            assert(false);
+    }
+}
+
+
+Operand ToInt(Operand op,BasicBlock* bb){
+    if(op->GetType()==IntType::NewIntTypeGet())
+        return op;
+    if(op->isConst()){
+        if(auto op_int=dynamic_cast<ConstIRBoolean*>(op))
+            return ConstIRInt::GetNewConstant((int)op_int->GetVal());
+        else if(auto op_float=dynamic_cast<ConstIRFloat*>(op))
+            return ConstIRInt::GetNewConstant((int)op_float->GetVal());
+        else
+            assert(false);
+    }
+    else{
+        assert(bb!=nullptr);
+        if(op->GetType()==FloatType::NewFloatTypeGet())
+            return bb->GenerateFP2SIInst(op);
+        else
+            assert(false);
+    }
 }
 
 
