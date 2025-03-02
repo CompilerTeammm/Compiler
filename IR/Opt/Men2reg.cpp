@@ -70,6 +70,7 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
         GlobalVal = true;
     BasicBlock* storeBB = OnlySInst->GetParent();
 
+    // 现在清除是为了之后的添加
     info.UsingBlocks.clear();
     
     for(Use* use :AI->GetValUseList())
@@ -79,10 +80,18 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
         if(!LInst)
             continue;
 
-        // 我们需要知道 store 和 load 指令的先后关系
+        // 我们需要知道 store 和 load 指令的先后关系 Binfo
         if(!GlobalVal)
         {   
-            
+            if(LInst->GetParent() == storeBB)
+            {
+                // Instruction* hello;
+                // Instruction* hello = dynamic_cast<Instruction*>(OnlySInst);
+                auto inst = dynamic_cast<Instruction*>(OnlySInst);
+                if(StoreIndex == -1){
+                    StoreIndex = BBInfo.GetInstIndex(OnlySInst);
+                }
+            }
         }
     }
 

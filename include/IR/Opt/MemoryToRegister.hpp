@@ -8,12 +8,12 @@
 class AllocaInfo 
 {
 public:
-    std::vector<BasicBlock*> DefBlocks;
-    std::vector<BasicBlock*> UsingBlocks;
+    std::vector<BasicBlock*> DefBlocks;   // store 指令的BBs集合
+    std::vector<BasicBlock*> UsingBlocks;   // load 指令的BBs集合
     
-    BasicBlock * OnlyOneBk; // 记录alloca 的def 和 users的唯一的一个基本块
-    StoreInst* OnlyStoreInst;   // store 语句实际上是对alloca 的def ,判断cfg中的store语句
-    bool OnlyUsedInOneBlock;  // alloca 的读写操作判断是不是均在一个基本块中完成的
+    BasicBlock * OnlyOneBk;   // 记录alloca 的def 和 users的唯一的一个基本块  对应仅在一个基本块中def 与 using 的基本块
+    StoreInst* OnlyStoreInst;   // store 语句实际上是对alloca 的def  对应alloca仅有一个def的情况
+    bool OnlyUsedInOneBlock;  // alloca 的读写（使用）操作判断是不是均在一个基本块中完成的
     //size_t  BasicBlocknums; // 记录一下storeinst 的数目 真鸡肋，，，
 
     Value* AllocaPointerVal;  //llvm中的，作用现在未知
@@ -28,10 +28,16 @@ public:
 
 };
 
+// Alloca分析之后存在该问题
 // BlockInfo 用于记录和获取同一基本块中出现的 load 和 store 指令的先后顺序
 class BlockInfo 
 {
+    std::map<Instruction*,int> InstNumbersIndex;
+public:
+    BlockInfo() = default;
+    int GetInstIndex(Instruction* Inst);
 
+    void DeletIndex(Instruction* Inst);
 };
 
 class PromoteMem2Reg

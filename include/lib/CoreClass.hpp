@@ -257,6 +257,8 @@ public:
   Value *GetOperand(size_t idx);
   // 将指令类型转换为字符串,便于调试
   static const char *OpToString(Op op);
+
+  virtual ~Instruction() = default;
 };
 
 // 示例子类指令，继承自Instruction,放到CFG实现
