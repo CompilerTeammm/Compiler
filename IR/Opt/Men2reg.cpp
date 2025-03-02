@@ -49,14 +49,21 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
     // }
 }
 
+bool BlockInfo::isInterestingInstruction(List<BasicBlock, Instruction>::iterator Inst)
+{
+    return (dynamic_cast<LoadInst *>(*Inst) &&
+            dynamic_cast<AllocaInst *>((*Inst)->Getuselist()[0]->usee) ||
+        dynamic_cast<StoreInst *>(*Inst) &&
+            dynamic_cast<AllocaInst *>((*Inst)->Getuselist()[1]->usee));
+}
+
+
+// 确定load 和 store 指令的先后顺序
 int BlockInfo:: GetInstIndex(Instruction* Inst)
 {
-    auto It = InstNumbersIndex.find(Inst);
-    if(It != InstNumbersIndex.end())
-        return It->second;
-    
-    int num = 0;
-    
+    auto iterator = InstNumbersIndex.find(Inst);
+    if(iterator != InstNumbersIndex.end())
+        return 
 }
 
 
@@ -70,49 +77,61 @@ void PromoteMem2Reg::RemoveFromAList(unsigned& AllocaNum)
 bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  BlockInfo& BBInfo)
 {
     StoreInst* OnlySInst = info.OnlyStoreInst;
-    bool GlobalVal = false;
     int StoreIndex = -1;
+    bool GlobalVal = false;
 
-    Value *value = OnlySInst->GetOperand(0);
-    User * user = dynamic_cast<User*> (value);  // 如果是const的变量会转换失败的
-
-    if(user == nullptr)
+    Value* value = OnlySInst->GetOperand(0);
+    User* user = dynamic_cast<User*>( value);
+    if( user == nullptr)
         GlobalVal = true;
-    BasicBlock* storeBB = OnlySInst->GetParent();
+    BasicBlock* StoreBB = OnlySInst->GetParent();
 
-    // 现在清除是为了之后的添加
     info.UsingBlocks.clear();
-    
-    for(Use* use :AI->GetValUseList())
+
+    for(Use* use : AI->GetValUseList())
     {
-        User* user = use->GetUser();
+        User* AIuser = use->GetUser();
         LoadInst* LInst = dynamic_cast<LoadInst*> (user);
         if(!LInst)
             continue;
 
-        // 我们需要知道 store 和 load 指令的先后关系 Binfo
-        if(!GlobalVal)
-        {   
-            if(LInst->GetParent() == storeBB)
-            {
-                // Instruction* hello;
-                // Instruction* hello = dynamic_cast<Instruction*>(OnlySInst);
-                // auto inst = dynamic_cast<Instruction*>(OnlySInst);
-                if(StoreIndex == -1){
-                    // OnlySInst* 时 StoreInst 指令，继承自 Instruction，tmd为啥不能隐式类型转换呢 ??
-                    StoreIndex = BBInfo.GetInstIndex(OnlySInst);
-                }
-                // OnlySInst* 时 LoadInst 指令，继承自 Instruction，tmd为啥不能隐式类型转换呢 ??? 我迟一点研究一下这个问题
+        if(!GlobalVal) {
+            if(LInst->GetParent == StoreBB) {  // 这个是和store语句在同一个BB中
+                if(StoreIndex == -1) // 如果调试的时候仍然出错，尝试用 dynamic_cast <> 去转换成功它
+                    StoreIndex = BBInfo.GetInstIndex(OnlySInst);  // 不理解为什么不可以直接传参数过去，应该是可以发生隐式类型转换的
                 int LoadIndex = BBInfo.GetInstIndex(LInst);
-                if(LoadIndex < StoreIndex){
-
+                if(LoadIndex < StoreIndex) 
+                {
+                    info.UsingBlocks.push_back(StoreBB);
+                    continue;
                 }
+            }  // 不在同一个BB中    一个支配关系
+            else if( LInst->GetParent() != StoreBB 
+            && )
+            {
+                info.UsingBlocks.push_back(LInst->GetParent());
+                continue;
             }
         }
+        LInst->ReplaceAllUseWith(value);
+        delete LInst;
+        BBInfo.DeletIndex(LInst);
     }
 
+    if(!info.UsingBlocks.empty())
+        return false;
+    delete OnlySInst;
+    BBInfo.DeletIndex(OnlySInst);
+    delete AI;
+    BBInfo.DeletIndex(AI);
+
+    return true;
 }
 
+bool PromoteMem2Reg::promoteSingleBlockAlloca(AllocaInfo &Info, AllocaInst *AI, BlockInfo &BkInfo)
+{
+    return true;
+}
 
 void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst* AI)
 {
@@ -159,21 +178,25 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
 
         Info.AnalyzeAlloca(AI);
         // 开始分析
+
+        //第一个优化
         if(Info.DefBlocks.size() == 1) // 仅仅只有一个定义的基本块
         {
             if(rewriteSingleStoreAlloca(Info,AI,BkInfo)) 
             {
                 RemoveFromAList(AllocaNum);
-                //continue; 这里我确实不理解
+                continue;  //这里我确实不理解 为啥要有continue
             }
         }
 
-        if(Info.OnlyUsedInOneBlock)
+        // 第二个优化
+        if(Info.OnlyUsedInOneBlock && promoteSingleBlockAlloca(Info,AI,BkInfo))
         {
             RemoveFromAList(AllocaNum);
+            continue;
         }
+        // 部分优化执行完成了，该进行对插入phi函数的操作了
 
-        // 
     }
 
     // Rename 

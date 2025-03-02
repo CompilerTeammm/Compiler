@@ -142,6 +142,7 @@ public:
   void SetType(Type *_type);
   ValUseList &GetValUseList();
   int GetValUseListSize();
+  void ReplaceAllUseWith(Value* value); // dh RAUW
   void SetVersion(int new_version);
   int GetVersion() const;
 

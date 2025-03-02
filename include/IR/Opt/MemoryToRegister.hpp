@@ -2,6 +2,7 @@
 #include "../../lib/CFG.hpp"
 #include "../Analysis/Dominant.hpp"
 #include "Passbase.hpp"
+#include <map>
 #pragma once
 
 // 寻找定义和使用 alloc 的基本块
@@ -32,12 +33,14 @@ public:
 // BlockInfo 用于记录和获取同一基本块中出现的 load 和 store 指令的先后顺序
 class BlockInfo 
 {
+    // first  second 
     std::map<Instruction*,int> InstNumbersIndex;
 public:
     BlockInfo() = default;
     int GetInstIndex(Instruction* Inst);
 
-    void DeletIndex(Instruction* Inst);
+    void DeletIndex(Instruction* Inst) { InstNumbersIndex.erase(Inst); }
+    bool isInterestingInstruction(List<BasicBlock, Instruction>::iterator Inst);
 };
 
 class PromoteMem2Reg
@@ -53,6 +56,7 @@ public:
     void RemoveFromAList(unsigned& AllocaNum);
     void removeLifetimeIntrinsicUsers(AllocaInst* AI);
     bool rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  BlockInfo& BBInfo);
+    bool promoteSingleBlockAlloca(AllocaInfo& Info, AllocaInst* AI,BlockInfo& BkInfo);
      
 protected:
     Function *_func;
