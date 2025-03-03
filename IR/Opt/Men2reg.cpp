@@ -170,8 +170,34 @@ bool PromoteMem2Reg::promoteSingleBlockAlloca(AllocaInfo &Info, AllocaInst *AI, 
         
         int LoadIndex = BkInfo.GetInstIndex(LInst);
 
-        std::lower_bound();
+        auto it = std::lower_bound(StoreByIndex.begin(),StoreByIndex.end(),
+                        static_cast<StoreInst*>(nullptr),less_first());
+        // LoadIndex < StoreIndex
+        if(it == StoreByIndex.begin())
+        {
+            if(StoreByIndex.empty())  // 没有storeInst 的情况，undefValue出场
+                LInst->ReplaceAllUseWith(UndefValue::Get(LInst->GetType()));
+            else   // 没有的话，这条优化无法执行 there is no store before this load;
+                return false;
+        }
+        else 
+            LInst->ReplaceAllUseWith(std::prev(it)->second->GetOperand(0));
+        delete LInst;
+        BkInfo.DeletIndex(LInst);
     }
+    
+    // remove the dead stores and alloca
+    for(Use* use:AI->GetValUseList()){
+        assert(dynamic_cast<StoreInst*>(use->GetUser()) && " should be a SInst,LInst is deleted");
+        StoreInst * SInst = dynamic_cast<StoreInst*> (use->GetUser());
+        delete SInst;
+        BkInfo.DeletIndex(SInst);
+    }
+
+    delete  AI;
+    BkInfo.DeletIndex(AI);
+
+    return true;
 }
 
 void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst* AI)
@@ -229,7 +255,6 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
                 continue; 
             }
         }
-
         // 第二个优化                       这里满足store 在 load前面，并且发生了替换
         if(Info.OnlyUsedInOneBlock && promoteSingleBlockAlloca(Info,AI,BkInfo))
         {
@@ -237,6 +262,8 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
             continue;
         }
         // 部分优化执行完成了，该进行对插入phi函数的操作了
+
+
     }
 
     // Rename 
