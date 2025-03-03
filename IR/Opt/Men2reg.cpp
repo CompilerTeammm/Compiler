@@ -1,6 +1,12 @@
 #pragma once
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
 #include "../../include/IR/Opt/Men2reg.hpp"
+// pair  仿函数  去给排序用的
+struct less_first {
+    template<typename T> bool operator()(const T& lhs, const T& rhs) const{
+        return lhs.first < rhs.first;
+    }
+};
 
 // %op0 = alloca i32       开辟空间
 // %op1 = add i32 1,2
@@ -142,7 +148,30 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
 
 bool PromoteMem2Reg::promoteSingleBlockAlloca(AllocaInfo &Info, AllocaInst *AI, BlockInfo &BkInfo)
 {
-    return true;
+    // 这里的判断已经默认是load 和 store 在同一个BB里面的了
+    std::vector<std::pair<int,StoreInst*>> StoreByIndex;
+
+    for(Use* Use : AI->GetValUseList())
+    {
+        User* user = Use->GetUser();
+        if(StoreInst* SInst = dynamic_cast<StoreInst*>(user))
+            StoreByIndex.push_back(std::make_pair(BkInfo.GetInstIndex(SInst),SInst));
+    }
+        // 仿函数的传入， 对StoreByIndex 进行对象的排序
+    std::sort(StoreByIndex.begin(),StoreByIndex.end(),less_first());
+
+    // walk all of the loads from this alloca , replacing them with the nearest store above them
+    for(Use* use : AI->GetValUseList())
+    {
+        User* user = use->GetUser();
+        LoadInst*LInst = dynamic_cast<LoadInst*>(user);
+        if(!LInst) 
+            continue;
+        
+        int LoadIndex = BkInfo.GetInstIndex(LInst);
+
+        std::lower_bound();
+    }
 }
 
 void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst* AI)
@@ -201,14 +230,13 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
             }
         }
 
-        // 第二个优化
+        // 第二个优化                       这里满足store 在 load前面，并且发生了替换
         if(Info.OnlyUsedInOneBlock && promoteSingleBlockAlloca(Info,AI,BkInfo))
         {
             RemoveFromAList(AllocaNum);
             continue;
         }
         // 部分优化执行完成了，该进行对插入phi函数的操作了
-
     }
 
     // Rename 
