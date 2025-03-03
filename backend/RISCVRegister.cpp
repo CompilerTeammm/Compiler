@@ -7,6 +7,7 @@ PhyRegister::PhyRegister(PhyReg _regenum)
     : Register(RISCVType::riscv_none, magic_enum::enum_name(_regenum)),
       regenum(_regenum) {}
 
+//单例模式，以静态的map保存物理寄存器
 PhyRegister *PhyRegister::GetPhyReg(PhyReg _regnum) {
   static std::unordered_map<PhyReg, PhyRegister *> registry;
   auto it = registry.find(_regnum);
@@ -14,6 +15,7 @@ PhyRegister *PhyRegister::GetPhyReg(PhyReg _regnum) {
     it = registry.emplace(_regnum, new PhyRegister(_regnum)).first;
   return it->second;
 }
+//构造虚拟寄存器，静态cnt为虚拟寄存器编号，oss字符串流生成寄存器名称
 VirRegister::VirRegister(RISCVType tp, uint32_t _spill, uint32_t _reload)
     : Register(tp) {
   penalty_spill = _spill;
@@ -24,7 +26,7 @@ VirRegister::VirRegister(RISCVType tp, uint32_t _spill, uint32_t _reload)
   oss << "%" << counter;
   rname= oss.str();
 }
-
+//寄存器掩码管理，获取物理寄存器、生成物理寄存器掩码、检测调用者保存寄存器
 PhyRegister* PhyRegMask::GetPhyReg(uint64_t flag){
   for(uint8_t i=0u;i<64u;i++){
     if(flag==(((uint64_t)1)<<i)){
@@ -70,6 +72,8 @@ std::string VirRegister::GetName() {
 void VirRegister::print(){
     std::cout<<"%"<<counter;
 }
+
+//本地地址寄存器初始化
 LARegister::LARegister(RISCVType _type, std::string _name)
     : Register(_type,_name), regnum(LAReg::hi) {}
 LARegister::LARegister(RISCVType _type, std::string _name, LAReg _regenum)
