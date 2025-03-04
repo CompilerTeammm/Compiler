@@ -3,5 +3,5 @@
 
 void RISCVLoweringContext::insert_val2mop(Value *val, RISCVMOperand *mop)
 {
-  val2mop.insert(std::make_pair(val, mop)); // 建立一个新的value和机器操作数
+  val2mop.insert(std::make_pair(val, mop)); // 寤虹珛涓�涓柊鐨剉alue鍜屾満鍣ㄦ搷浣滄暟
 }
