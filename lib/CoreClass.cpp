@@ -774,7 +774,7 @@ void Function::InitBBs()
   size_BB = 0;
 }
 
-void Function::push_param(std::string name, Var *var)
+void Function::PushParam(std::string name, Var *var)
 {
   auto alloca = new AllocaInst(PointerType::NewPointerTypeGet(var->GetType()));
   auto store = new StoreInst(var, alloca);
