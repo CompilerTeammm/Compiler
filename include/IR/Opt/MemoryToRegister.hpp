@@ -51,17 +51,25 @@ public:
                   :_func(function), _tree(tree) {}
     bool isAllocaPromotable(AllocaInst* AI);
 
-    void reName();
     bool promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas);
-    void RemoveFromAList(unsigned& AllocaNum);
+
+    void RemoveFromAList(int& AllocaNum);
+
     void removeLifetimeIntrinsicUsers(AllocaInst* AI);
+
     bool rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  BlockInfo& BBInfo);
+
     bool promoteSingleBlockAlloca(AllocaInfo& Info, AllocaInst* AI,BlockInfo& BkInfo);
-     
+
+    bool QueuePhiNode(BasicBlock* BB, int AllocaNum);
+    
+    void ComputeLiveInBlocks();
+
 protected:
     Function *_func;
     DominantTree * _tree;
     std::vector<AllocaInst *> Allocas;
+    std::map<AllocaInst* ,int> AllocaLookup;
 };
 
 
