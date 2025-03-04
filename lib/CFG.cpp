@@ -132,6 +132,55 @@ Var::Var(UsageTag tag, Type *_tp, std::string _id)
     Singleton<Module>().PushVar(this);
 }
 
+BuiltinFunc::BuiltinFunc(Type *tp, std::string _id) : Value(tp)
+{
+    name = _id;
+    if (name == "starttime" || name == "stoptime")
+        name = "_sysy_" + name;
+}
+
+// const std::string &_id
+BuiltinFunc *BuiltinFunc::GetBuiltinFunc(std::string _id)
+{
+    static std::unordered_map<std::string, BuiltinFunc *> mp;
+    static const std::unordered_map<std::string, Type *> type_map = {
+        {"getint", IntType::NewIntTypeGet()},
+        {"getfloat", FloatType::NewFloatTypeGet()},
+        {"getch", IntType::NewIntTypeGet()},
+        {"getarray", IntType::NewIntTypeGet()},
+        {"getfarray", IntType::NewIntTypeGet()},
+        {"putint", VoidType::NewVoidTypeGet()},
+        {"putch", VoidType::NewVoidTypeGet()},
+        {"putarray", VoidType::NewVoidTypeGet()},
+        {"putfloat", VoidType::NewVoidTypeGet()},
+        {"putfarray", VoidType::NewVoidTypeGet()},
+        {"starttime", VoidType::NewVoidTypeGet()},
+        {"stoptime", VoidType::NewVoidTypeGet()},
+        {"putf", VoidType::NewVoidTypeGet()},
+        {"llvm.memcpy.p0.p0.i32", VoidType::NewVoidTypeGet()},
+        {"memcpy@plt", VoidType::NewVoidTypeGet()},
+        {"buildin_NotifyWorkerLE", VoidType::NewVoidTypeGet()},
+        {"buildin_NotifyWorkerLT", VoidType::NewVoidTypeGet()},
+        {"buildin_FenceArgLoaded", VoidType::NewVoidTypeGet()},
+        {"buildin_AtomicF32add", VoidType::NewVoidTypeGet()},
+        {"CacheLookUp", VoidType::NewVoidTypeGet()},
+    };
+
+    auto it = type_map.find(_id);
+    if (it == type_map.end())
+    {
+        std::cerr << "Error: Unknown built-in function '" << _id << "'\n";
+        assert(0);
+    }
+
+    auto [iter, inserted] = mp.try_emplace(_id, nullptr);
+    if (inserted)
+    {
+        iter->second = new BuiltinFunc(it->second, _id);
+    }
+    return iter->second;
+}
+
 LoadInst::LoadInst(Type *_tp)
     : Instruction(_tp, Op::Load) {}
 

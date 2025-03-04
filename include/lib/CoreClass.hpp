@@ -334,18 +334,18 @@ public:
   // 暂未实现，只有声明
   Operand GenerateBinaryInst(Operand _A, BinaryInst::Operation op, Operand _B);
   static Operand GenerateBinaryInst(BasicBlock *, Operand, BinaryInst::Operation, Operand);
-  Operand GenerateLoadInst(Operand);
-  Operand GenerateGEPInst(Operand);
-  Operand GenerateZextInst(Operand);
-  void GenerateCondInst(Operand, BasicBlock *, BasicBlock *);
-  void GenerateUnCondInst(BasicBlock *);
-  void GenerateRetInst(Operand);
-  void GenerateRetInst();
-  Operand GenerateCallInst(std::string, std::vector<Operand>, int);
-  void GenerateStoreInst(Operand, Operand);
-  AllocaInst *GenerateAlloca(Type *, std::string);
   Operand GenerateSI2FPInst(Operand _A);
   Operand GenerateFP2SIInst(Operand _A);
+  Operand GenerateLoadInst(Operand);
+  void GenerateStoreInst(Operand, Operand);
+  AllocaInst *GenerateAlloca(Type *_tp, std::string name);
+  void GenerateCondInst(Operand, BasicBlock *, BasicBlock *);
+  void GenerateUnCondInst(BasicBlock *);
+  Operand GenerateCallInst(std::string, std::vector<Operand>, int);
+  void GenerateRetInst(Operand);
+  void GenerateRetInst();
+  Operand GenerateGepInst(Operand);
+  Operand GenerateZextInst(Operand);
   BasicBlock *GenerateNewBlock();
   BasicBlock *GenerateNewBlock(std::string);
 };

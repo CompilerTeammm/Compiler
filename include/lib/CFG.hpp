@@ -117,6 +117,15 @@ public:
   void print();
 };
 
+class BuiltinFunc : public Value
+{
+  BuiltinFunc(Type *, std::string);
+
+public:
+  static BuiltinFunc *GetBuiltinFunc(std::string);
+  virtual BuiltinFunc *clone(std::unordered_map<Operand, Operand> &) override { return this; };
+};
+
 // 所有Inst
 // 通用的clone,print方法暂时都还没有写
 class LoadInst : public Instruction

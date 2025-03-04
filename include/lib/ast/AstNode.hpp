@@ -246,3 +246,6 @@ using UnaryExp = BaseExp<HasOperand>; // 基本
 using AddExp = BaseExp<MulExp>;       // 加减
 using MulExp = BaseExp<UnaryExp>;     // 乘除
 using RelExp = BaseExp<AddExp>;       // 逻辑
+using EqExp = BaseExp<RelExp>;        //==
+using LAndExp = BaseExp<EqExp>;       //&&
+using LOrExp = BaseExp<LAndExp>;      //||
