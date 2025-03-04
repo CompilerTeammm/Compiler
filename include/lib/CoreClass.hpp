@@ -6,10 +6,12 @@
 #include <memory>
 #include <unordered_map>
 #include <algorithm>
+#include <set>
 #include "Type.hpp"
 #include "Singleton.hpp"
 #include "MyList.hpp"
 #include "CFG.hpp"
+#include "SymbolTable.hpp"
 
 class Use;
 class User;
@@ -61,7 +63,7 @@ public:
 
 // 如果仅定义一个Value中的Use* UseList，不方便管理，长度等等
 // 包含迭代器类，用于遍历管理的Use
-// dh: is UesrList, value finds ----> User 
+// dh: is UesrList, value finds ----> User
 class ValUseList
 {
 private:
@@ -112,13 +114,13 @@ public:
   void clear();
 };
 
-
 class Value
 {
 private:
   friend class Module;
-  // (Value) this is the key to find Users 
+  // (Value) this is the key to find Users
   ValUseList valuselist;
+
 protected:
   std::string name;
   Type *type;
@@ -142,7 +144,7 @@ public:
   void SetType(Type *_type);
   ValUseList &GetValUseList();
   int GetValUseListSize();
-  void ReplaceAllUseWith(Value* value); // dh RAUW
+  void ReplaceAllUseWith(Value *value); // dh RAUW
   void SetVersion(int new_version);
   int GetVersion() const;
 
@@ -159,6 +161,7 @@ class User : public Value
 private:
   using UsePtr = std::unique_ptr<Use>;
   using UseList = std::vector<UsePtr>;
+
 protected:
   UseList useruselist;
 
@@ -173,7 +176,7 @@ public:
   // 获取Use的序号
   int GetUseIndex(Use *_use);
 
-  UseList &GetUserUseList(){return this->useruselist;}
+  UseList &GetUserUseList() { return this->useruselist; }
 
   virtual void add_use(Value *_value);
   bool remove_use(Use *_use);
@@ -188,7 +191,7 @@ public:
   size_t GetUserUseListSize() const;
 };
 
-class Instruction : public User,public Node<BasicBlock,Instruction>
+class Instruction : public User, public Node<BasicBlock, Instruction>
 {
 public:
   enum Op
@@ -259,7 +262,7 @@ public:
   Value *GetOperand(size_t idx);
   // 将指令类型转换为字符串,便于调试
   static const char *OpToString(Op op);
-  
+
   virtual ~Instruction() = default;
 };
 
@@ -273,7 +276,7 @@ public:
 // 使用的时候根据自己要实现的功能选择合适的数据结构
 class BasicBlock : public Value, public List<BasicBlock, Instruction>, public Node<Function, BasicBlock>
 {
-  //原来是public
+  // 原来是public
 private:
   int LoopDepth;  // 嵌套深度
   bool visited;   // 是否被访问过
@@ -292,7 +295,7 @@ public:
   // 获取当前基本块的指令
   std::vector<InstPtr> &GetInsts();
 
-  BasicBlock(); // 构造函数
+  BasicBlock();          // 构造函数
   virtual ~BasicBlock(); // 析构函数
 
   virtual void init_Insts(); // 初始化指令
@@ -329,71 +332,95 @@ public:
   void ReplacePreBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
 
   // 暂未实现，只有声明
-    Operand GenerateBinaryInst(Operand _A,BinaryInst::Operation op,Operand _B);
-    static Operand GenerateBinaryInst(BasicBlock*,Operand,BinaryInst::Operation,Operand);
-    Operand GenerateLoadInst(Operand);
-    Operand GenerateGEPInst(Operand);
-    Operand GenerateZextInst(Operand);
-    void GenerateCondInst(Operand,BasicBlock*,BasicBlock*);
-    void GenerateUnCondInst(BasicBlock*);
-    void GenerateRetInst(Operand);
-    void GenerateRetInst();
-    Operand GenerateCallInst(std::string,std::vector<Operand>,int);
-    void GenerateStoreInst(Operand,Operand);
-    AllocaInst* GenerateAlloca(Type*,std::string);
-    Operand GenerateSI2FPInst(Operand _A);
-    Operand GenerateFP2SIInst(Operand _A);
-    BasicBlock* GenerateNewBlock();
-    BasicBlock* GenerateNewBlock(std::string);
+  Operand GenerateBinaryInst(Operand _A, BinaryInst::Operation op, Operand _B);
+  static Operand GenerateBinaryInst(BasicBlock *, Operand, BinaryInst::Operation, Operand);
+  Operand GenerateLoadInst(Operand);
+  Operand GenerateGEPInst(Operand);
+  Operand GenerateZextInst(Operand);
+  void GenerateCondInst(Operand, BasicBlock *, BasicBlock *);
+  void GenerateUnCondInst(BasicBlock *);
+  void GenerateRetInst(Operand);
+  void GenerateRetInst();
+  Operand GenerateCallInst(std::string, std::vector<Operand>, int);
+  void GenerateStoreInst(Operand, Operand);
+  AllocaInst *GenerateAlloca(Type *, std::string);
+  Operand GenerateSI2FPInst(Operand _A);
+  Operand GenerateFP2SIInst(Operand _A);
+  BasicBlock *GenerateNewBlock();
+  BasicBlock *GenerateNewBlock(std::string);
 };
 
 // 既提供了vector线性管理BasicBlock，又实现了双向链表
 class Function : public Value, public List<Function, BasicBlock>
 {
 private:
-    using ParamPtr = std::unique_ptr<Value>;
-    using BBPtr = std::unique_ptr<BasicBlock>;
-    std::vector<ParamPtr> params;
-    std::vector<BBPtr> BBs;
-    std::string id;
-    int size_BB = 0;
+  using ParamPtr = std::unique_ptr<Value>;
+  using BBPtr = std::unique_ptr<BasicBlock>;
+  std::vector<ParamPtr> params;
+  std::vector<BBPtr> BBs;
+  std::string id;
+  int size_BB = 0;
 
 public:
-    Function(IR_DataType _type, const std::string &_id);
-    ~Function() = default;
+  Function(IR_DataType _type, const std::string &_id);
+  ~Function() = default;
+  enum Tag
+  {
+    Normal,
+    UnrollBody,
+    LoopBody,
+    ParallelBody,
+    BuildIn,
+  };
+  Tag tag = Normal;
+  std::vector<ParamPtr> &GetParams();
+  std::vector<BBPtr> &GetBBs();
+  inline Tag &GetTag() { return tag; }
+  std::vector<BasicBlock *> GetRetBlock();
+  auto begin();
+  auto end();
+  void print();
+  virtual Function *clone(std::unordered_map<Value *, Value *> &) override { return this; }
 
-    std::vector<ParamPtr> &GetParams();
-    std::vector<BBPtr> &GetBBs();
-    auto begin();
-    auto end();
-    void print();
-    virtual Function *clone(std::unordered_map<Value *, Value *> &) override;
+  // 带BB的都是操作vector，List的相关函数在MyLsit
+  void AddBBs(BasicBlock *BB);
+  void PushBothBB(BasicBlock *BB);
+  void InsertBBs(BasicBlock *BB, size_t pos);
+  // 以下两个暂未实现
+  void InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert);
+  void InsertBB(BasicBlock *curr, BasicBlock *insert);
 
-    //带BB的都是操作vector，List的相关函数在MyLsit
-    void add_BBs(BasicBlock *BB);
-    void push_both_BB(BasicBlock *BB);
-    void Insert_BBs(BasicBlock *BB, size_t pos);
-    void Insert_BB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert);
-    void Insert_BB(BasicBlock *curr, BasicBlock *insert);
-    void Remove_BBs(BasicBlock *BB);
-    void init_BBs();
-    void push_param();
-    std::vector<BasicBlock *> GetRetBlock();
+  void RemoveBBs(BasicBlock *BB);
+  void InitBBs();
+  void PushParam(std::string, Var *);
+  void Function::UpdateParam(Var *var) { params.emplace_back(var); }
 };
 
-class Module
+class Module : public SymbolTable
 {
 private:
-    using FunctionPtr = std::unique_ptr<Function>;
-    std::vector<FunctionPtr> functions;
+  using FunctionPtr = std::unique_ptr<Function>;
+  using GlobalVariblePtr = std::unique_ptr<Var>;
+  std::vector<FunctionPtr> functions;
+  std::vector<GlobalVariblePtr> globalvaribleptr;
 
 public:
-    Module() = default;
-    ~Module() = default;
+  Module() = default;
+  ~Module() = default;
+  // 中端pass
+  std::set<Function *> hasInlinedFunc;
+  std::set<Function *> inlinedFunc;
+  std::set<Function *> Side_Effect_Funcs;
 
-    std::vector<FunctionPtr> &GetFuncTion();
+  std::vector<FunctionPtr> &GetFuncTion() { return functions; }
+  std::vector<std::unique_ptr<Var>> &Module::GetGlobalVariable() { return globalvaribleptr; }
+  void push_func(FunctionPtr func);
+  void PushVar(Var *ptr);
+  Function *GetMain();
+  std::string GetFuncNameEnum(std::string = "");
+  Function &GenerateFunction(IR_DataType _tp, std::string _id);
 
-    void push_func(FunctionPtr func);
-
-    Function *GetMain();
+  // 死代码消除，只有声明，中端待定义
+  void EraseFunction(Function *func);
+  bool EraseDeadFunc();
 };
