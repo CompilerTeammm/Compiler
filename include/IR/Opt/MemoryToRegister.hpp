@@ -62,8 +62,9 @@ public:
     bool promoteSingleBlockAlloca(AllocaInfo& Info, AllocaInst* AI,BlockInfo& BkInfo);
 
     bool QueuePhiNode(BasicBlock* BB, int AllocaNum);
-    
-    void ComputeLiveInBlocks();
+
+    void ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& DefBlock,
+                        std::set<BasicBlock*>& LiveInBlocks,AllocaInfo& info);
 
 protected:
     Function *_func;
