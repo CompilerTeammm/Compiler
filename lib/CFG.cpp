@@ -1,10 +1,11 @@
 #pragma once
-#include"../include/lib/CoreClass.hpp"
-#include"../include/lib/CFG.hpp"
+#include "../include/lib/CoreClass.hpp"
+#include "../include/lib/CFG.hpp"
 
 ConstantData::ConstantData(Type *_tp) : Value(_tp) {}
 
-ConstantData *ConstantData::getNullValue(Type *tp) {
+ConstantData *ConstantData::getNullValue(Type *tp)
+{
     IR_DataType type = tp->GetTypeEnum();
     if (type == IR_DataType::IR_Value_INT)
         return ConstIRInt::GetNewConstant(0);
@@ -14,11 +15,13 @@ ConstantData *ConstantData::getNullValue(Type *tp) {
         return nullptr;
 }
 
-bool ConstantData::isConst() {
+bool ConstantData::isConst()
+{
     return true;
 }
 
-bool ConstantData::isZero() {
+bool ConstantData::isZero()
+{
     if (auto Int = dynamic_cast<ConstIRInt *>(this))
         return Int->GetVal() == 0;
     else if (auto Float = dynamic_cast<ConstIRFloat *>(this))
@@ -29,10 +32,9 @@ bool ConstantData::isZero() {
         return false;
 }
 
-ConstantData *ConstantData::clone(std::unordered_map<Operand, Operand> &mapping) {
-    
+ConstantData *ConstantData::clone(std::unordered_map<Operand, Operand> &mapping)
+{
 }
-
 
 ConstIRBoolean::ConstIRBoolean(bool _val)
     : ConstantData(BoolType::NewBoolTypeGet()), val(_val)
@@ -43,7 +45,8 @@ ConstIRBoolean::ConstIRBoolean(bool _val)
         name = "false";
 }
 
-ConstIRBoolean *ConstIRBoolean::GetNewConstant(bool _val) {
+ConstIRBoolean *ConstIRBoolean::GetNewConstant(bool _val)
+{
     static ConstIRBoolean true_const(true);
     static ConstIRBoolean false_const(false);
     if (_val)
@@ -52,10 +55,10 @@ ConstIRBoolean *ConstIRBoolean::GetNewConstant(bool _val) {
         return &false_const;
 }
 
-bool ConstIRBoolean::GetVal() {
+bool ConstIRBoolean::GetVal()
+{
     return val;
 }
-
 
 ConstIRInt::ConstIRInt(int _val)
     : ConstantData(IntType::NewIntTypeGet()), val(_val)
@@ -75,7 +78,6 @@ int ConstIRInt::GetVal()
 {
     return val;
 }
-
 
 ConstIRFloat::ConstIRFloat(float _val)
     : ConstantData(FloatType::NewFloatTypeGet()), val(_val)
@@ -105,16 +107,32 @@ double ConstIRFloat::GetValAsDouble() const
     return static_cast<double>(val);
 }
 
-UndefValue *UndefValue::Get(Type *_ty) {
+UndefValue *UndefValue::Get(Type *_ty)
+{
     static std::map<Type *, UndefValue *> Undefs;
     UndefValue *&UnVal = Undefs[_ty];
     if (!UnVal)
-    UnVal = new UndefValue(_ty);
+        UnVal = new UndefValue(_ty);
     return UnVal;
-  }
+}
 
+Var::Var(UsageTag tag, Type *_tp, std::string _id)
+    : User(tag == Param ? _tp : PointerType::NewPointerTypeGet(_tp)),
+      usage(tag)
+{
+    if (usage == Param)
+        return;
+    if (usage == GlobalVar)
+    {
+        name = ".G." + _id;
+        Singleton<Module>().Register(_id, this);
+    }
+    else if (usage == Constant)
+        name = ".C." + name;
+    Singleton<Module>().PushVar(this);
+}
 
-LoadInst::LoadInst(Type *_tp) 
+LoadInst::LoadInst(Type *_tp)
     : Instruction(_tp, Op::Load) {}
 
 LoadInst::LoadInst(Operand _src)
@@ -126,14 +144,11 @@ LoadInst::LoadInst(Operand _src)
 
 LoadInst *LoadInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void LoadInst::print()
 {
-
 }
-
 
 StoreInst::StoreInst(Type *_tp)
     : Instruction(_tp, Op::Store) {}
@@ -153,14 +168,11 @@ Operand StoreInst::GetDef()
 
 StoreInst *StoreInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void StoreInst::print()
 {
-
 }
-
 
 AllocaInst::AllocaInst(Type *_tp)
     : Instruction(_tp, Op::Alloca) {}
@@ -173,14 +185,11 @@ bool AllocaInst::isUsed()
 
 AllocaInst *AllocaInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void AllocaInst::print()
 {
-
 }
-
 
 CallInst::CallInst(Type *_tp)
     : Instruction(_tp, Op::Call) {}
@@ -198,14 +207,11 @@ CallInst::CallInst(Value *_func, std::vector<Operand> &_args, std::string label)
 
 CallInst *CallInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void CallInst::print()
 {
- 
 }
-
 
 RetInst::RetInst()
 {
@@ -228,14 +234,11 @@ Operand RetInst::GetDef()
 
 RetInst *RetInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void RetInst::print()
 {
-
 }
-
 
 CondInst::CondInst(Type *_tp)
     : Instruction(_tp, Op::Cond) {}
@@ -255,14 +258,11 @@ Operand CondInst::GetDef()
 
 CondInst *CondInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void CondInst::print()
 {
- 
 }
-
 
 UnCondInst::UnCondInst(Type *_tp)
     : Instruction(_tp, Op::UnCond) {}
@@ -280,13 +280,11 @@ Operand UnCondInst::GetDef()
 
 UnCondInst *UnCondInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void UnCondInst::print()
 {
 }
-
 
 // bool isBinaryBool(BinaryInst::Operation _op)
 // {
@@ -304,8 +302,6 @@ void UnCondInst::print()
 //   }
 // }
 
-
-
 ZextInst::ZextInst(Type *_tp) : Instruction(_tp, Op::Zext) {}
 
 ZextInst::ZextInst(Operand ptr) : Instruction(IntType::NewIntTypeGet(), Op::Zext)
@@ -315,14 +311,11 @@ ZextInst::ZextInst(Operand ptr) : Instruction(IntType::NewIntTypeGet(), Op::Zext
 
 ZextInst *ZextInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void ZextInst::print()
 {
- 
 }
-
 
 SextInst::SextInst(Type *_tp) : Instruction(_tp, Op::Sext) {}
 
@@ -333,15 +326,11 @@ SextInst::SextInst(Operand ptr) : Instruction(Int64Type::NewInt64TypeGet(), Op::
 
 SextInst *SextInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void SextInst::print()
 {
- 
 }
-
-
 
 TruncInst::TruncInst(Type *_tp) : Instruction(_tp, Op::Trunc) {}
 
@@ -352,15 +341,11 @@ TruncInst::TruncInst(Operand ptr) : Instruction(IntType::NewIntTypeGet(), Op::Tr
 
 TruncInst *TruncInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void TruncInst::print()
 {
-
 }
-
-
 
 MaxInst::MaxInst(Type *_tp) : Instruction(_tp, Op::Max) {}
 
@@ -373,14 +358,11 @@ MaxInst::MaxInst(Operand _A, Operand _B) : Instruction(_A->GetType(), Op::Max)
 
 MaxInst *MaxInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void MaxInst::print()
 {
- 
 }
-
 
 MinInst::MinInst(Type *_tp) : Instruction(_tp, Op::Min) {}
 
@@ -393,14 +375,11 @@ MinInst::MinInst(Operand _A, Operand _B) : Instruction(_A->GetType(), Op::Min)
 
 MinInst *MinInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void MinInst::print()
 {
-
 }
-
 
 SelectInst::SelectInst(Type *_tp) : Instruction(_tp, Op::Select) {}
 
@@ -413,14 +392,11 @@ SelectInst::SelectInst(Operand _cond, Operand _true, Operand _false) : Instructi
 
 SelectInst *SelectInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void SelectInst::print()
 {
-
 }
-
 
 GepInst::GepInst(Type *_tp) : Instruction(_tp, Op::Gep) {}
 
@@ -445,7 +421,6 @@ void GepInst::AddArg(Value *arg)
 
 Type *GepInst::GetType()
 {
-
 }
 
 std::vector<Operand> GepInst::GetIndexs()
@@ -458,56 +433,58 @@ std::vector<Operand> GepInst::GetIndexs()
 
 GepInst *GepInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void GepInst::print()
 {
-  
 }
 
-//类型转换
-Operand ToFloat(Operand op,BasicBlock* bb){
-    if(op->GetType()==FloatType::NewFloatTypeGet())
+// 类型转换
+Operand ToFloat(Operand op, BasicBlock *bb)
+{
+    if (op->GetType() == FloatType::NewFloatTypeGet())
         return op;
-    if(op->isConst()){
-        if(auto op_int=dynamic_cast<ConstIRInt*>(op))
+    if (op->isConst())
+    {
+        if (auto op_int = dynamic_cast<ConstIRInt *>(op))
             return ConstIRFloat::GetNewConstant((float)op_int->GetVal());
-        else if(auto op_float=dynamic_cast<ConstIRBoolean*>(op))
+        else if (auto op_float = dynamic_cast<ConstIRBoolean *>(op))
             return ConstIRFloat::GetNewConstant((float)op_float->GetVal());
         else
             assert(false);
     }
-    else{
-        assert(bb!=nullptr);
-        if(op->GetType()==IntType::NewIntTypeGet())
+    else
+    {
+        assert(bb != nullptr);
+        if (op->GetType() == IntType::NewIntTypeGet())
             return bb->GenerateSI2FPInst(op);
         else
             assert(false);
     }
 }
 
-
-Operand ToInt(Operand op,BasicBlock* bb){
-    if(op->GetType()==IntType::NewIntTypeGet())
+Operand ToInt(Operand op, BasicBlock *bb)
+{
+    if (op->GetType() == IntType::NewIntTypeGet())
         return op;
-    if(op->isConst()){
-        if(auto op_int=dynamic_cast<ConstIRBoolean*>(op))
+    if (op->isConst())
+    {
+        if (auto op_int = dynamic_cast<ConstIRBoolean *>(op))
             return ConstIRInt::GetNewConstant((int)op_int->GetVal());
-        else if(auto op_float=dynamic_cast<ConstIRFloat*>(op))
+        else if (auto op_float = dynamic_cast<ConstIRFloat *>(op))
             return ConstIRInt::GetNewConstant((int)op_float->GetVal());
         else
             assert(false);
     }
-    else{
-        assert(bb!=nullptr);
-        if(op->GetType()==FloatType::NewFloatTypeGet())
+    else
+    {
+        assert(bb != nullptr);
+        if (op->GetType() == FloatType::NewFloatTypeGet())
             return bb->GenerateFP2SIInst(op);
         else
             assert(false);
     }
 }
-
 
 PhiInst::PhiInst(Type *_tp) : oprandNum(0), Instruction(_tp, Op::Phi) {}
 
@@ -520,10 +497,8 @@ PhiInst::PhiInst(Instruction *BeforeInst) : oprandNum(0)
 
 PhiInst *PhiInst::clone(std::unordered_map<Operand, Operand> &mapping)
 {
-
 }
 
 void PhiInst::print()
 {
- 
 }
