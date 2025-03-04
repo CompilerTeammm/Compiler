@@ -1,6 +1,8 @@
 #pragma once
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
 #include "../../include/IR/Opt/Men2reg.hpp"
+#include <set>
+#include"IDF.hpp"
 // pair  仿函数  去给排序用的
 struct less_first {
     template<typename T> bool operator()(const T& lhs, const T& rhs) const{
@@ -63,6 +65,56 @@ bool BlockInfo::isInterestingInstruction(List<BasicBlock, Instruction>::iterator
             dynamic_cast<AllocaInst *>((*Inst)->Getuselist()[1]->usee));
 }
 
+// There are blocks which lead to uses,void inserting PHI nodes int the block we don t lead to uses
+void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& DefBlock,
+                        std::set<BasicBlock*>& LiveInBlocks,AllocaInfo& info)
+{
+    // we must iterate through the predecessors of blocks where the def is live
+    std::vector<BasicBlock*>  LiveInWorklist(info.UsingBlocks.begin(),
+                                            info.UsingBlocks.end());
+    for(int i = 0, e =LiveInWorklist.size(); i!=e; i++)
+    {
+        BasicBlock* BB = LiveInWorklist[0];
+        if(!DefBlock.count(BB))  //def 和 use 不再同一个BB里面
+            continue;  
+
+        for(auto I = BB->begin();;++I)
+        {
+            Instruction* inst = *I;
+            if(StoreInst * SInst = dynamic_cast<StoreInst*>(inst))
+            {
+                if(SInst->GetOperand(1) == AI)
+                    continue;
+                
+                LiveInWorklist[i] = LiveInWorklist.back();
+                LiveInWorklist.pop_back();
+                --i;
+                --e;
+                break;
+            }
+
+
+            if(LoadInst* LInst = dynamic_cast<LoadInst*> (inst))
+            {
+                if(LInst->GetOperand(0) !=AI)
+                    continue;
+
+                break;
+            }
+        }
+    }
+
+    while(!LiveInWorklist.empty())
+    {
+        BasicBlock* BB = LiveInWorklist.back();
+
+        if(!LiveInBlocks.insert(BB).second)
+            continue;
+        
+        
+    }
+
+}
 
 // 确定load 和 store 指令的先后顺序
 int BlockInfo:: GetInstIndex(Instruction* Inst)
@@ -85,7 +137,7 @@ int BlockInfo:: GetInstIndex(Instruction* Inst)
 }
 
 
-void PromoteMem2Reg::RemoveFromAList(unsigned& AllocaNum)
+void PromoteMem2Reg::RemoveFromAList(int& AllocaNum)
 {
     Allocas[AllocaNum] = Allocas.back();
     Allocas.pop_back();
@@ -228,8 +280,10 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
 {
     AllocaInfo Info;
     BlockInfo BkInfo;
+    IDF Idf;
+
     // 移除没有users 的 alloca指令
-    for(unsigned AllocaNum = 0; AllocaNum != Allocas.size(); ++AllocaNum){
+    for(int AllocaNum = 0; AllocaNum != Allocas.size(); ++AllocaNum){
         AllocaInst* AI = Allocas[AllocaNum];
         // ？？？
         // removeLifetimeIntrinsicUsers(AI);
@@ -262,12 +316,34 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
             continue;
         }
         // 部分优化执行完成了，该进行对插入phi函数的操作了
+        
+        // keep the reverse mapping of the 'Allocas' array for the rename pass
+        AllocaLookup[Allocas[AllocaNum]] = AllocaNum;
+        
+        // 这个是defBlock的构造  store指令
+        std::set<BasicBlock*> DefineBlock(Info.DefBlocks.begin(),Info.DefBlocks.end());
+
+        std::set<BasicBlock*> LiveInBlocks;
+
+        //输出型参数，我得到 LiveInBlocks
+        ComputeLiveInBlocks(AI,DefineBlock,LiveInBlocks,Info);
 
 
+        ////////
+        std::vector<BasicBlock*> PhiBlocks;
+        Idf.setDefiningBlocks(DefineBlock);
+        Idf.setLiveInBlocks(LiveInBlocks);
+        Idf.calculate(PhiBlocks);
+
+        for(int i = 0; i <PhiBlocks.size(); i++){
+            QueuePhiNode(PhiBlocks[i],AllocaNum);
+        }
     }
 
-    // Rename 
+    if(Allocas.empty())
+        return;
 
+    //Rename
 
     return true;
 }
