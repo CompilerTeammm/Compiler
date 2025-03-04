@@ -178,7 +178,7 @@ void Value::print()
     std::cout << "@" << GetName();
   else if (auto temp = dynamic_cast<Function *>(this))
     std::cout << "@" << temp->GetName();
-  // else if (auto temp = dynamic_cast<BuildInFunction *>(this))
+  // else if (auto temp = dynamic_cast<BuiltinFunc *>(this))
   //   std::cout << "@" << temp->GetName();
   else if (GetName() == "undef")
     std::cout << GetName();
@@ -673,6 +673,168 @@ Operand BasicBlock::GenerateFP2SIInst(Operand _A)
   auto temp = new FP2SIInst(_A);
   push_back(temp);
   return Operand(temp->GetDef());
+}
+
+Operand BasicBlock::GenerateLoadInst(Operand data)
+{
+  auto tmp = new LoadInst(data);
+  push_back(tmp);
+  return tmp->GetDef();
+}
+
+void BasicBlock::GenerateStoreInst(Operand src, Operand des)
+{
+  assert(des->GetType()->GetTypeEnum() == IR_PTR);
+  auto tmp = static_cast<PointerType *>(des->GetType());
+
+  if (tmp->GetSubType()->GetTypeEnum() != src->GetTypeEnum())
+  {
+    src = (tmp->GetSubType()->GetTypeEnum() == IR_Value_INT) ? this->GenerateFP2SIInst(src) : this->GenerateSI2FPInst(src);
+  }
+
+  auto storeinst = std::make_unique<StoreInst>(src, des);
+  this->push_back(storeinst.get());
+  instructions.emplace_back(std::move(storeinst));
+}
+
+AllocaInst *BasicBlock::GenerateAlloca(Type *_tp, std::string name)
+{
+  auto tp = PointerType::NewPointerTypeGet(_tp);
+  auto alloca = new AllocaInst(tp);
+  Singleton<Module>().Register(name, alloca);
+  GetParent()->GetFront()->push_front(alloca);
+  return alloca;
+}
+
+void BasicBlock::GenerateCondInst(Operand _cond, BasicBlock *_true,
+                                  BasicBlock *_false)
+{
+  auto condinst = new CondInst(_cond, _true, _false);
+  push_back(condinst);
+}
+void BasicBlock::GenerateUnCondInst(BasicBlock *des)
+{
+  auto uncondinst = new UnCondInst(des);
+  push_back(uncondinst);
+}
+
+// 根据name生成 CallInst
+Operand BasicBlock::GenerateCallInst(std::string id, std::vector<Operand> args, int run_time)
+{
+  static const std::unordered_set<std::string> builtin_functions = {
+      "getint", "getfloat", "getch", "getarray", "getfarray", "putint",
+      "putch", "putarray", "putfloat", "putfarray", "starttime", "stoptime",
+      "putf", "llvm.memcpy.p0.p0.i32"};
+
+  if (builtin_functions.count(id))
+  {
+    if (id == "starttime" || id == "stoptime")
+    {
+      assert(args.empty());
+      args.push_back(ConstIRInt::GetNewConstant(run_time));
+    }
+
+    if (id == "putfloat")
+    {
+      if (args[0]->GetTypeEnum() == IR_Value_INT)
+      {
+        args[0] = GenerateSI2FPInst(args[0]);
+      }
+    }
+    else if (id == "putint" || id == "putch" || id == "putarray" || id == "putfarray")
+    {
+      if (args[0]->GetTypeEnum() == IR_Value_Float)
+      {
+        args[0] = GenerateFP2SIInst(args[0]);
+      }
+    }
+
+    auto call_inst = std::make_unique<CallInst>(BuiltinFunc::GetBuiltinFunc(id), args, "at" + std::to_string(run_time));
+    push_back(call_inst.get());
+    instructions.emplace_back(std::move(call_inst));
+    return instructions.back()->GetDef();
+  }
+
+  if (auto func = static_cast<Function *>(Singleton<Module>().GetValueByName(id)))
+  {
+    auto &params = func->GetParams();
+    assert(args.size() == params.size());
+
+    auto arg_iter = args.begin();
+    for (auto &param : params)
+    {
+      auto &arg = *arg_iter;
+      auto param_type = param->GetType();
+
+      if (param_type != arg->GetType())
+      {
+        auto arg_enum = arg->GetType()->GetTypeEnum();
+        auto param_enum = param_type->GetTypeEnum();
+        assert(arg_enum == IR_Value_INT || arg_enum == IR_Value_Float);
+        assert(param_enum == IR_Value_INT || param_enum == IR_Value_Float);
+
+        arg = (param_enum == IR_Value_Float) ? GenerateSI2FPInst(arg) : GenerateFP2SIInst(arg);
+      }
+      ++arg_iter;
+    }
+
+    auto call_inst = std::make_unique<CallInst>(func, args, "at" + std::to_string(run_time));
+    push_back(call_inst.get());
+    instructions.emplace_back(std::move(call_inst)); // 确保生命周期
+    return instructions.back()->GetDef();
+  }
+
+  std::cerr << "No Such Function!\n";
+  assert(0);
+  return nullptr;
+}
+
+void BasicBlock::GenerateRetInst()
+{
+  auto retinst = new RetInst();
+  push_back(retinst);
+}
+
+void BasicBlock::GenerateRetInst(Operand ret_val)
+{
+  if (GetParent()->GetTypeEnum() != ret_val->GetTypeEnum())
+  {
+    if (ret_val->GetTypeEnum() == IR_Value_INT)
+      ret_val = GenerateSI2FPInst(ret_val);
+    else
+      ret_val = GenerateFP2SIInst(ret_val);
+  }
+  auto retinst = new RetInst(ret_val);
+  push_back(retinst);
+}
+
+Operand BasicBlock::GenerateGepInst(Operand ptr)
+{
+  auto tmp = new GepInst(ptr);
+  push_back(tmp);
+  return tmp->GetDef();
+}
+
+Operand BasicBlock::GenerateZextInst(Operand ptr)
+{
+  auto tmp = new ZextInst(ptr);
+  push_back(tmp);
+  return tmp->GetDef();
+}
+
+BasicBlock *BasicBlock::GenerateNewBlock()
+{
+  BasicBlock *tmp = new BasicBlock();
+  GetParent()->push_back(tmp);
+  return tmp;
+}
+// push_back存疑
+BasicBlock *BasicBlock::GenerateNewBlock(std::string name)
+{
+  BasicBlock *tmp = new BasicBlock();
+  tmp->name += name;
+  GetParent()->push_back(tmp);
+  return tmp;
 }
 
 // Function
