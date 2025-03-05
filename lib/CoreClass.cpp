@@ -127,10 +127,8 @@ bool Value::isConst() { return false; }
 
 Value::Value(Type *_type) : type(_type), version(0)
 {
-  name = "t";
-  // name += std::to_string(Singleton<Module>().IR_number("."));
-  // 结果：t1,t2,t3
-  // 单例
+  name = ".";
+  name += std::to_string(Singleton<Module>().IR_number("."));
 }
 
 Value::Value(Type *_type, const std::string &_name) : type(_type), name(_name), version(0) {}

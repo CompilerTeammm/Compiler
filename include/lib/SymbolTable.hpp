@@ -43,4 +43,9 @@ public:
         }
         rec.pop_back();
     }
+    int IR_number(std::string str)
+    {
+        static std::unordered_map<std::string, int> recorder;
+        return recorder[str]++;
+    }
 };
