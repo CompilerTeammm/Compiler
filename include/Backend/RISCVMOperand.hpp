@@ -1,6 +1,6 @@
 #pragma once
 #include "../../include/Backend/RISCVType.hpp"
-#include "../../include/lib/BaseCFG.hpp"
+#include "../../include/lib/CFG.hpp"
 
 class Register;
 
