@@ -70,47 +70,50 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& D
                         std::set<BasicBlock*>& LiveInBlocks,AllocaInfo& info)
 {
     // we must iterate through the predecessors of blocks where the def is live
-    std::vector<BasicBlock*>  LiveInWorklist(info.UsingBlocks.begin(),
-                                            info.UsingBlocks.end());
-    for(int i = 0, e =LiveInWorklist.size(); i!=e; i++)
-    {
-        BasicBlock* BB = LiveInWorklist[0];
-        if(!DefBlock.count(BB))  //def 和 use 不再同一个BB里面
-            continue;  
+    // %a = alloca i32; (store i32 10,i32* %a;) %val = load i32,i32* %a 
+    // 这个计算的核心在于查找use（load）的基本块里面，val值是不是活跃的
 
-        for(auto I = BB->begin();;++I)
+    // workList 
+    std::vector<BasicBlock*> WorkLiveIn(info.UsingBlocks.begin(),
+                                        info.UsingBlocks.end());
+    for(int i = 0, e = WorkLiveIn.size(); i != e;i++)
+    {
+        BasicBlock* BB =WorkLiveIn[i];
+        if(!DefBlock.count(BB)) 
+            continue; //判断有没有store的情况
+        
+        for(auto it = BB->end();;++it)
         {
-            Instruction* inst = *I;
-            if(StoreInst * SInst = dynamic_cast<StoreInst*>(inst))
-            {
-                if(SInst->GetOperand(1) == AI)
+            Instruction* inst = *it;
+            // 最开始是storeInst的处理
+            if(StoreInst* SInst = dynamic_cast<StoreInst*> (inst)){
+                if(SInst->GetOperand(1) != AI)
                     continue;
                 
-                LiveInWorklist[i] = LiveInWorklist.back();
-                LiveInWorklist.pop_back();
+                WorkLiveIn[i] = WorkLiveIn.back();
+                WorkLiveIn.pop_back();
                 --i;
                 --e;
                 break;
             }
 
-
-            if(LoadInst* LInst = dynamic_cast<LoadInst*> (inst))
+            if(LoadInst* LInst = dynamic_cast<LoadInst*>(inst))
             {
-                if(LInst->GetOperand(0) !=AI)
-                    continue;
-
-                break;
+                if(LInst->GetOperand(0) == AI)
+                    break;
             }
         }
     }
 
-    while(!LiveInWorklist.empty())
-    {
-        BasicBlock* BB = LiveInWorklist.back();
+    while(!WorkLiveIn.empty()){
+        BasicBlock* BB = WorkLiveIn.back();
+        WorkLiveIn.pop_back();
 
         if(!LiveInBlocks.insert(BB).second)
             continue;
-        
+        // 接下来是for循环的对前驱的遍历，需要建立支配关系，
+        // 寻找前驱是store的块，才可以终止对pre的回溯
+
         
     }
 
@@ -325,7 +328,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
 
         std::set<BasicBlock*> LiveInBlocks;
 
-        //输出型参数，我得到 LiveInBlocks
+        //输出型参数，我得到 LiveInBlocks 计算活跃性的
         ComputeLiveInBlocks(AI,DefineBlock,LiveInBlocks,Info);
 
 
