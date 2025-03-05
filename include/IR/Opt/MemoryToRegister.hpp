@@ -71,6 +71,7 @@ protected:
     DominantTree * _tree;
     std::vector<AllocaInst *> Allocas;
     std::map<AllocaInst* ,int> AllocaLookup;
+    std::map<std::pair<int,int>,PhiInst*> NewPhiNodes;
 };
 
 

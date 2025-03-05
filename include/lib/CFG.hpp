@@ -347,6 +347,7 @@ public:
   void print() final;
 };
 
+/// dh
 // 前端给框架？中端写自己要用的？
 class PhiInst : public Instruction
 {
@@ -357,6 +358,7 @@ public:
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
 
+  static PhiInst* Create(Type* type,int Num,std::string name,BasicBlock* BB);
   PhiInst *clone(std::unordered_map<Operand, Operand> &) override;
   void print() final;
 };
