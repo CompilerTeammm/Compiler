@@ -260,6 +260,8 @@ public:
   bool operator==(Instruction &other);
   // 获取指定索引的操作数  User 获取 value的一个接口
   Value *GetOperand(size_t idx);
+  // 暂未实现：依赖RAUW->PhiInst,等中端实现了再来补充
+  void InstReplace(Instruction *inst);
   // 将指令类型转换为字符串,便于调试
   static const char *OpToString(Op op);
 
