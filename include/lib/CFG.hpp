@@ -122,8 +122,11 @@ class BuiltinFunc : public Value
   BuiltinFunc(Type *, std::string);
 
 public:
+  static bool CheckBuiltin(std::string);
   static BuiltinFunc *GetBuiltinFunc(std::string);
-  virtual BuiltinFunc *clone(std::unordered_map<Operand, Operand> &) override { return this; };
+  static CallInst *BuiltinTransform(CallInst *);
+  static Instruction *GenerateCallInst(std::string, std::vector<Operand> args);
+  virtual BuiltinFunc *clone(std::unordered_map<Operand, Operand> &) override { return this; }
 };
 
 // 所有Inst

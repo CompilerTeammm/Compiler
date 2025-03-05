@@ -139,6 +139,39 @@ BuiltinFunc::BuiltinFunc(Type *tp, std::string _id) : Value(tp)
         name = "_sysy_" + name;
 }
 
+bool BuiltinFunc::CheckBuiltin(std::string id)
+{
+    if (id == "getint")
+        return true;
+    if (id == "getfloat")
+        return true;
+    if (id == "getch")
+        return true;
+    if (id == "getarray")
+        return true;
+    if (id == "getfarray")
+        return true;
+    if (id == "putint")
+        return true;
+    if (id == "putch")
+        return true;
+    if (id == "putarray")
+        return true;
+    if (id == "putfloat")
+        return true;
+    if (id == "putfarray")
+        return true;
+    if (id == "starttime")
+        return true;
+    if (id == "stoptime")
+        return true;
+    if (id == "putf")
+        return true;
+    if (id == "llvm.memcpy.p0.p0.i32")
+        return true;
+    return false;
+}
+
 // const std::string &_id
 BuiltinFunc *BuiltinFunc::GetBuiltinFunc(std::string _id)
 {
@@ -179,6 +212,72 @@ BuiltinFunc *BuiltinFunc::GetBuiltinFunc(std::string _id)
         iter->second = new BuiltinFunc(it->second, _id);
     }
     return iter->second;
+}
+
+CallInst *BuiltinFunc::BuiltinTransform(CallInst *callinst)
+{
+    std::string funcName = callinst->GetOperand(0)->GetName();
+
+    if (!CheckBuiltin(funcName))
+    {
+        return callinst;
+    }
+
+    if (funcName == "llvm.memcpy.p0.p0.i32")
+    {
+        auto dst = callinst->GetOperand(1);
+        auto src = callinst->GetOperand(2);
+        auto size = callinst->GetOperand(3);
+
+        std::vector<Operand> args{dst, src, size};
+
+        auto tmp = new CallInst(BuiltinFunc::GetBuiltinFunc("memcpy@plt"), args, "");
+
+        // 替换原来的调用
+        callinst->InstReplace(tmp);
+
+        delete callinst;
+        return tmp;
+    }
+
+    return callinst;
+}
+
+Instruction *BuiltinFunc::GenerateCallInst(std::string id, std::vector<Operand> args)
+{
+    if (CheckBuiltin(id))
+    {
+        // 目前只支持memcpy,可拓展
+        if (id != "llvm.memcpy.p0.p0.i32")
+        {
+            throw std::runtime_error("Builtin function '" + id + "' is not supported here.");
+        }
+        return new CallInst(BuiltinFunc::GetBuiltinFunc(id), args, "");
+    }
+
+    // 普通函数
+    Function *func = dynamic_cast<Function *>(Singleton<Module>().GetValueByName(id));
+    if (!func)
+    {
+        throw std::runtime_error("No such function: '" + id + "'");
+    }
+
+    // 参数
+    auto &params = func->GetParams();
+    if (args.size() != params.size())
+    {
+        throw std::invalid_argument("Function '" + id + "' expects " + std::to_string(params.size()) +
+                                    " arguments, but got " + std::to_string(args.size()));
+    }
+    auto i = args.begin();
+    for (auto j = params.begin(); j != params.end(); j++, i++)
+    {
+        Operand &m = *i;
+        Operand n = j->get();
+        if (n->GetType() != m->GetType())
+            assert(0 && "wrong input type");
+    }
+    return new CallInst(func, args, "");
 }
 
 LoadInst::LoadInst(Type *_tp)
