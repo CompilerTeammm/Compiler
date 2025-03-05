@@ -114,6 +114,14 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& D
         // 接下来是for循环的对前驱的遍历，需要建立支配关系，
         // 寻找前驱是store的块，才可以终止对pre的回溯
 
+        // 需要支配树，但是支配树我还没有实现   
+        for(auto& pre :BB)
+        {
+            if(DefBlock.count(pre))
+                continue;
+            
+            WorkLiveIn.push_back(pre);
+        }
         
     }
 
@@ -137,6 +145,24 @@ int BlockInfo:: GetInstIndex(Instruction* Inst)
     }
 
     return InstNumbersIndex[Inst];
+}
+
+// 创建队列去插入phi函数
+bool PromoteMem2Reg::QueuePhiNode(BasicBlock* BB, int AllocaNum)
+{
+
+    PhiInst* &PN = NewPhiNodes[std::make_pair(BBNumbers[BB],AllocaNum)];
+    
+    //  had  a phi func
+    if(PN)
+        return false;
+    int num;
+    BasicBlock* BB1;
+    PN =PhiInst::Create(Allocas[AllocaNum]->GetType(),num,
+                        Allocas[AllocaNum]->GetName()+ ".",
+                         BB1);
+    
+    return true;
 }
 
 
@@ -332,13 +358,24 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         ComputeLiveInBlocks(AI,DefineBlock,LiveInBlocks,Info);
 
 
-        ////////
+        //////// determine which block nodes need phi functions
         std::vector<BasicBlock*> PhiBlocks;
+
         Idf.setDefiningBlocks(DefineBlock);
         Idf.setLiveInBlocks(LiveInBlocks);
         Idf.calculate(PhiBlocks);
+        // 到这里应该 PhiBlocks 已经被构建完成了
 
-        for(int i = 0; i <PhiBlocks.size(); i++){
+        ///// ????? llvm
+        // 排序以据可以是DFS的遍历顺序
+        if(PhiBlocks.size() > 1)
+            std::sort(PhiBlocks.begin(),PhiBlocks.end(),
+                     [this](BasicBlock* A,BasicBlock* B){
+                        return 
+                     });
+
+        // 到这里为止，我应该是拥有了改插入phi的节点了
+        for(int i = 0,e =PhiBlocks.size();i !=e; i++){
             QueuePhiNode(PhiBlocks[i],AllocaNum);
         }
     }
@@ -347,6 +384,10 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         return;
 
     //Rename
+    // 这个倒是好实现，作用啥的我仔细看看
+    // BkInfo.clear();
+
+    
 
     return true;
 }
