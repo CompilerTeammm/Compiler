@@ -377,6 +377,7 @@ public:
   Tag tag = Normal;
   std::vector<ParamPtr> &GetParams();
   std::vector<BBPtr> &GetBBs();
+  // std::vector<BasicBlock*> &GetBasicBlock();
   inline Tag &GetTag() { return tag; }
   std::vector<BasicBlock *> GetRetBlock();
   auto begin();
