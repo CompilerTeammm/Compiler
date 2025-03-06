@@ -129,7 +129,7 @@ protected:
 public:
   virtual bool isGlobal();
   virtual bool isConst();
-
+  virtual bool IsBoolean() const { return false; }
   // 构造至少需要类型，可以不要value
   Value() = delete;
   Value(Type *_type);
