@@ -24,7 +24,7 @@ class ConstIRBoolean : public ConstantData
 {
 private:
   bool val;
-
+  bool IsBoolean() const override { return true; }
   ConstIRBoolean(bool _val);
 
 public:
@@ -358,7 +358,7 @@ public:
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
 
-  static PhiInst* Create(Type* type,int Num,std::string name,BasicBlock* BB);
+  static PhiInst *Create(Type *type, int Num, std::string name, BasicBlock *BB);
   PhiInst *clone(std::unordered_map<Operand, Operand> &) override;
   void print() final;
 };

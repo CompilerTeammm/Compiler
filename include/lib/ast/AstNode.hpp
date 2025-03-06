@@ -1,6 +1,7 @@
 #pragma once
 #include "../CoreClass.hpp"
 #include "../CFG.hpp"
+// #include "../Type.hpp"
 #include "BaseAst.hpp"
 
 enum AST_Type
@@ -249,3 +250,173 @@ using RelExp = BaseExp<AddExp>;       // 逻辑
 using EqExp = BaseExp<RelExp>;        //==
 using LAndExp = BaseExp<EqExp>;       //&&
 using LOrExp = BaseExp<LAndExp>;      //||
+
+template <>
+inline Operand BaseExp<RelExp>::GetOperand(BasicBlock *block)
+{
+  auto i = DataList.begin();
+  auto oper = (*i)->GetOperand(block);
+
+  if (OpList.empty() && oper->GetType() != BoolType::NewBoolTypeGet())
+  {
+    switch (oper->GetType()->GetTypeEnum())
+    {
+    case IR_PTR:
+      oper = block->GenerateBinaryInst(oper, BinaryInst::Op_NE,
+                                       ConstPtr::GetNewConstant(oper->GetType()));
+      break;
+    case IR_Value_INT:
+      oper = block->GenerateBinaryInst(oper, BinaryInst::Op_NE,
+                                       ConstIRInt::GetNewConstant());
+      break;
+    case IR_Value_Float:
+      oper = block->GenerateBinaryInst(oper, BinaryInst::Op_NE,
+                                       ConstIRFloat::GetNewConstant());
+      break;
+    default:
+      throw std::runtime_error("Unexpected operand type in GetOperand");
+    }
+    return oper;
+  }
+
+  static const std::unordered_map<int, BinaryInst::Operation> op_map = {
+      {AST_EQ, BinaryInst::Op_E},
+      {AST_NOTEQ, BinaryInst::Op_NE}};
+
+  for (auto &j : OpList)
+  {
+    i++;
+    auto another = (*i)->GetOperand(block);
+
+    auto it = op_map.find(j);
+    if (it == op_map.end())
+    {
+      std::cerr << "Wrong Opcode for EqExp\n";
+      assert(0);
+    }
+
+    oper = block->GenerateBinaryInst(oper, it->second, another);
+  }
+
+  return oper;
+}
+
+template <>
+inline void BaseExp<EqExp>::GetOperand(BasicBlock *block, BasicBlock *_true,
+                                       BasicBlock *_false)
+{
+  for (auto &i : DataList)
+  {
+    auto tmp = i->GetOperand(block);
+
+    if (tmp->IsBoolean())
+    {
+      auto Const = static_cast<ConstIRBoolean *>(tmp);
+      if (Const->GetVal() == false)
+      {
+        block->GenerateUnCondInst(_false);
+        return;
+      }
+      if (i != DataList.back())
+        continue;
+      block->GenerateUnCondInst(_true);
+      return;
+    }
+
+    auto nxt_block = (i != DataList.back()) ? block->GenerateNewBlock() : _true;
+    block->GenerateCondInst(tmp, nxt_block, _false);
+    block = nxt_block;
+  }
+}
+
+template <>
+inline void BaseExp<LAndExp>::GetOperand(BasicBlock *block, BasicBlock *is_true,
+                                         BasicBlock *is_false)
+{
+  for (auto it = DataList.begin(); it != DataList.end(); ++it)
+  {
+    if (it != std::prev(DataList.end()))
+    {
+      auto nxt_building = block->GenerateNewBlock();
+      (*it)->GetOperand(block, is_true, nxt_building);
+      if (!nxt_building->GetValUseList().is_empty())
+      {
+        block = nxt_building;
+      }
+      else
+      {
+        nxt_building->EraseFromManager();
+        return;
+      }
+    }
+    else
+    {
+      (*it)->GetOperand(block, is_true, is_false);
+    }
+  }
+}
+
+class InnerBaseExps : public BaseAST
+{
+protected:
+  BaseList<AddExp> DataList;
+
+public:
+  InnerBaseExps(AddExp *_data) { push_front(_data); }
+  void push_front(AddExp *_data) { DataList.push_front(_data); }
+  void push_back(AddExp *_data) { DataList.push_back(_data); }
+  void print(int x);
+};
+
+class Exps : public InnerBaseExps
+{
+public:
+  Exps(AddExp *_data) : InnerBaseExps(_data) {}
+  Type *GenerateArrayTypeDescriptor()
+  {
+    auto base_type = NewTypeFromIRDataType(Singleton<IR_DataType>());
+
+    for (auto it = DataList.rbegin(); it != DataList.rend(); ++it)
+    {
+      Value *operand = (*it)->GetOperand(nullptr);
+      if (auto fuc = dynamic_cast<ConstIRInt *>(operand))
+      {
+        base_type = ArrayType::NewArrayTypeGet(fuc->GetVal(), base_type);
+      }
+      else if (auto fuc = dynamic_cast<ConstIRFloat *>(operand))
+      {
+        base_type = ArrayType::NewArrayTypeGet(fuc->GetVal(), base_type);
+      }
+      else
+      {
+        throw std::runtime_error("Unexpected operand type in GetDeclDescipter()");
+      }
+    }
+    return base_type;
+  }
+  Type *GenerateArrayTypeDescriptor(Type *base_type)
+  {
+    for (auto i = DataList.rbegin(); i != DataList.rend(); i++)
+    {
+      auto con = (*i)->GetOperand(nullptr);
+      if (auto fuc = dynamic_cast<ConstIRInt *>(con))
+      {
+        base_type = ArrayType::NewArrayTypeGet(fuc->GetVal(), base_type);
+      }
+      else if (auto fuc = dynamic_cast<ConstIRFloat *>(con))
+      {
+        base_type = ArrayType::NewArrayTypeGet(fuc->GetVal(), base_type);
+      }
+      else
+        throw std::runtime_error("Unexpected operand type in GetDeclDescipter()");
+    }
+    return base_type;
+  }
+  std::vector<Operand> GetVisitDescripter(BasicBlock *block)
+  {
+    std::vector<Operand> tmp;
+    for (auto &i : DataList)
+      tmp.push_back(i->GetOperand(block));
+    return tmp;
+  }
+};
