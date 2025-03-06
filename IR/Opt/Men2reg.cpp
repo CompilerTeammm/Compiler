@@ -1,6 +1,7 @@
 #pragma once
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
 #include "../../include/IR/Opt/Men2reg.hpp"
+#include <memory>
 #include <set>
 #include"IDF.hpp"
 // pair  仿函数  去给排序用的
@@ -147,21 +148,26 @@ int BlockInfo:: GetInstIndex(Instruction* Inst)
     return InstNumbersIndex[Inst];
 }
 
-// 创建队列去插入phi函数
+// 创建队列去插入phi函数，建立<PHI*,int>的map关系
+// Todo: PhiInst 指令我还没有实现它
 bool PromoteMem2Reg::QueuePhiNode(BasicBlock* BB, int AllocaNum)
 {
-
-    PhiInst* &PN = NewPhiNodes[std::make_pair(BBNumbers[BB],AllocaNum)];
+    // 为了类型匹配我进行了转换
+    auto newBB = std::unique_ptr<BasicBlock> (BB);
+    PhiInst* &PN = NewPhiNodes[std::make_pair(BBNumbers[newBB],AllocaNum)];
     
     //  had  a phi func
     if(PN)
         return false;
+    
+    // PhiInst 我还没用实现
     int num;
     BasicBlock* BB1;
     PN =PhiInst::Create(Allocas[AllocaNum]->GetType(),num,
                         Allocas[AllocaNum]->GetName()+ ".",
                          BB1);
-    
+    PhiToAllocaMap[PN] = AllocaNum;
+
     return true;
 }
 
@@ -346,6 +352,15 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         }
         // 部分优化执行完成了，该进行对插入phi函数的操作了
         
+
+        // computed a numbering for the BB's in the func
+        if(BBNumbers.empty())
+        {
+            int ID = 0;
+            for(auto &BB :_func->GetBBs())
+                BBNumbers[BB] = ID++;
+        }
+
         // keep the reverse mapping of the 'Allocas' array for the rename pass
         AllocaLookup[Allocas[AllocaNum]] = AllocaNum;
         
@@ -366,16 +381,16 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         Idf.calculate(PhiBlocks);
         // 到这里应该 PhiBlocks 已经被构建完成了
 
-        ///// ????? llvm
         // 排序以据可以是DFS的遍历顺序
+        /// 然后对基本块根据序号进行排序，使得插入phi指令的顺序和编号确定化
         if(PhiBlocks.size() > 1)
             std::sort(PhiBlocks.begin(),PhiBlocks.end(),
-                     [this](BasicBlock* A,BasicBlock* B){
-                        return 
+                     [this](std::unique_ptr<BasicBlock>& A,std::unique_ptr<BasicBlock>& B){
+                            return BBNumbers.at(A) < BBNumbers.at(B);
                      });
 
         // 到这里为止，我应该是拥有了改插入phi的节点了
-        for(int i = 0,e =PhiBlocks.size();i !=e; i++){
+        for(int i = 0,e = PhiBlocks.size();i !=e; i++){
             QueuePhiNode(PhiBlocks[i],AllocaNum);
         }
     }
@@ -387,7 +402,32 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
     // 这个倒是好实现，作用啥的我仔细看看
     // BkInfo.clear();
 
+    // 初始化ValVector，
+    RenamePassData::ValVector Values(Allocas.size());
+    for(int i = 0, e =Allocas.size(); i!=e; ++i)
+        Values[i] = UndefValue::Get(Allocas[i]->GetType());
     
+    /// WorkList 主要是
+    std::vector<RenamePassData> RenamePasWorkList;
+    // 这里sb报错，不知道为啥
+    RenamePasWorkList.emplace_back(_func->begin(),nullptr,std::move(Values));
+    do{
+        auto tmp = std::move(RenamePasWorkList.back());
+        RenamePasWorkList.pop_back();
+        // 一个核心逻辑
+        ReName();
+    }while(!RenamePasWorkList.empty());
+
+    ///////// 下面是重命名之后的额外操作
+
+    for(int i = 0,e=Allocas.size(); i!=e;i++)
+    {
+        Instruction* A =Allocas[i];
+
+        if(!A->is_empty())
+            A->ReplaceAllUseWith(UndefValue::Get(A->GetType()));
+        delete A;
+    }
 
     return true;
 }

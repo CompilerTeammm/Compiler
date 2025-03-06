@@ -43,6 +43,21 @@ public:
     bool isInterestingInstruction(List<BasicBlock, Instruction>::iterator Inst);
 };
 
+class RenamePassData{
+public:
+    typedef std::vector<Value*> ValVector;
+
+    RenamePassData()
+    : BB(nullptr),Pred(nullptr),Values()  {}
+
+    RenamePassData(BasicBlock*B,BasicBlock*P , ValVector& V)
+                :BB(B),Pred(P),Values(V) {}
+                
+    BasicBlock* BB;
+    BasicBlock* Pred;
+    ValVector Values;
+};
+
 class PromoteMem2Reg
 {
 public:
@@ -72,6 +87,12 @@ protected:
     std::vector<AllocaInst *> Allocas;
     std::map<AllocaInst* ,int> AllocaLookup;
     std::map<std::pair<int,int>,PhiInst*> NewPhiNodes;
+
+    // BBs in Function number
+    std::map<std::unique_ptr<BasicBlock>,int> BBNumbers;
+
+    // 记录Phi和alloca的对应的关系
+    std::map<PhiInst*,int> PhiToAllocaMap;
 };
 
 
