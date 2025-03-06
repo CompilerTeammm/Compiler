@@ -7,7 +7,7 @@ class Register:public RISCVMOperand{
     public:
     Register(RISCVType _tp):RISCVMOperand(_tp){};
     Register(RISCVType _tp,std::string_view _name):RISCVMOperand(_tp),rname(_name){};
-    virtual bool isphysical()=0;
+    virtual bool isPhysical()=0;
     virtual std::string GetName()=0;
 };
 class PhyRegister:public Register{
@@ -72,7 +72,7 @@ namespace PhyRegMask{
     bool isCallerSaved(uint64_t);
     bool isCalleeSaved(uint64_t);
     
-    void visit(uint64_,std::function<void(uint64_t)>);
+    void visit(uint64_t,std::function<void(uint64_t)>);
 };
 
 class VirRegister:public Register{
@@ -86,7 +86,7 @@ class VirRegister:public Register{
     VirRegister(RISCVType,uint32_t=6,uint32_t=6);
     std::string GetName();
     void print()final;
-}
+};
 
 
 class LARegister:public Register{
@@ -103,7 +103,7 @@ class LARegister:public Register{
     Register*& GetVreg();
     void SetReg(PhyRegister*&);
     std::string GetName(){return rname;};
-    bool isPhysical()final{return true};
+    bool isPhysical()final{return true;};
 };
 
 class RegisterList{

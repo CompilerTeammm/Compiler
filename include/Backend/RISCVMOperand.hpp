@@ -27,4 +27,4 @@ class Imm : public RISCVMOperand {
     ConstantData* GetData();
     static Imm* GetImm(ConstantData*);
     void print()final;
-}
+};

@@ -1,6 +1,7 @@
 #pragma once
 #include "../../include/Backend/RISCVMOperand.hpp"
 #include "../../include/Backend/RISCVRegister.hpp"
+#include "../../include/lib/MagicEnum.hpp"
 //#include "../../include/lib/MagicEnum.hpp"
 //to do：待我研究一下这个库是个啥
 //有名字的操作数
@@ -44,9 +45,55 @@ class RISCVTempFloatObject:public RISCVObject{
 
 //栈帧对象
 class RISCVFrameObject:public RISCVMOperand{
-    //todo
+    size_t begin_addr_offsets=0;//起始偏移量
+    size_t end_addr_offsets=0;//结束偏移量
+
+    StackRegister* reg;
+    size_t size=0;
+    std::string name;
+    RISCVType contexttype;
+
+    public:
+    RISCVFrameObject();//构造函数
+    RISCVFrameObject(Value*);
+    RISCVFrameObject(VirRegister*);
+    RISCVFrameObject(PhyRegister*);
+
+    void GenerateStackRegister(int);//生成栈寄存器
+    size_t GetFrameObjSize();//返回栈帧对象大小
+    size_t GetBeginAddOffsets();
+    size_t GetEndAddOffsets();
+    RISCVType GetContextType();
+    void SetBeginAddOffsets(size_t);
+    void SetEndAddOffsets(size_t);
+    StackRegister*& GetStackReg();//返回栈寄存器的引用
+    void print()override;
 };
 //栈寄存器
 class StackRegister:public Register{
-    //todo
+    int offset;//栈寄存器偏移量
+    RISCVFrameObject* parent=nullptr;//指向父栈帧对象
+    Register* reg=nullptr;//指向寄存器
+
+    public:
+    StackRegister(RISCVFrameObject*,PhyRegister::PhyReg,int);//初始化
+    StackRegister(RISCVFrameObject*,VirRegister*,int);
+    StackRegister(PhyRegister::PhyReg,int);
+    StackRegister(VirRegister*,int);
+
+    std::string GetName(){
+        return rname;//返回寄存器名
+    }
+    int GetOffset(){
+        return offset;//返回偏移量
+    }
+    RISCVFrameObject*&  GetParent();
+    VirRegister* GetVreg();
+    Register*& GetReg();
+
+    void SetPreg(PhyRegister*&);
+    void SetReg(Register*);
+    void SetOffset(int);
+    void print()final;
+    bool isPhysical()final;
 };
