@@ -34,4 +34,19 @@ class RISCVGlobalObject:public RISCVObject{
     public:
     RISCVGlobalObject(Type*,std::string name);
     void print()override;
-}
+};
+//临时浮点对象(other？)
+class RISCVTempFloatObject:public RISCVObject{
+    public:
+    RISCVTempFloatObject(std::string name);
+    void print()override;
+};
+
+//栈帧对象
+class RISCVFrameObject:public RISCVMOperand{
+    //todo
+};
+//栈寄存器
+class StackRegister:public Register{
+    //todo
+};
