@@ -5,3 +5,9 @@ void RISCVLoweringContext::insert_val2mop(Value *val, RISCVMOperand *mop)
 {
   val2mop.insert(std::make_pair(val, mop)); // 建立一个新的value和机器操作数
 }
+
+void RISCVLoweringContext::operator()(RISCVFunction *mfunc)
+{
+  functions.emplace_back(mfunc);
+  cur_func = mfunc;
+}

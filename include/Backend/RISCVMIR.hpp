@@ -199,6 +199,8 @@ public:
     EndPipeline
 
   } opcode;
-}
-}
-;
+};
+
+class RISCVFunction
+{
+};

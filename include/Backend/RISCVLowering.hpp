@@ -5,7 +5,7 @@
 class RISCVModuleLowering : BackEndPass<Module>
 {
 public:
-  bool run(Module *);
+  bool run(Module *) override;
 
 private:
   RISCVLoweringContext ctx;
@@ -15,7 +15,7 @@ private:
 class RISCVFunctionLowering : BackEndPass<Function>
 {
 public:
-  bool run(Module *);
+  bool run(Module *) override;
   RISCVFunctionLowering(RISCVLoweringContext &ctx, RISCVAsmPrinter *&asmprinter);
 
 private:
