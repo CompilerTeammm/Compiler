@@ -17,7 +17,7 @@ public:
     bool OnlyUsedInOneBlock;  // alloca 的读写（使用）操作判断是不是均在一个基本块中完成的
     //size_t  BasicBlocknums; // 记录一下storeinst 的数目 真鸡肋，，，
 
-    Value* AllocaPointerVal;  //llvm中的，作用现在未知
+    //Value* AllocaPointerVal;  // 目前没有发现llvm为啥要加这个，先注释掉
 
     void AnalyzeAlloca(AllocaInst* AI);
 
@@ -52,7 +52,7 @@ public:
 
     RenamePassData(BasicBlock*B,BasicBlock*P , ValVector& V)
                 :BB(B),Pred(P),Values(V) {}
-                
+
     BasicBlock* BB;
     BasicBlock* Pred;
     ValVector Values;
@@ -64,7 +64,7 @@ public:
   // 遍历基本块中的指令，将指令进行一个消除 alloca/ store / load指令
     PromoteMem2Reg(Function* function, DominantTree* tree) 
                   :_func(function), _tree(tree) {}
-    bool isAllocaPromotable(AllocaInst* AI);
+    static bool isAllocaPromotable(AllocaInst* AI);
 
     bool promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas);
 
@@ -91,8 +91,9 @@ protected:
     // BBs in Function number
     std::map<std::unique_ptr<BasicBlock>,int> BBNumbers;
 
-    // 记录Phi和alloca的对应的关系
     std::map<PhiInst*,int> PhiToAllocaMap;
+    // 记录Phi和alloca的对应的关系
+    // std::map<PhiInst*,int> PhiToAllocaMap;
 };
 
 

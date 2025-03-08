@@ -4,6 +4,14 @@
 #include <memory>
 #include <set>
 #include"IDF.hpp"
+
+// walk along the logic 
+//Todo: DomTree Pre DFS_order sdom->idom  DF 
+//  IDF iterate DF 
+// Pass ReName
+// Simply Inst 
+
+
 // pair  仿函数  去给排序用的
 struct less_first {
     template<typename T> bool operator()(const T& lhs, const T& rhs) const{
@@ -28,7 +36,7 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
             // 储存bbs instrution -> bbs
             // BasicBlock* parent = nullptr; //临时测试用的
             tmpBB = SInst->GetParent();
-            AllocaPointerVal = SInst->GetOperand(0);
+            // AllocaPointerVal = SInst->GetOperand(0);
             DefBlocks.push_back(tmpBB);
             // BasicBlocknums++;  说实话，这个鸡肋了，因为 defBlocks就可以求出里面的个数
             OnlyStoreInst =SInst;
@@ -38,7 +46,7 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
             tmpBB = LInst->GetParent();
             // BasicBlock* parent = nullptr; //临时测试用的
             UsingBlocks.push_back(tmpBB);
-            AllocaPointerVal = LInst;
+            // AllocaPointerVal = LInst;
         }
 
         if(OnlyUsedInOneBlock)
@@ -287,6 +295,8 @@ bool PromoteMem2Reg::promoteSingleBlockAlloca(AllocaInfo &Info, AllocaInst *AI, 
     return true;
 }
 
+// knowing that the alloca is promotable,we know that it is safe 
+//to kill all insts except for load and store
 void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst* AI)
 {
     for(auto UI = AI->GetValUseList().begin(),UE = AI->GetValUseList().end(); UI!=UE;)
@@ -296,8 +306,11 @@ void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst* AI)
         if(dynamic_cast<LoadInst*> (inst) || dynamic_cast<StoreInst*>(inst))
             continue;
 
+        // is good for dead code elimination later
+        // 产生了一个值，这个值是 lifetime intrinsic 
         if ((inst->GetType())->GetTypeEnum() != IR_Value_VOID)
         {
+            // bitcast/GEP
             for (auto UUI = inst->GetValUseList().begin(), UUE = inst->GetValUseList().end(); UUI != UUE;)
             {
                 Instruction *AInst = dynamic_cast<Instruction*>((*UUI)->GetUser());
@@ -320,8 +333,9 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
     // 移除没有users 的 alloca指令
     for(int AllocaNum = 0; AllocaNum != Allocas.size(); ++AllocaNum){
         AllocaInst* AI = Allocas[AllocaNum];
-        // ？？？
-        // removeLifetimeIntrinsicUsers(AI);
+        
+        // 净化IR，使得只保留那些对程序真正有影响的内存操作
+        removeLifetimeIntrinsicUsers(AI);
 
          // 移除没有users 的 alloca指令
         if(!AI->isUsed()){
@@ -338,6 +352,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         //第一个优化
         if(Info.DefBlocks.size() == 1) // 仅仅只有一个定义的基本块
         {
+            // rewrite 和 promote 函数内部进行了 delete
             if(rewriteSingleStoreAlloca(Info,AI,BkInfo)) 
             {
                 RemoveFromAList(AllocaNum);
