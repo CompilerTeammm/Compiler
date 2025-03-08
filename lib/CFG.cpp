@@ -588,7 +588,7 @@ void GepInst::print()
 }
 
 // 类型转换
-Operand ToFloat(Operand op, BasicBlock *bb)
+Operand ToFloat(Operand op, BasicBlock *block)
 {
     if (op->GetType() == FloatType::NewFloatTypeGet())
         return op;
@@ -603,15 +603,15 @@ Operand ToFloat(Operand op, BasicBlock *bb)
     }
     else
     {
-        assert(bb != nullptr);
+        assert(block != nullptr);
         if (op->GetType() == IntType::NewIntTypeGet())
-            return bb->GenerateSI2FPInst(op);
+            return block->GenerateSI2FPInst(op);
         else
             assert(false);
     }
 }
 
-Operand ToInt(Operand op, BasicBlock *bb)
+Operand ToInt(Operand op, BasicBlock *block)
 {
     if (op->GetType() == IntType::NewIntTypeGet())
         return op;
@@ -626,9 +626,9 @@ Operand ToInt(Operand op, BasicBlock *bb)
     }
     else
     {
-        assert(bb != nullptr);
+        assert(block != nullptr);
         if (op->GetType() == FloatType::NewFloatTypeGet())
-            return bb->GenerateFP2SIInst(op);
+            return block->GenerateFP2SIInst(op);
         else
             assert(false);
     }

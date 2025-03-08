@@ -347,6 +347,9 @@ public:
   void print() final;
 };
 
+Operand ToFloat(Operand op, BasicBlock *block);
+Operand ToInt(Operand op, BasicBlock *block);
+
 /// dh
 // 前端给框架？中端写自己要用的？
 class PhiInst : public Instruction

@@ -420,3 +420,220 @@ public:
     return tmp;
   }
 };
+
+// codegen:IR  print:AST
+class CompUnit : public BaseAST
+{
+private:
+  BaseList<BaseAST> DataList;
+
+public:
+  CompUnit(BaseAST *_data) { DataList.push_back(_data); }
+  void codegen()
+  {
+    for (auto &i : DataList)
+      i->codegen();
+  }
+  void print(int x);
+};
+
+class Initializer : public Value, public std::vector<Operand>
+{
+public:
+  Initializer(Type *_tp) : Value(_tp) {}
+  void Var2Store(BasicBlock *block, const std::string &name,
+                 std::vector<int> &gep_data)
+  {
+    auto module = Singleton<Module>().GetValueByName(name);
+    auto base_gep = dynamic_cast<GepInst *>(block->GenerateGepInst(module));
+
+    for (size_t i = 0; i < this->size(); i++)
+    {
+      auto &handle = (*this)[i];
+      gep_data.push_back(i);
+      if (auto inits = dynamic_cast<Initializer *>(handle))
+      {
+        inits->Var2Store(block, name, gep_data);
+      }
+      else
+      {
+        if (!handle->isConst())
+        {
+          auto gep = base_gep;
+          for (int j : gep_data)
+            gep->add_use(ConstIRInt::GetNewConstant(j));
+
+          block->GenerateStoreInst(handle, gep);
+          if (handle->GetType()->GetTypeEnum() == IR_Value_INT)
+            handle = ConstIRInt::GetNewConstant();
+          else
+            handle = ConstIRFloat::GetNewConstant();
+        }
+      }
+      gep_data.pop_back();
+    }
+  }
+
+  Operand GetInitVal(std::vector<int> &idx, int dep = 0)
+  {
+    auto basetp = dynamic_cast<HasSubType *>(GetType())->GetBaseType();
+    auto getZero = [&]() -> Operand
+    {
+      if (basetp == IntType::NewIntTypeGet())
+      {
+        return ConstIRInt::GetNewConstant();
+      }
+      else if (basetp == FloatType::NewFloatTypeGet())
+      {
+        return ConstIRFloat::GetNewConstant();
+      }
+      else
+      {
+        return ConstIRBoolean::GetNewConstant();
+      }
+    };
+    int thissize = size();
+    if (thissize == 0)
+    {
+      return getZero();
+    }
+    // 先检查索引是否越界
+    auto arrType = dynamic_cast<ArrayType *>(type);
+    if (!arrType)
+    {
+      return getZero(); // 如果tp不是数组，直接返回默认值
+    }
+    int limi = arrType->GetNum();
+    auto i = idx[dep];
+    if (i >= limi)
+    {
+      return getZero();
+    }
+    // 索引超出已初始化部分
+    if (i >= thissize)
+    {
+      return getZero();
+    }
+    // 递归访问子数组
+    auto handle = (*this)[i];
+    if (auto inits = dynamic_cast<Initializer *>(handle))
+    {
+      return inits->GetInitVal(idx, dep + 1);
+    }
+    return handle;
+  }
+
+  void print();
+};
+
+class InitVal : public BaseAST
+{
+private:
+  std::unique_ptr<BaseAST> val;
+
+public:
+  InitVal() = default;
+  InitVal(BaseAST *_data) { val.reset(_data); }
+  Operand GetFirst(BasicBlock *block)
+  {
+    if (auto fuc = dynamic_cast<AddExp *>(val.get()))
+      return fuc->GetOperand(block);
+    else
+      assert(0);
+  }
+  Operand GetOperand(Type *_tp, BasicBlock *block)
+  {
+    if (auto fuc = dynamic_cast<AddExp *>(val.get()))
+      return fuc->GetOperand(block);
+    else if (auto fuc = dynamic_cast<InitVals *>(val.get()))
+    {
+      return fuc->GetOperand(_tp, block);
+    }
+    else
+      return new Initializer(_tp);
+  }
+  void print(int x);
+};
+
+class InitVals : public BaseAST
+{
+  BaseList<InitVal> DataList;
+
+public:
+  InitVals(InitVal *_data) { DataList.push_back(_data); }
+  Operand GetOperand(Type *_tp, BasicBlock *block)
+  {
+    assert(_tp->GetTypeEnum() == IR_ARRAY);
+
+    auto ret = new Initializer(_tp);
+    size_t offs = 0;
+    std::map<Type *, Type *> type_map;
+    for (ArrayType *atp = dynamic_cast<ArrayType *>(_tp); atp; atp = dynamic_cast<ArrayType *>(atp->GetSubType()))
+    {
+      type_map[atp->GetSubType()] = atp;
+    }
+    auto max_type = [&](Type *tp) -> Type *
+    {
+      while (offs % tp->GetSize() != 0)
+      {
+        tp = dynamic_cast<ArrayType *>(tp)->GetSubType();
+      }
+      return tp;
+    };
+
+    auto sub = dynamic_cast<ArrayType *>(_tp)->GetSubType();
+
+    for (auto &i : DataList)
+    {
+      Type *expectedType = max_type(sub); // 缓存结果
+      Operand tmp = i->GetOperand(expectedType, block);
+
+      if (tmp->GetType() != expectedType)
+      {
+        if (Singleton<IR_DataType>() == IR_Value_INT)
+          tmp = ToInt(tmp, block);
+        else if (Singleton<IR_DataType>() == IR_Value_Float)
+          tmp = ToFloat(tmp, block);
+        else
+          assert(0);
+      }
+
+      offs += tmp->GetType()->GetSize();
+      ret->push_back(tmp);
+      Type *lastType = ret->back()->GetType();
+      while (lastType != expectedType)
+      {
+        auto upper = dynamic_cast<ArrayType *>(type_map[lastType]);
+        int ele = upper->GetNum();
+        auto omit = new Initializer(upper);
+
+        for (int j = 0; j < ele; j++)
+        {
+          omit->push_back(ret->back());
+          ret->pop_back();
+        }
+        std::reverse(omit->begin(), omit->end());
+        ret->push_back(omit);
+        lastType = ret->back()->GetType();
+      }
+    }
+    Type *lastType = ret->back()->GetType();
+    while (lastType != sub)
+    {
+      auto upper = dynamic_cast<ArrayType *>(type_map[lastType]);
+      int ele = upper->GetNum();
+      auto omit = new Initializer(upper);
+      for (int i = 0; i < ele && !ret->empty() && ret->back()->GetType() == upper->GetSubType(); i++)
+      {
+        omit->push_back(ret->back());
+        ret->pop_back();
+      }
+      std::reverse(omit->begin(), omit->end());
+      ret->push_back(omit);
+      lastType = ret->back()->GetType();
+    }
+    return ret;
+  }
+
+  void print(int x);
+};
