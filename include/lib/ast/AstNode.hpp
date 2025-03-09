@@ -368,6 +368,104 @@ public:
   void print(int x);
 };
 
+class BaseDef:public Stmt
+{
+    protected:
+    std::string name;
+    std::unique_ptr<Exps> array_descriptor; 
+    std::unique_ptr<InitVal> initval;
+    public:
+    BaseDef(std::string _name,Exps* _ad=nullptr,InitVal* _initval=nullptr):name(_name),array_descriptor(_ad),initval(_initval){}
+    //待优化
+    BasicBlock* GetInst(GetInstState state) final{
+      if (array_descriptor) {
+          auto tmp = array_descriptor->GenerateArrayTypeDescriptor();
+          auto alloca = state.cur_block->GenerateAlloca(tmp, name);
+  
+          if (initval) { 
+              Operand init = initval->GetOperand(tmp, state.cur_block);
+              std::vector<Operand> args;
+              auto src=new Var(Var::Constant,tmp,"");
+              src->add_use(init);
+              args.push_back(alloca);
+              args.push_back(src);
+              args.push_back(ConstIRInt::GetNewConstant(tmp->GetSize()));
+              args.push_back(ConstIRBoolean::GetNewConstant(false));
+              state.cur_block->GenerateCallInst("llvm.memcpy.p0.p0.i32", args, 0);
+              std::vector<int> temp;
+              static_cast<Initializer*>(init)->Var2Store(state.cur_block, name, temp);
+          }
+      } else {
+          auto ir_data_type = Singleton<IR_DataType>();       
+          auto decl_type = NewTypeFromIRDataType(ir_data_type);
+          bool isConstDecl = Singleton<IR_CONSTDECL_FLAG>().flag == 1;
+          if (isConstDecl) {
+              Operand var = (initval) ? initval->GetFirst(nullptr) : 
+                  (ir_data_type == IR_Value_INT) ? ConstIRInt::GetNewConstant() :
+                  (ir_data_type == IR_Value_Float) ? ConstIRFloat::GetNewConstant() : 
+                  (assert(0), Operand());
+  
+              var = (ir_data_type == IR_Value_INT) ? ToInt(var, nullptr) : ToFloat(var, nullptr);
+              Singleton<Module>().Register(name, var);
+          } else { 
+              auto alloca = state.cur_block->GenerateAlloca(decl_type, name);
+              if (initval) {
+                  state.cur_block->GenerateStoreInst(initval->GetFirst(state.cur_block), alloca);
+              }
+          }
+      }
+      return state.cur_block;
+  }
+  
+  void codegen() {
+    if (array_descriptor != nullptr) { 
+        auto desc = array_descriptor->GenerateArrayTypeDescriptor();
+        auto var = new Var(Var::GlobalVar, desc, name);
+        if (initval != nullptr) {
+            var->add_use(initval->GetOperand(desc, nullptr));
+        }
+    } else { 
+        auto inner_data_type = Singleton<IR_DataType>();
+        auto decl_type = NewTypeFromIRDataType(inner_data_type);
+        auto var = new Var(Var::GlobalVar, decl_type, name);
+        bool is_const_decl = Singleton<IR_CONSTDECL_FLAG>().flag == 1;
+
+        if (is_const_decl) {
+            Operand init_value;
+            if (initval == nullptr) { 
+                switch (inner_data_type) {
+                    case IR_Value_INT:
+                        init_value = ConstIRInt::GetNewConstant();
+                        break;
+                    case IR_Value_Float:
+                        init_value = ConstIRFloat::GetNewConstant();
+                        break;
+                    default:
+                        throw std::runtime_error("Unsupported data type in BaseDef::codegen");
+                }
+            } else {
+                init_value = initval->GetFirst(nullptr);
+            }
+
+            if (inner_data_type == IR_Value_INT) {
+                init_value = ToInt(init_value, nullptr);
+            } else if (inner_data_type == IR_Value_Float) {
+                init_value = ToFloat(init_value, nullptr);
+            } else {
+                throw std::runtime_error("Unsupported data type in BaseDef::codegen");
+            }
+
+            Singleton<Module>().Register(name, init_value);
+        } else {
+            if (initval != nullptr) {
+                var->add_use(initval->GetFirst(nullptr));
+            }
+        }
+    }
+}
+    void print(int x);
+};
+
 class Exps : public InnerBaseExps
 {
 public:
@@ -419,22 +517,6 @@ public:
       tmp.push_back(i->GetOperand(block));
     return tmp;
   }
-};
-
-// codegen:IR  print:AST
-class CompUnit : public BaseAST
-{
-private:
-  BaseList<BaseAST> DataList;
-
-public:
-  CompUnit(BaseAST *_data) { DataList.push_back(_data); }
-  void codegen()
-  {
-    for (auto &i : DataList)
-      i->codegen();
-  }
-  void print(int x);
 };
 
 class Initializer : public Value, public std::vector<Operand>
@@ -636,4 +718,140 @@ public:
   }
 
   void print(int x);
+};
+
+// codegen:IR  print:AST
+class CompUnit : public BaseAST
+{
+private:
+  BaseList<BaseAST> DataList;
+
+public:
+  CompUnit(BaseAST *_data) { DataList.push_back(_data); }
+  void codegen()
+  {
+    for (auto &i : DataList)
+      i->codegen();
+  }
+  void print(int x);
+};
+
+
+class VarDef:public BaseDef
+{
+    public:
+    VarDef(std::string _name,Exps* _ad,InitVal* _initval):BaseDef(_name,_ad,_initval){}
+};
+
+class VarDefs:public Stmt
+{
+    BaseList<VarDef> DataList;
+    public:
+    VarDefs(VarDef* _vardef){DataList.push_back(_vardef);}
+    BasicBlock* GetInst(GetInstState state)final{
+      for(auto&i:DataList)
+      state.cur_block=i->GetInst(state);
+      return state.cur_block;
+    }
+
+    void codegen(){
+      for(auto&i:DataList)
+      i->codegen();
+    }
+    void print(int x);
+};
+
+void AstToType(AST_Type type)
+{
+    switch (type)
+    {
+    case AST_INT:
+        Singleton<IR_DataType>()=IR_Value_INT;
+        break;
+    case AST_FLOAT:
+        Singleton<IR_DataType>()=IR_Value_Float;
+        break;
+    case AST_VOID:
+    default:
+        std::cerr<<"void as variable is not allowed!\n";
+        assert(0);
+    }
+}
+
+class VarDecl:public Stmt
+{
+    private:
+    AST_Type type;
+    std::unique_ptr<VarDefs> vardefs;
+    public:
+    VarDecl(AST_Type _tp,VarDefs* _vardefs):type(_tp),vardefs(_vardefs){}
+    BasicBlock* GetInst(GetInstState state)final{
+      Singleton<IR_CONSTDECL_FLAG>().flag=0;
+      AstToType(type);
+      return vardefs->GetInst(state);
+    }
+    void codegen(){
+      Singleton<IR_CONSTDECL_FLAG>().flag=0;
+      AstToType(type);
+      vardefs->codegen();
+    }
+    void print(int x);
+};
+
+
+class ConstDef:public BaseDef
+{
+    public:
+    ConstDef(std::string _name,Exps* _ad=nullptr,InitVal* _initval=nullptr):BaseDef(_name,_ad,_initval){}
+};
+
+class ConstDefs:public Stmt
+{
+    BaseList<ConstDef> DataList;
+    public:
+    ConstDefs(ConstDef* _constdef){DataList.push_back(_constdef);}
+    BasicBlock* GetInst(GetInstState state)final{
+      for(auto&i:DataList)
+      state.cur_block=i->GetInst(state);
+      return state.cur_block;
+    }
+
+    void codegen(){
+      for(auto &i:DataList)
+      i->codegen();
+    }
+    void print(int x);
+};
+
+class ConstDecl:public Stmt
+{
+    private:
+    AST_Type type;
+    std::unique_ptr<ConstDefs> constdefs;
+    public:
+    ConstDecl(AST_Type _tp,ConstDefs* _constdefs):type(_tp),constdefs(_constdefs){}
+    BasicBlock* GetInst(GetInstState state)final{
+      Singleton<IR_CONSTDECL_FLAG>().flag=1;      
+      AstToType(type);
+      return constdefs->GetInst(state);
+    }
+
+    void codegen(){
+      Singleton<IR_CONSTDECL_FLAG>().flag=1;      
+      AstToType(type);
+      constdefs->codegen();
+    }
+    void print(int x);
+};
+
+class CallParams:public InnerBaseExps
+{
+    public:
+    CallParams(AddExp* _addexp):InnerBaseExps(_addexp){}
+    std::vector<Operand> CallParams::GetParams(BasicBlock* block){
+      std::vector<Operand> params;
+      for(auto &i:DataList)
+          params.push_back(i->GetOperand(block));
+      return params;
+  }
 };
