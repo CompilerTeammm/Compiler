@@ -123,7 +123,7 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& D
         // 接下来是for循环的对前驱的遍历，需要建立支配关系，
         // 寻找前驱是store的块，才可以终止对pre的回溯
 
-        // 需要支配树，但是支配树我还没有实现   
+        // 需要支配树，但是支配树我还没有实现，需要支配树提供前驱节点
         for(auto& pre :BB)
         {
             if(DefBlock.count(pre))
@@ -226,6 +226,7 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
                 continue;
             }
         }
+        // 未实现
         LInst->ReplaceAllUseWith(value);
         delete LInst;
         BBInfo.DeletIndex(LInst);
