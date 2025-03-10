@@ -1,7 +1,7 @@
 #pragma once
 #include "../../include/Backend/RISCVMOperand.hpp"
 #include "../../include/Backend/RISCVRegister.hpp"
-#include "../../include/lib/MagicEnum.hpp"
+//#include "../../include/lib/MagicEnum.hpp"
 //#include "../../include/lib/MagicEnum.hpp"
 //to do：待我研究一下这个库是个啥
 //有名字的操作数
@@ -29,7 +29,6 @@ class RISCVObject:public NamedMOperand{
     RISCVObject(Type*,std::string);
     RISCVObject(std::string);
 };
-//这里学长继承了一下，在想是否可以单独写，这样protected中的local可以单独定值。
 //全局
 class RISCVGlobalObject:public RISCVObject{
     public:
