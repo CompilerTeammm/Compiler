@@ -11,35 +11,32 @@
 // 4. 正序遍历一遍得到正确的 idom
 // 详情见论文
 
+using BBPtr = std::unique_ptr<BasicBlock>;
 class DominantTree
 {
-public:
-    //并查集压缩路径
-    class DSU{
-
-    };
-    // 每一个节点
-    class Node{
-
-    };
-    // 支配边界
-    class DF{
-
-    };
-
-    std::vector<Node> node;
 private:
-    int vertex[10000] = {0}; //节点
-    std::vector<int> bucket[20000]; // bucket[u] 代表sdom为u的点击
-    std::vector<DSU> dsu;   //辅助数据结构实现路径压缩
-    std::vector<std::vector<int>> Dest; // CFG中的后继
-    std::vector<Node*> dfs_dom;
-    Function* thisFunc;
-    int block_num,count; //count 是当前dfs的序号
-    bool IsDFSValid;
+    Function* _func;
+    std::vector<std::unique_ptr<BasicBlock>> BasicBlocks;
 
+    // 记录遍历的DFSnums的顺序
+    std::vector<int> DFSnums;
 public:
-    Node &GetNode(int index) {}
+    // 输入的应该是func，func->BBs 
+    DominantTree(Function* func)
+        :_func(func),DFSnums(func->Size())
+    {   
+        BasicBlocks = _func->GetBBs();
+    } 
+
+    void BuildDominantTree() 
+    {
+        UnCondInst
+    }
+
+    static std::vector<int>& DFS(int pos)
+    {
+        
+    }
 
     bool dominates(BasicBlock* bb1,BasicBlock* bb2);
 };

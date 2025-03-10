@@ -397,6 +397,7 @@ public:
   void InitBBs();
   void PushParam(std::string, Var *);
   void Function::UpdateParam(Var *var) { params.emplace_back(var); }
+  int GetSize() { return size_BB;}
 };
 
 class Module : public SymbolTable

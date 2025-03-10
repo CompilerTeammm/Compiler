@@ -6,11 +6,16 @@
 #include <cassert>
 // 统一实现双向链表，可以减少很多块内冗余代码
 
+// dh
+template <typename Manager, typename Staff>
+class List;
+
 // BaseList封装list
 template <typename T>
 class BaseList : public std::list<std::unique_ptr<T>>
 {
 private:
+  /// dh ??? BaseList 和 类命字 BaseList 是相同的  ???
   using BaseList = std::list<std::unique_ptr<T>>;
   using DataType = std::unique_ptr<T>;
 
