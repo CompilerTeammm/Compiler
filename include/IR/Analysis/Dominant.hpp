@@ -2,6 +2,7 @@
 // #include "CoreClass.hpp"
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
+#include <numeric>
 #include <utility>
 #include <vector>
 #include<iostream>
@@ -28,14 +29,23 @@ private:
         std::list<TreeNode*> predNodes;  // 前驱
         std::list<TreeNode*> succNodes; //  后继
 
-        TreeNode* dfsfa;
+        TreeNode* dfs_fa;
         TreeNode* sdom;
         TreeNode* idom;
         // BasicBlock* curBlock; 建了BasicBlock* 与 TreeNode* 映射的表 
 
         TreeNode()
-            :visited(false),dfs_order(0),sdom(this),
+            :visited(false),dfs_order(0),sdom(this),// 初始化的时候初始化成this自己本身sdom
             idom(nullptr)
+        {}
+    };
+
+    struct dsuNode
+    {
+        TreeNode* father;
+        TreeNode* min_sdom;
+        dsuNode()
+            :father(nullptr),min_sdom(nullptr)
         {}
     };
 
@@ -43,11 +53,18 @@ private:
 
     std::vector<BasicBlock*> BasicBlocks;
     std::vector<TreeNode*> Nodes;
+    // 建立了Basicblock与TreeNode的映射关系
     std::map<BasicBlock*,TreeNode*> BlocktoNode;
-    int count = 1;
+
+    // DSU并查集一般用数组实现
+    std::vector<dsuNode*> DSU;
+
+    size_t BBsNum;
+    int count = 1;  // dfs的时候计数赋值的
 public:
     DominantTree(Function* func)
-        :_func(func), Nodes(func->Size()),count(1)
+        :_func(func), Nodes(func->Size()),count(1),
+         BBsNum(func->Size())
     {   
         for(auto& e : _func->GetBBs())
         {
@@ -71,38 +88,79 @@ public:
                 BasicBlock *des_true = dynamic_cast<BasicBlock *>(uselist[1]->GetValue());
                 BasicBlock *des_false = dynamic_cast<BasicBlock *>(uselist[2]->GetValue());
 
-                Nodes[bb->index]->succNodes.push_front(BlocktoNode[des_true]);
-                Nodes[bb->index]->succNodes.push_front(BlocktoNode[des_false]);
+                BlocktoNode[bb]->succNodes.push_front(BlocktoNode[des_true]);
+                BlocktoNode[bb]->succNodes.push_front(BlocktoNode[des_false]);
 
-                Nodes[bb->index]->predNodes.push_back(BlocktoNode[des_true]);
-                Nodes[bb->index]->predNodes.push_back(BlocktoNode[des_false]);
+                BlocktoNode[bb]->predNodes.push_back(BlocktoNode[des_true]);
+                BlocktoNode[bb]->predNodes.push_back(BlocktoNode[des_false]);
             }
             else if(UnCondInst* uncondInst = dynamic_cast<UnCondInst*>(Inst))
             {
                 auto &uselist = uncondInst->GetUserUseList();
                 BasicBlock* des = dynamic_cast<BasicBlock*>(uselist[0]->GetValue());
 
-                Nodes[bb->index]->succNodes.push_front(BlocktoNode[des]);
-                Nodes[bb->index]->predNodes.push_front(BlocktoNode[des]);
+                BlocktoNode[bb]->succNodes.push_front(BlocktoNode[des]);
+                BlocktoNode[bb]->predNodes.push_front(BlocktoNode[des]);
             }
         }
     }
 
     void BuildDominantTree() 
     {
+        // 因为我实现了对应的关系
+        // DFS(BlocktoNode[BlocktoNode[0]]);
+        // DFS(Nodes[0])
+        BasicBlock *Bbegin = *(_func->begin());
+        DFS(BlocktoNode[Bbegin]);
 
     }
 
-    std::vector<int> &DFS(int pos)
+    void GetIdom()
     {
-        Nodes[pos]->visited = true;
-        Nodes[pos]->dfs_order = count;
+        for(int i = BBsNum; i > 1; i--)
+        {
+            TreeNode* father,sdom_cadidate;
+            TreeNode* node = BlocktoNode[BasicBlocks[BBsNum]];
+            int dfs_order = node->dfs_order;
+            father = Nodes[dfs_order]->dfs_fa;
+            for(auto e : Nodes[dfs_order]->predNodes){
+                // ??? 是不是逻辑错了
+                if(e->dfs_order != 0){
+                    sdom_cadidate = 
+                    std::min(sdom_cadidate,eval(e));
+                }
+            }
+        }
+    }
+
+    TreeNode* find(TreeNode* node)
+    {
+        //并查集实现查找的策略
+        if(node == DSU[node->dfs_order]->father)
+            return node;
+        TreeNode* tmp = DSU[node->dfs_order]->father;
+        // DSU[node->dfs_order] = find(); 
+    }
+
+    TreeNode* eval(TreeNode* node){
+
+    }
+
+    void DFS(TreeNode* pos)
+    {
+        pos->visited = true;
+        pos->dfs_order = count;
         count++;
-        if (Nodes[pos]->visited && )
-            DFS();
+        for(auto e : pos->predNodes){
+            if(!e->visited){
+                DFS(e);
+                e->dfs_fa = pos;
+            }
+        }
     }
 
     bool dominates(BasicBlock* bb1,BasicBlock* bb2);
+    ~DominantTree() = default;
 };
 
 
