@@ -2,6 +2,7 @@
 // #include "CoreClass.hpp"
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
+#include <utility>
 #include <vector>
 #include<iostream>
 // 搭建支配树
@@ -11,31 +12,94 @@
 // 4. 正序遍历一遍得到正确的 idom
 // 详情见论文
 
+// 不在BasicBlock里面搞，在DominantTree确定前驱与后继
+// 一旦优化初始化了，DominantTree就已经搭建好了，可以有前驱后继，支配等条件
+struct TreeNode;
 using BBPtr = std::unique_ptr<BasicBlock>;
 class DominantTree
 {
 private:
-    Function* _func;
-    std::vector<std::unique_ptr<BasicBlock>> BasicBlocks;
-
-    // 记录遍历的DFSnums的顺序
-    std::vector<int> DFSnums;
-public:
     // 输入的应该是func，func->BBs 
+    // Node 要和 BasicBlock一一对应
+    struct TreeNode  // 实际上称为了BBs
+    {
+        bool visited;
+        int dfs_order;
+        std::list<TreeNode*> predNodes;  // 前驱
+        std::list<TreeNode*> succNodes; //  后继
+
+        TreeNode* dfsfa;
+        TreeNode* sdom;
+        TreeNode* idom;
+        // BasicBlock* curBlock; 建了BasicBlock* 与 TreeNode* 映射的表 
+
+        TreeNode()
+            :visited(false),dfs_order(0),sdom(this),
+            idom(nullptr)
+        {}
+    };
+
+    Function* _func;    
+
+    std::vector<BasicBlock*> BasicBlocks;
+    std::vector<TreeNode*> Nodes;
+    std::map<BasicBlock*,TreeNode*> BlocktoNode;
+    int count = 1;
+public:
     DominantTree(Function* func)
-        :_func(func),DFSnums(func->Size())
+        :_func(func), Nodes(func->Size()),count(1)
     {   
-        BasicBlocks = _func->GetBBs();
+        for(auto& e : _func->GetBBs())
+        {
+            // 用release太危险了，之后我也会用func，去调用BBs，如果销毁了还去调用太危险了
+            BasicBlocks.push_back(e.get());
+        }
     } 
+
+    void InitNodes()
+    {
+        //   pair <BasicBlock* , TreeNode*>
+        for(int i = 0; i <= BasicBlocks.size() ; i++) 
+            BlocktoNode[BasicBlocks[i]] = Nodes[i]; 
+        // 建立了前驱与后继的确定
+        for(auto bb : BasicBlocks) 
+        {
+            Instruction* Inst = bb->GetLastInsts();
+            if(CondInst *condInst = dynamic_cast<CondInst*> (Inst))
+            {
+                auto &uselist = condInst->GetUserUseList();
+                BasicBlock *des_true = dynamic_cast<BasicBlock *>(uselist[1]->GetValue());
+                BasicBlock *des_false = dynamic_cast<BasicBlock *>(uselist[2]->GetValue());
+
+                Nodes[bb->index]->succNodes.push_front(BlocktoNode[des_true]);
+                Nodes[bb->index]->succNodes.push_front(BlocktoNode[des_false]);
+
+                Nodes[bb->index]->predNodes.push_back(BlocktoNode[des_true]);
+                Nodes[bb->index]->predNodes.push_back(BlocktoNode[des_false]);
+            }
+            else if(UnCondInst* uncondInst = dynamic_cast<UnCondInst*>(Inst))
+            {
+                auto &uselist = uncondInst->GetUserUseList();
+                BasicBlock* des = dynamic_cast<BasicBlock*>(uselist[0]->GetValue());
+
+                Nodes[bb->index]->succNodes.push_front(BlocktoNode[des]);
+                Nodes[bb->index]->predNodes.push_front(BlocktoNode[des]);
+            }
+        }
+    }
 
     void BuildDominantTree() 
     {
-        UnCondInst
+
     }
 
-    static std::vector<int>& DFS(int pos)
+    std::vector<int> &DFS(int pos)
     {
-        
+        Nodes[pos]->visited = true;
+        Nodes[pos]->dfs_order = count;
+        count++;
+        if (Nodes[pos]->visited && )
+            DFS();
     }
 
     bool dominates(BasicBlock* bb1,BasicBlock* bb2);
@@ -45,73 +109,5 @@ public:
 
 
 
-
-
-
-
-
-
-
-// // #include "../../lib/cfg/cfgg.hpp"
-// #include <mutex>
-// #include <vector>
-// #include<iostream>
-// // 搭建支配树
-// // 步骤： 1. DFS , 得到DFS树和标号
-// // 2. 逆序遍历 求 sdom
-// // 3. 通过sdom 求得 idom
-// // 4. 正序遍历一遍得到正确的 idom
-// // 详情见论文
-
-// class Lengauer_Tarjan
-// {
-// // 做测试，之后进行修改
-// //    假设：
-// // 没有建立图的关系，是在遍历节点之后建立图的关系
-// public:
-//     struct Node 
-//     {
-//         // 用链表好，还是用数组呢？
-//         std::vector<Node*> pre;
-//         std::vector<Node*> succ;
-
-//         // sdom  idom 是在node中声明
-//         Node* sdom;
-//         Node* idom;
-
-//         int flag = 0;
-//         int order_num = 0;
-//         bool isVisited()
-//         {
-//             return flag != 0;
-//         }
-//     };
-
-//     Lengauer_Tarjan(int _n,int _m)
-//         :node_num(_n),
-//         edge_num(_m)
-//     { 
-//         CFG =std::vector<Node> (node_num+1);
-//     }
-
-//     void add_edge(int u, int v);
-//     void dump();
-//     void Run();
-//     void DFS_func();
-//     void get_idom();
-
-//     int node_num;
-//     int edge_num;
-//     // static int order_num;
-//     // int dfs_cnt = 0;
-//     std::vector<Node> CFG;
-
-//     // DFS_order[1] = 1   1号节点，第 1 个在dfs树上被访问
-//     // DFS_order[5] = 2   5号节点，第 2 个在dfs树上被访问
-//     // 我使用 vector<int> 实际上达到了一种映射关系 
-//     std::vector<int> DFS_order;
-//     // std::vector<Node*> sdom;
-//     // std::vector<Node*> idom;
-// };
 
 

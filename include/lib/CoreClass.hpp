@@ -279,10 +279,12 @@ public:
 class BasicBlock : public Value, public List<BasicBlock, Instruction>, public Node<Function, BasicBlock>
 {
   // 原来是public
+public:
+  int index;      // 基本块序号
 private:
   int LoopDepth;  // 嵌套深度
   bool visited;   // 是否被访问过
-  int index;      // 基本块序号
+  // int index;      // 基本块序号
   bool reachable; // 是否可达
   int size_Inst = 0;
   // BasicBlock包含Instruction
@@ -390,6 +392,7 @@ public:
   void PushBothBB(BasicBlock *BB);
   void InsertBBs(BasicBlock *BB, size_t pos);
   // 以下两个暂未实现
+  // dh: 这两个我需要你帮助维护 bbs:index这个属性 
   void InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert);
   void InsertBB(BasicBlock *curr, BasicBlock *insert);
 
