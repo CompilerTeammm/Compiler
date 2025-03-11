@@ -3,6 +3,7 @@
 #include "../include/Backend/BuildInFunctionTransform.hpp"
 #include "../include/Backend/RISCVMIR.hpp"
 #include "../include/Backend/RISCVISel.hpp"
+#include "../include/Backend/PhiElimination.hpp"
 
 extern std::string asmoutput_path;
 RISCVAsmPrinter *asmprinter = nullptr;
@@ -55,7 +56,14 @@ bool RISCVFunctionLowering::run(Function *m)
   ctx(mfunc); // 重载了
 
   // 执行指令选择操作
+  // IR中的add映射为RISCV的ADD
   RISCVISel isel(ctx, asmprinter);
   isel.run(m); // 映射
-  // IR中的add映射为RISCV的ADD
+  ///@todo run函数
+
+  // phi函数消除
+  // 将SSA形式的IR转换成非SSA形式的IR
+  PhiElimination phi(ctx);
+  phi.run(m);
+  ///@todo run函数下的runonbasicblock
 }
