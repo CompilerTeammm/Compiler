@@ -67,3 +67,33 @@ void RISCVFrameObject::GenerateStackRegister(int offset) {
     reg->SetOffset(offset);
 }
 
+size_t RISCVFrameObject::GetFrameObjSize(){
+    return size;
+}
+size_t RISCVFrameObject::GetBeginAddOffsets(){
+    return begin_addr_offsets;
+}
+size_t RISCVFrameObject::GetEndAddOffsets(){
+    return end_addr_offsets;
+}
+
+RISCVType RISCVFrameObject::GetContextType(){
+    return contexttype;
+}
+void RISCVFrameObject::SetBeginAddOffsets(size_t add){
+    begin_addr_offsets=add;
+}
+void RISCVFrameObject::SetEndAddOffsets(size_t add){
+    end_addr_offsets=add;
+}
+StackRegister*& RISCVFrameObject::GetStackReg(){
+    return reg;
+}
+void RISCVFrameObject::print(){
+    reg->print();
+}
+
+StackRegister::StackRegister(RISCVFrameObject* obj,PhyRegister::PhyReg _regenum,int _offset)
+:Register(riscv_ptr),offset(_offset),parent(obj){
+    reg=PhyRegister::GetPhyReg(_regenum);
+}
