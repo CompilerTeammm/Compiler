@@ -15,8 +15,7 @@ template <typename T>
 class BaseList : public std::list<std::unique_ptr<T>>
 {
 private:
-  /// dh ??? BaseList 和 类命字 BaseList 是相同的  ???
-  using BaseList = std::list<std::unique_ptr<T>>;
+  using Base = std::list<std::unique_ptr<T>>;
   using DataType = std::unique_ptr<T>;
 
 public:
@@ -30,23 +29,23 @@ class Node
 {
   friend class List<Manager, Staff>;
 
-  private:
-    Staff *prev = nullptr;
-    Staff *next = nullptr;
-    Manager *manager = nullptr;
-  
-  public:
-    Node() = default;
-    virtual ~Node();
-  
-    void SetManager(Manager *_manager);
-    Manager *GetParent() const;
-    Staff *GetNextNode() const;
-    Staff *GetPrevNode() const;
-  
-    virtual void EraseFromManager();
-    void ReplaceNode(Staff *other);
-  };
+private:
+  Staff *prev = nullptr;
+  Staff *next = nullptr;
+  Manager *manager = nullptr;
+
+public:
+  Node() = default;
+  virtual ~Node();
+
+  void SetManager(Manager *_manager);
+  Manager *GetParent() const;
+  Staff *GetNextNode() const;
+  Staff *GetPrevNode() const;
+
+  virtual void EraseFromManager();
+  void ReplaceNode(Staff *other);
+};
 
 // 对于列表整体，关心首尾节点head&back
 template <typename Manager, typename Staff>
@@ -61,7 +60,7 @@ private:
 
 public:
   virtual ~List();
-  
+
   Staff *GetFront() const;
   Staff *GetBack() const;
 

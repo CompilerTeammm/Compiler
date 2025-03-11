@@ -1,18 +1,16 @@
-#include"../include/lib/MyList.hpp"
-
+#include "../include/lib/MyList.hpp"
 
 template <typename T>
 void BaseList<T>::push_front(T *_data)
 {
-  BaseList::push_front(DataType(_data));
+  Base::push_front(DataType(_data));
 }
 
 template <typename T>
 void BaseList<T>::push_back(T *_data)
 {
-  BaseList::push_back(DataType(_data));
+  Base::push_back(DataType(_data));
 }
-
 
 template <typename Manager, typename Staff>
 Node<Manager, Staff>::~Node()
@@ -83,7 +81,6 @@ void Node<Manager, Staff>::ReplaceNode(Staff *other)
   next = nullptr;
   manager = nullptr;
 }
-
 
 template <typename Manager, typename Staff>
 List<Manager, Staff>::~List()

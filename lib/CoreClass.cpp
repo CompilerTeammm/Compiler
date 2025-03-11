@@ -214,14 +214,14 @@ int User::GetUseIndex(Use *_use)
 
 void User::add_use(Value *_value)
 {
-  assert(_value != nullptr && "Value pointer cannot be null");
-  for (const auto &use : useruselist)
-  {
-    if (use->GetValue() == _value)
-    {
-      return; // 如果存在，直接返回
-    }
-  }
+  // assert(_value != nullptr && "Value pointer cannot be null");
+  // for (const auto &use : useruselist)
+  // {
+  //   if (use->GetValue() == _value)
+  //   {
+  //     return;
+  //   }
+  // }
   useruselist.push_back(std::make_unique<Use>(this, _value));
 }
 

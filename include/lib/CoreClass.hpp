@@ -352,6 +352,7 @@ public:
   Operand GenerateZextInst(Operand);
   BasicBlock *GenerateNewBlock();
   BasicBlock *GenerateNewBlock(std::string);
+  bool IsEnd(); // 是否划分
 };
 
 // 既提供了vector线性管理BasicBlock，又实现了双向链表
@@ -359,7 +360,7 @@ class Function : public Value, public List<Function, BasicBlock>
 {
 private:
   using ParamPtr = std::unique_ptr<Value>;
-  using BBPtr = std::unique_ptr<BasicBlock>;
+  using BBPtr = std::shared_ptr<BasicBlock>; // 改变了指针类型
   std::vector<ParamPtr> params;
   std::vector<BBPtr> BBs;
   std::string id;
@@ -400,7 +401,7 @@ public:
   void InitBBs();
   void PushParam(std::string, Var *);
   void Function::UpdateParam(Var *var) { params.emplace_back(var); }
-  int GetSize() { return size_BB;}
+  int GetSize() { return size_BB; }
 };
 
 class Module : public SymbolTable
