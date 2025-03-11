@@ -24,12 +24,16 @@ private:
     // Node 要和 BasicBlock一一对应
     struct TreeNode  // 实际上称为了BBs
     {
+        // dfs的时候初始化
         bool visited;
         int dfs_order;
+        TreeNode* dfs_fa;
+
+        // init 的时候初始化
         std::list<TreeNode*> predNodes;  // 前驱
         std::list<TreeNode*> succNodes; //  后继
 
-        TreeNode* dfs_fa;
+        // 构造函数初始化
         TreeNode* sdom;
         TreeNode* idom;
         // BasicBlock* curBlock; 建了BasicBlock* 与 TreeNode* 映射的表 
@@ -44,8 +48,10 @@ private:
     {
         TreeNode* father;
         TreeNode* min_sdom;
+        int record;   // 记录的这个不是dfs的排序，而是bbs数组 1，2，3，4这样，可能之后有用
         dsuNode()
-            :father(nullptr),min_sdom(nullptr)
+            :father(nullptr),min_sdom(nullptr),
+            record(0)
         {}
     };
 
@@ -53,6 +59,7 @@ private:
 
     std::vector<BasicBlock*> BasicBlocks;
     std::vector<TreeNode*> Nodes;
+
     // 建立了Basicblock与TreeNode的映射关系
     std::map<BasicBlock*,TreeNode*> BlocktoNode;
 
@@ -64,7 +71,7 @@ private:
 public:
     DominantTree(Function* func)
         :_func(func), Nodes(func->Size()),count(1),
-         BBsNum(func->Size())
+         BBsNum(func->Size()),DSU(func->Size()+1)
     {   
         for(auto& e : _func->GetBBs())
         {
@@ -110,9 +117,10 @@ public:
         // 因为我实现了对应的关系
         // DFS(BlocktoNode[BlocktoNode[0]]);
         // DFS(Nodes[0])
+        InitNodes();
         BasicBlock *Bbegin = *(_func->begin());
         DFS(BlocktoNode[Bbegin]);
-
+        InitDSU();
     }
 
     void GetIdom()
@@ -144,6 +152,16 @@ public:
 
     TreeNode* eval(TreeNode* node){
 
+    }
+
+    void InitDSU()
+    {
+        for(int i = 1; i <= BBsNum; i++)
+        {
+            DSU[i]->record = i;
+            DSU[i]->father = Nodes[i-1];
+            DSU[i]->min_sdom = Nodes[i-1];
+        }
     }
 
     void DFS(TreeNode* pos)
