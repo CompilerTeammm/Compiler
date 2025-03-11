@@ -97,3 +97,52 @@ StackRegister::StackRegister(RISCVFrameObject* obj,PhyRegister::PhyReg _regenum,
 :Register(riscv_ptr),offset(_offset),parent(obj){
     reg=PhyRegister::GetPhyReg(_regenum);
 }
+StackRegister::StackRegister(RISCVFrameObject* obj,VirRegister* _vreg,int _offset)
+:Register(riscv_ptr),offset(_offset),reg(_vreg),parent(obj){}
+StackRegister::StackRegister(PhyRegister::PhyReg _regenum,int _offset)
+:Register(riscv_ptr),offset(_offset){
+    reg =PhyRegister::GetPhyReg(_regenum);
+}
+StackRegister::StackRegister(VirRegister* _vreg,int _offset)
+:Register(riscv_ptr),offset(_offset),reg(_vreg){}
+
+void StackRegister::SetOffset(int _offset){
+    offset=_offset;
+}
+RISCVFrameObject*& StackRegister::GetParent(){
+    return parent;
+}
+VirRegister* StackRegister::GetVreg(){
+    if(VirRegister* vreg=dynamic_cast<VirRegister*>(reg)){
+        return vreg;
+    }else{
+        return nullptr;
+    }
+}
+Register*& StackRegister::GetReg(){
+    return reg;
+}
+void StackRegister::SetPreg(PhyRegister* &_reg) {
+     this->reg = _reg;
+}
+void StackRegister::SetReg(Register* _reg) {
+     this->reg = _reg; 
+}
+void StackRegister::print(){
+    if(VirRegister* vreg=dynamic_cast<VirRegister*>(reg)){
+        std::cout<<offset<<"(";
+        vreg->print();
+        std::cout<<")";
+    }else if(PhyRegister* preg=dynamic_cast<PhyRegister*>(reg)){
+        PhyRegister::PhyReg regenum=preg->Getregenum();
+        std::cout<<offset<<"("<<magic_enum::enum_name(regenum)<<")";//这里用到了magicenum这个库，之后研究
+    }else assert(false&&"Error:StackRegister::print");
+}
+
+bool StackRegister::isPhysical(){
+    if(VirRegister* vreg=dynamic_cast<VirRegister*>(reg)){
+        return false;
+    }else{
+        return true;
+    }
+}
