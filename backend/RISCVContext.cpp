@@ -8,6 +8,6 @@ void RISCVLoweringContext::insert_val2mop(Value *val, RISCVMOperand *mop)
 
 void RISCVLoweringContext::operator()(RISCVFunction *mfunc)
 {
-  functions.emplace_back(mfunc);
+  functions.emplace_back(mfunc); // 容器尾部创建新对象
   cur_func = mfunc;
 }

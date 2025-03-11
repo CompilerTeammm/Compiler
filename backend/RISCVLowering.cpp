@@ -2,6 +2,7 @@
 #include "../include/Backend/RISCVAsmPrinter.hpp"
 #include "../include/Backend/BuildInFunctionTransform.hpp"
 #include "../include/Backend/RISCVMIR.hpp"
+#include "../include/Backend/RISCVISel.hpp"
 
 extern std::string asmoutput_path;
 RISCVAsmPrinter *asmprinter = nullptr;
@@ -40,11 +41,21 @@ bool RISCVFunctionLowering::run(Function *m)
   {
     return false;
   }
+
+  // 预处理（遍历IR指令，识别内置函数调用）
   BuildInFunctionTransform buildin;
   buildin.run(m);
 
   ///@todo 实现run函数，IR中内置类型函数转换
 
+  // IR 映射到 RISCV对象
   auto mfunc = ctx.mapping(m)->as<RISCVFunction>(); // Value匹配RISCVMOperand
-  ctx(mfunc);                                       // 重载了
+  ///@todo 实现RISCVLoweringContext中的mapping查找
+  ///@todo RISCVMOperand中的逻辑，一个实例化？
+  ctx(mfunc); // 重载了
+
+  // 执行指令选择操作
+  RISCVISel isel(ctx, asmprinter);
+  isel.run(m); // 映射
+  // IR中的add映射为RISCV的ADD
 }
