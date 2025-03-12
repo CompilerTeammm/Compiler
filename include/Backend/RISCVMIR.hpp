@@ -199,8 +199,17 @@ public:
     EndPipeline
 
   } opcode;
+
+  inline RISCVISA &GetOpcode()
+  {
+    return opcode;
+  };
 };
 
 class RISCVFunction
+{
+};
+
+class RISCVBasicBlock
 {
 };
