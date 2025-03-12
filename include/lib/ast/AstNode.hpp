@@ -900,7 +900,7 @@ public:
     std::vector<Operand> args;
     if (callparams != nullptr)
       args = callparams->GetParams(block);
-    return block->GenerateCallInst(name, args, position.begin);
+    return block->GenerateCallInst(name, args, position.line);
   }
 
   void print(int x);
@@ -1208,9 +1208,9 @@ public:
   WhileStmt(LOrExp *p1, Stmt *p2) : cond(std::unique_ptr<LOrExp>(std::move(p1))), stmt(std::unique_ptr<Stmt>(std::move(p2))) {}
   BasicBlock *GetInst(GetInstState state) final
   {
-    auto condition_part = state.cur_block->GenerateNewBlock("wc" + std::to_string(position.begin));
-    auto inner_loop = state.cur_block->GenerateNewBlock("wloop." + std::to_string(position.begin) + "." + std::to_string(position.end));
-    auto nxt_block = state.cur_block->GenerateNewBlock("wn" + std::to_string(position.end));
+    auto condition_part = state.cur_block->GenerateNewBlock("wc" + std::to_string(position.line));
+    auto inner_loop = state.cur_block->GenerateNewBlock("wloop." + std::to_string(position.line) + "." + std::to_string(position.line));
+    auto nxt_block = state.cur_block->GenerateNewBlock("wn" + std::to_string(position.line));
 
     state.cur_block->GenerateUnCondInst(condition_part); // 跳条件块
 

@@ -5,66 +5,73 @@
 %{
 #include <cstdlib>
 #include <string>
-#include "common/position.h"
+#include "../include/lib/position.hpp"
 #include "sysy.tab.hpp"
 using namespace std;
 loc current;
 int CurCol = 1;
+
+void updatePosition(int length) {
+    current.line = yylineno;
+    current.col = CurCol;
+    CurCol += length;
+}
+
 %}
 
-Id   [a-zA-Z_][a-zA-Z0-9_]*
-String        \"([^\"\\]|\\.)*\"
+Id   [a-zA-Z_][a-zA-Z0-9_]*  
+String        \"([^\"\\]|\\.)*\"  
 
-Decimal        [1-9][0-9]*
-nDecimal       -[1-9][0-9]*
-Octal          0[0-7]*
-nOctal         -0[0-7]*
-Hexadecimal    0[xX][0-9a-fA-F]+
-nHexadecimal   -0[xX][0-9a-fA-F]+
+Decimal        [1-9][0-9]*  
+nDecimal       -[1-9][0-9]*  
+Octal          0[0-7]*  
+nOctal         -0[0-7]*  
+Hexadecimal    0[xX][0-9a-fA-F]+  
+nHexadecimal   -0[xX][0-9a-fA-F]+  
 Float          [0-9]+"."[0-9]+  
 nFloat         -[0-9]+"."[0-9]+  
 
 %%
 
-"int"           { current.line = yylineno; current.col = CurCol; return Y_INT; CurCol += 3;}
-"float"         { current.line = yylineno; current.col = CurCol; return Y_FLOAT; CurCol += 5;}
-"void"          { current.line = yylineno; current.col = CurCol; return Y_VOID; CurCol += 4;}
-"const"         { current.line = yylineno; current.col = CurCol; return Y_CONST; CurCol += 5;}
-"if"            { current.line = yylineno; current.col = CurCol; return Y_IF; CurCol += 2;}
-"else"          { current.line = yylineno; current.col = CurCol; return Y_ELSE; CurCol += 4;}
-"while"         { current.line = yylineno; current.col = CurCol; return Y_WHILE; CurCol += 5;}
-"break"         { current.line = yylineno; current.col = CurCol; return Y_BREAK; CurCol += 5;}
-"continue"      { current.line = yylineno; current.col = CurCol; return Y_CONTINUE; CurCol += 8;}
-"return"        { current.line = yylineno; current.col = CurCol; return Y_RETURN; CurCol += 6;}
+"int"           { updatePosition(3); return Y_INT; }
+"float"         { updatePosition(5); return Y_FLOAT; }
+"void"          { updatePosition(4); return Y_VOID; }
+"const"         { updatePosition(5); return Y_CONST; }
+"if"            { updatePosition(2); return Y_IF; }
+"else"          { updatePosition(4); return Y_ELSE; }
+"while"         { updatePosition(5); return Y_WHILE; }
+"break"         { updatePosition(5); return Y_BREAK; }
+"continue"      { updatePosition(8); return Y_CONTINUE; }
+"return"        { updatePosition(6); return Y_RETURN; }
 
-{Id}            { yylval.StrVal = new string(yytext); current.line = yylineno; current.col = yylineno - yyleng + 1; return Y_ID; CurCol += yyleng; }
-{String}        { yylval.StrVal = new string(yytext); current.line = yylineno; current.col = yylineno - yyleng + 1; return _string; CurCol += yyleng; }
+{Id}            { yylval.StrVal = new string(yytext); updatePosition(yyleng); return Y_ID; }
+{String}        { yylval.StrVal = new string(yytext); updatePosition(yyleng); return _string; }
 
-{Decimal}       { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
-{nDecimal}      { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
-{Octal}         { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
-{nOctal}        { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
-{Hexadecimal}   { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
-{nHexadecimal}  { yylval.iVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_INT; CurCol += yyleng; }
-{Float}         { yylval.fVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_FLOAT; CurCol += yyleng; }
-{nFloat}        { yylval.fVal = strtol(yytext, nullptr, 0); current.line = yylineno; current.col = yylineno - yyleng + 1; return num_FLOAT; CurCol += yyleng; }
+{Decimal}       { yylval.iVal = strtol(yytext, nullptr, 0); updatePosition(yyleng); return num_INT; }
+{nDecimal}      { yylval.iVal = strtol(yytext, nullptr, 0); updatePosition(yyleng); return num_INT; }
+{Octal}         { yylval.iVal = strtol(yytext, nullptr, 0); updatePosition(yyleng); return num_INT; }
+{nOctal}        { yylval.iVal = strtol(yytext, nullptr, 0); updatePosition(yyleng); return num_INT; }
+{Hexadecimal}   { yylval.iVal = strtol(yytext, nullptr, 0); updatePosition(yyleng); return num_INT; }
+{nHexadecimal}  { yylval.iVal = strtol(yytext, nullptr, 0); updatePosition(yyleng); return num_INT; }
+{Float}         { yylval.fVal = strtof(yytext, nullptr); updatePosition(yyleng); return num_FLOAT; }
+{nFloat}        { yylval.fVal = strtof(yytext, nullptr); updatePosition(yyleng); return num_FLOAT; }
 
+">"             { updatePosition(1); return Y_GREAT; }
+"<"             { updatePosition(1); return Y_LESS; }
+">="            { updatePosition(2); return Y_GREATEQ; }
+"<="            { updatePosition(2); return Y_LESSEQ; }
+"=="            { updatePosition(2); return Y_EQ; }
+"!="            { updatePosition(2); return Y_NOTEQ; }
 
-">"             { current.line = yylineno; current.col = CurCol; return Y_GREAT; CurCol += 1;}
-"<"             { current.line = yylineno; current.col = CurCol; return Y_LESS; CurCol += 1;}
-">="            { current.line = yylineno; current.col = CurCol; return Y_GREATEQ; CurCol += 2;}
-"<="            { current.line = yylineno; current.col = CurCol; return Y_LESSEQ; CurCol += 2;}
-"=="            { current.line = yylineno; current.col = CurCol; return Y_EQ; CurCol += 2;}
-"!="            { current.line = yylineno; current.col = CurCol; return Y_NOTEQ; CurCol += 2;}
+"&&"            { updatePosition(2); return Y_AND; }
+"||"            { updatePosition(2); return Y_OR; }
 
-"&&"            { current.line = yylineno; current.col = CurCol; return Y_AND; CurCol += 2;}
-"||"            { current.line = yylineno; current.col = CurCol; return Y_OR; CurCol += 2;}
+[ \t\r]+        { CurCol += yyleng; }
+\n              { CurCol = 1; }
 
-\"[\s\S]*\"     { yylval.StrVal = new string(yytext); current.line = yylineno; current.col = yylineno - yyleng + 1; return _string; CurCol += yyleng; }
-\n              { CurCol = 0; }
-[ \t\n\r]*      { CurCol++; }
 "//".*          {}
-"/*"([^*]*\*)([^*/][^*]*\*)*"/"  {}
+"/*"([^*]|\*+[^*/])*\*+"/"  {}
+
 .               { return yytext[0]; CurCol++; }
 
 %%
