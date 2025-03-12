@@ -91,6 +91,23 @@ public:
 };
 
 template <typename T>
+class ConstValue : public HasOperand
+{
+  T data;
+
+public:
+  ConstValue(T _data) : data(_data) {}
+  Operand GetOperand(BasicBlock *block)
+  {
+    if (std::is_same<T, int>::value)
+      return ConstIRInt::GetNewConstant(data);
+    else
+      return ConstIRFloat::GetNewConstant(data);
+  }
+  void print(int x) final;
+};
+
+template <typename T>
 class BaseExp : public HasOperand
 {
 public:
@@ -116,18 +133,6 @@ public:
   void push_front(T *_data)
   {
     DataList.push_front(_data);
-  }
-
-  void print(int x) final
-  {
-    for (int i = 0; i < x; i++)
-      std::cout << "  ";                                                      // 缩进
-    std::cout << ast_type_to_string(OpList.front()) << " Level Expression\n"; // 转换函数
-
-    for (auto &i : DataList)
-    {
-      i->print(x + !oplist.empty());
-    }
   }
 
   // 短路求值逻辑
@@ -241,6 +246,8 @@ public:
       return oper;
     }
   }
+
+  void print(int x) final;
 };
 
 using UnaryExp = BaseExp<HasOperand>; // 基本
@@ -337,15 +344,15 @@ inline void BaseExp<LAndExp>::GetOperand(BasicBlock *block, BasicBlock *is_true,
   {
     if (it != std::prev(DataList.end()))
     {
-      auto nxt_building = block->GenerateNewBlock();
-      (*it)->GetOperand(block, is_true, nxt_building);
-      if (!nxt_building->GetValUseList().is_empty())
+      auto nxt_block = block->GenerateNewBlock();
+      (*it)->GetOperand(block, is_true, nxt_block);
+      if (!nxt_block->GetValUseList().is_empty())
       {
-        block = nxt_building;
+        block = nxt_block;
       }
       else
       {
-        nxt_building->EraseFromManager();
+        nxt_block->EraseFromManager();
         return;
       }
     }
@@ -881,6 +888,24 @@ public:
   void print(int x);
 };
 
+class FunctionCall : public HasOperand
+{
+  std::string name;
+  std::unique_ptr<CallParams> callparams;
+
+public:
+  FunctionCall(std::string _name, CallParams *ptr) : name(_name), callparams(ptr) {}
+  Operand GetOperand(BasicBlock *block)
+  {
+    std::vector<Operand> args;
+    if (callparams != nullptr)
+      args = callparams->GetParams(block);
+    return block->GenerateCallInst(name, args, position.begin);
+  }
+
+  void print(int x);
+};
+
 class CallParams : public InnerBaseExps
 {
 public:
@@ -1137,14 +1162,191 @@ public:
   void print(int x);
 };
 
-// class AssignStmt : public Stmt
-// {
-// private:
-//   std::unique_ptr<LVal> lval;
-//   std::unique_ptr<AddExp> exp;
+class AssignStmt : public Stmt
+{
+private:
+  std::unique_ptr<LVal> lval;
+  std::unique_ptr<AddExp> exp;
 
-// public:
-//   AssignStmt(LVal *_A, AddExp *_B) : lval(_A), exp(_B) {}
-//   BasicBlock *GetInst(GetInstState) final;
-//   void print(int x);
-// };
+public:
+  AssignStmt(LVal *m, AddExp *n)
+      : lval(std::unique_ptr<LVal>(std::move(m))), exp(std::unique_ptr<AddExp>(std::move(n))) {}
+  BasicBlock *GetInst(GetInstState state) final
+  {
+    Operand tmp = exp->GetOperand(state.cur_block);
+    auto valueptr = lval->GetPointer(state.cur_block);
+    state.cur_block->GenerateStoreInst(tmp, valueptr);
+    return state.cur_block;
+  }
+
+  void print(int x);
+};
+
+class ExpStmt : public Stmt
+{
+  std::unique_ptr<AddExp> exp;
+
+public:
+  ExpStmt(AddExp *ptr) : exp(std::unique_ptr<AddExp>(std::move(ptr))) {}
+  BasicBlock *GetInst(GetInstState state) final
+  {
+    if (exp != nullptr)
+      Operand tmp = exp->GetOperand(state.cur_block);
+    return state.cur_block;
+  }
+
+  void print(int x);
+};
+
+class WhileStmt : public Stmt
+{
+private:
+  std::unique_ptr<LOrExp> cond;
+  std::unique_ptr<Stmt> stmt;
+
+public:
+  WhileStmt(LOrExp *p1, Stmt *p2) : cond(std::unique_ptr<LOrExp>(std::move(p1))), stmt(std::unique_ptr<Stmt>(std::move(p2))) {}
+  BasicBlock *GetInst(GetInstState state) final
+  {
+    auto condition_part = state.cur_block->GenerateNewBlock("wc" + std::to_string(position.begin));
+    auto inner_loop = state.cur_block->GenerateNewBlock("wloop." + std::to_string(position.begin) + "." + std::to_string(position.end));
+    auto nxt_block = state.cur_block->GenerateNewBlock("wn" + std::to_string(position.end));
+
+    state.cur_block->GenerateUnCondInst(condition_part); // 跳条件块
+
+    cond->GetOperand(condition_part, inner_loop, nxt_block); // 条件跳循环或出口
+    // 生成循环体
+    GetInstState loop_state = {inner_loop, nxt_block, condition_part};
+    inner_loop = stmt->GetInst(loop_state);
+    if (inner_loop && !inner_loop->GetValUseList().is_empty())
+    {
+      if (!inner_loop->IsEnd())
+        inner_loop->GenerateUnCondInst(condition_part); // 循环跳回条件
+    }
+    else
+    {
+      delete inner_loop;
+      inner_loop = nullptr;
+    }
+    // 如果出口没人用，删掉
+    if (nxt_block->GetValUseList().is_empty())
+    {
+      delete nxt_block;
+      return state.cur_block;
+    }
+    return nxt_block;
+  }
+
+  void print(int x);
+};
+
+class IfStmt : public Stmt
+{
+private:
+  std::unique_ptr<LOrExp> cond;
+  std::unique_ptr<Stmt> true_stmt, false_stmt;
+
+public:
+  IfStmt(LOrExp *p0, Stmt *p1, Stmt *p2 = nullptr) : cond(std::unique_ptr<LOrExp>(std::move(p0))), true_stmt(p1), false_stmt(p2) {}
+  BasicBlock *GetInst(GetInstState state) final
+  {
+    BasicBlock *nextBlock = nullptr;
+    auto trueBlock = state.cur_block->GenerateNewBlock();
+    BasicBlock *falseBlock = nullptr;
+    GetInstState t_state = state;
+    t_state.cur_block = trueBlock;
+    if (false_stmt != nullptr)
+      falseBlock = state.cur_block->GenerateNewBlock();
+
+    if (falseBlock != nullptr)
+      cond->GetOperand(state.cur_block, trueBlock, falseBlock);
+    else
+    {
+      nextBlock = state.cur_block->GenerateNewBlock();
+      cond->GetOperand(state.cur_block, trueBlock, nextBlock);
+    }
+
+    auto deleteUnusedBlock = [](BasicBlock *&tmp)
+    {
+      if (tmp == nullptr)
+        return;
+      if (tmp->GetValUseList().is_empty())
+      {
+        delete tmp;
+        tmp = nullptr;
+      }
+    };
+
+    deleteUnusedBlock(trueBlock);
+    deleteUnusedBlock(falseBlock);
+    deleteUnusedBlock(nextBlock);
+
+    auto makeUncondJump = [&](BasicBlock *tmp)
+    {
+      if (!tmp->IsEnd())
+      {
+        if (nextBlock == nullptr)
+          nextBlock = state.cur_block->GenerateNewBlock();
+        tmp->GenerateUnCondInst(nextBlock);
+      }
+    };
+    if (trueBlock != nullptr)
+    {
+      trueBlock = true_stmt->GetInst(t_state);
+      makeUncondJump(trueBlock);
+    }
+    if (falseBlock != nullptr)
+    {
+      GetInstState f_state = state;
+      f_state.cur_block = falseBlock;
+      falseBlock = false_stmt->GetInst(f_state);
+      makeUncondJump(falseBlock);
+    }
+    return (nextBlock == nullptr ? state.cur_block : nextBlock);
+  }
+
+  void print(int x);
+};
+
+class BreakStmt : public Stmt
+{
+  BasicBlock *GetInst(GetInstState state) final
+  {
+    state.cur_block->GenerateUnCondInst(state.break_block);
+    return state.cur_block;
+  }
+  void print(int x);
+};
+
+class ContinueStmt : public Stmt
+{
+  BasicBlock *GetInst(GetInstState state) final
+  {
+    state.cur_block->GenerateUnCondInst(state.continue_block);
+    return state.cur_block;
+  }
+
+  void print(int x);
+};
+
+class ReturnStmt : public Stmt
+{
+  std::unique_ptr<AddExp> ret_val;
+
+public:
+  ReturnStmt(AddExp *ptr = nullptr) : ret_val(std::unique_ptr<AddExp>(std::move(ptr))) {}
+  // 现有的基本块生成 返回指令
+  BasicBlock *GetInst(GetInstState state) final
+  {
+    if (ret_val != nullptr)
+    {
+      auto ret = ret_val->GetOperand(state.cur_block);
+      state.cur_block->GenerateRetInst(ret);
+    }
+    else
+      state.cur_block->GenerateRetInst();
+    return state.cur_block;
+  }
+
+  void print(int x);
+};

@@ -9,6 +9,10 @@ struct loc
   {
     return "Line: " + std::to_string(line) + ", Column: " + std::to_string(column);
   }
+
+public:
+  int begin;
+  int end;
 };
 
 #endif
