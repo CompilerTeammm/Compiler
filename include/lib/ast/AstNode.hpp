@@ -677,6 +677,7 @@ class InitVals : public BaseAST
 
 public:
   InitVals(InitVal *_data) { DataList.push_back(_data); }
+  void push_back(InitVal *_data) { DataList.push_back(_data); }
   Operand GetOperand(Type *_tp, BasicBlock *block)
   {
     assert(_tp->GetTypeEnum() == IR_ARRAY);
@@ -762,6 +763,8 @@ private:
 
 public:
   CompUnit(BaseAST *_data) { DataList.push_back(_data); }
+  void push_back(BaseAST *_data) { DataList.push_back(_data); }
+  void push_front(BaseAST *_data) { DataList.push_front(_data); }
   void codegen()
   {
     for (auto &i : DataList)
@@ -773,7 +776,7 @@ public:
 class VarDef : public BaseDef
 {
 public:
-  VarDef(std::string _name, Exps *_ad, InitVal *_initval) : BaseDef(_name, _ad, _initval) {}
+  VarDef(std::string _name, Exps *_ad = nullptr, InitVal *_initval = nullptr) : BaseDef(_name, _ad, _initval) {}
 };
 
 class VarDefs : public Stmt
@@ -782,6 +785,7 @@ class VarDefs : public Stmt
 
 public:
   VarDefs(VarDef *_vardef) { DataList.push_back(_vardef); }
+  void push_back(VarDef *_data) { DataList.push_back(_data); }
   BasicBlock *GetInst(GetInstState state) final
   {
     for (auto &i : DataList)
@@ -849,6 +853,7 @@ class ConstDefs : public Stmt
 
 public:
   ConstDefs(ConstDef *_constdef) { DataList.push_back(_constdef); }
+  void push_back(ConstDef *_data) { DataList.push_back(_data); }
   BasicBlock *GetInst(GetInstState state) final
   {
     for (auto &i : DataList)
@@ -894,13 +899,13 @@ class FunctionCall : public HasOperand
   std::unique_ptr<CallParams> callparams;
 
 public:
-  FunctionCall(std::string _name, CallParams *ptr) : name(_name), callparams(ptr) {}
+  FunctionCall(std::string _name, CallParams *ptr = nullptr) : name(_name), callparams(ptr) {}
   Operand GetOperand(BasicBlock *block)
   {
     std::vector<Operand> args;
     if (callparams != nullptr)
       args = callparams->GetParams(block);
-    return block->GenerateCallInst(name, args, position.line);
+    return block->GenerateCallInst(name, args, begin);
   }
 
   void print(int x);
@@ -928,7 +933,7 @@ private:
   std::unique_ptr<Exps> array_subscripts;
 
 public:
-  FuncParam(AST_Type _tp, std::string _name, bool is_empty, Exps *ptr) : tp(_tp), name(_name), empty_square(is_empty), array_subscripts(ptr) {}
+  FuncParam(AST_Type _tp, std::string _name, bool is_empty = false, Exps *ptr = nullptr) : tp(_tp), name(_name), empty_square(is_empty), array_subscripts(ptr) {}
   void GetVar(Function &tmp)
   {
     auto get_type = [](AST_Type _tp) -> Type *
@@ -979,6 +984,7 @@ class FuncParams : public BaseAST
 
 public:
   FuncParams(FuncParam *ptr) { DataList.push_back(ptr); }
+  void push_back(FuncParam *ptr) { DataList.push_back(ptr); }
   void GetVar(Function &tmp)
   {
     for (auto &i : DataList)
@@ -1067,6 +1073,7 @@ class BlockItems : public Stmt
 
 public:
   BlockItems(Stmt *ptr) { DataList.push_back(ptr); }
+  void push_back(Stmt *ptr) { DataList.push_back(ptr); }
   BasicBlock *GetInst(GetInstState state) final
   {
     for (auto &i : DataList)
@@ -1088,7 +1095,7 @@ private:
   std::unique_ptr<Exps> array_descriptor;
 
 public:
-  LVal(std::string _name, Exps *ptr) : name(_name), array_descriptor(ptr) {}
+  LVal(std::string _name, Exps *ptr = nullptr) : name(_name), array_descriptor(ptr) {}
   std::string GetName() { return name; }
   Operand LVal::GetPointer(BasicBlock *block)
   {
@@ -1208,9 +1215,9 @@ public:
   WhileStmt(LOrExp *p1, Stmt *p2) : cond(std::unique_ptr<LOrExp>(std::move(p1))), stmt(std::unique_ptr<Stmt>(std::move(p2))) {}
   BasicBlock *GetInst(GetInstState state) final
   {
-    auto condition_part = state.cur_block->GenerateNewBlock("wc" + std::to_string(position.line));
-    auto inner_loop = state.cur_block->GenerateNewBlock("wloop." + std::to_string(position.line) + "." + std::to_string(position.line));
-    auto nxt_block = state.cur_block->GenerateNewBlock("wn" + std::to_string(position.line));
+    auto condition_part = state.cur_block->GenerateNewBlock("wc" + std::to_string(begin));
+    auto inner_loop = state.cur_block->GenerateNewBlock("wloop." + std::to_string(begin) + "." + std::to_string(end));
+    auto nxt_block = state.cur_block->GenerateNewBlock("wn" + std::to_string(begin));
 
     state.cur_block->GenerateUnCondInst(condition_part); // 跳条件块
 

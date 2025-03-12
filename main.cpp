@@ -15,7 +15,7 @@
 
 #include "./include/lib/CFG.hpp"
 // #include "../include/ir/opt/New_passManager.hpp"
-#include "../include/yacc/parser.hpp"
+#include "./yacc/parser.hpp"
 #include <fstream>
 #include <getopt.h>
 #include <iostream>

@@ -5,10 +5,9 @@
 #include <string>
 #include <cassert>
 #include "../Position.hpp"
-class BaseAST
+class BaseAST : public loc
 {
 public:
-  loc position;
   virtual ~BaseAST() = default;
   // virtual void Dump() const = 0;
   virtual void codegen()
@@ -20,7 +19,7 @@ public:
   {
     for (int i = 0; i < x; i++)
       std::cout << "  ";
-    std::cout << typeid(*this).name() << " at " << position.toString() << std::endl;
+    std::cout << typeid(*this).name() << " at " << toString() << std::endl;
   }
 };
 
