@@ -4,6 +4,8 @@
 #include "../include/Backend/RISCVMIR.hpp"
 #include "../include/Backend/RISCVISel.hpp"
 #include "../include/Backend/PhiElimination.hpp"
+#include "../include/Backend/BackendDCE.hpp"
+#include "../include/Backend/RegAlloc.hpp"
 
 extern std::string asmoutput_path;
 RISCVAsmPrinter *asmprinter = nullptr;
@@ -66,4 +68,35 @@ bool RISCVFunctionLowering::run(Function *m)
   PhiElimination phi(ctx);
   phi.run(m);
   ///@todo run函数下的runonbasicblock
+
+  asmprinter->SetTextSegment(new textSegment(ctx));
+  asmprinter->GetData()->GenerateTempvarList(ctx);
+
+  // 死代码消除
+  bool modified = true;
+  while (modified)
+  {
+    modified = false;
+    BackendDCE dcebefore(mfunc, ctx); // liveness 活跃性变量分析
+    modified |= dcebefore.RunImpl();
+  }
+
+  // 寄存器分配
+  RegAllocImpl regalloc(mfunc, ctx);
+  regalloc.RunGCPass();
+
+  // std::cout << std::flush();
+
+  // 遍历基本块，进行死代码消除
+  for (auto block : *(ctx.GetCurFunction()))
+  {
+    for (auto it = block->begin(); it != block->end();)
+    {
+      auto inst = *it;
+      it++;
+      if (inst->GetOpcode() == RISCVMIR::RISCVISA::MarkDead)
+        delete inst;
+    }
+  }
+  modified = true;
 }

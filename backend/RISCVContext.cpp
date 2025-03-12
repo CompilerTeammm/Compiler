@@ -11,3 +11,8 @@ void RISCVLoweringContext::operator()(RISCVFunction *mfunc)
   functions.emplace_back(mfunc); // 容器尾部创建新对象
   cur_func = mfunc;
 }
+
+RISCVFunction *&RISCVLoweringContext::GetCurFunction()
+{
+  return cur_func;
+}
