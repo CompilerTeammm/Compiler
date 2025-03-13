@@ -48,10 +48,11 @@ private:
     {
         TreeNode* father;
         TreeNode* min_sdom;
+        TreeNode* Nodesbydfs;
         int record;   // 记录的这个不是dfs的排序，而是bbs数组 1，2，3，4这样，可能之后有用
         dsuNode()
             :father(nullptr),min_sdom(nullptr),
-            record(0)
+            record(0),Nodesbydfs(0)
         {}
     };
 
@@ -120,48 +121,58 @@ public:
         InitNodes();
         BasicBlock *Bbegin = *(_func->begin());
         DFS(BlocktoNode[Bbegin]);
+        // DSU的初始化再DFS之后，我需要依据DFS的序号来建立关系
         InitDSU();
+        GetIdom();
     }
 
     void GetIdom()
     {
-        for(int i = BBsNum; i > 1; i--)
+        // 逆序遍历，从dfs最大的结点开始, sdom求取
+        // 需要记录最小的sdom对吧？
+        for (int i = Nodes.size(); i >= 1; i--)
         {
-            TreeNode* father,sdom_cadidate;
-            TreeNode* node = BlocktoNode[BasicBlocks[BBsNum]];
-            int dfs_order = node->dfs_order;
-            father = Nodes[dfs_order]->dfs_fa;
-            for(auto e : Nodes[dfs_order]->predNodes){
-                // ??? 是不是逻辑错了
-                if(e->dfs_order != 0){
-                    sdom_cadidate = 
-                    std::min(sdom_cadidate,eval(e));
-                }
+            TreeNode *min, tmp;
+            min->dfs_order = 1000000;
+            TreeNode *TN = DSU[i]->Nodesbydfs;
+            for (auto e : TN->predNodes)
+            {
+                min->dfs_order = std::min(min->dfs_order,eval(e));
+                // if ((e->dfs_order < i))
+                // {
+                //     if((e->dfs_order < min->dfs_order))
+                //         min = e;
+                // }
+                // else //e->dfs_order > i 
+                // {
+                //     min = find(e->dfs_order);
+                // }
             }
+            DSU[i]->min_sdom = min;
+        }
+    }
+
+    // 我把DSU和Nodes也建立了联系
+    // Nodes.dfs_num = DSU 的序号 1，2，3，4
+    // DSU的TreeNodes* 指针可以找到对应的 Nodes   TreeNode* TN = DSU[i]->Nodesbydfs;
+    void InitDSU()
+    {
+        for(int i = 1; i < DSU.size();i ++)
+        {
+            int order = Nodes[i-1]->dfs_order;
+            DSU[order]->Nodesbydfs = Nodes[i-1];
+            DSU[order]->father = Nodes[i-1]->dfs_fa;
         }
     }
 
     TreeNode* find(TreeNode* node)
     {
-        //并查集实现查找的策略
-        if(node == DSU[node->dfs_order]->father)
-            return node;
-        TreeNode* tmp = DSU[node->dfs_order]->father;
-        // DSU[node->dfs_order] = find(); 
-    }
-
-    TreeNode* eval(TreeNode* node){
 
     }
 
-    void InitDSU()
+    int eval(TreeNode* node)
     {
-        for(int i = 1; i <= BBsNum; i++)
-        {
-            DSU[i]->record = i;
-            DSU[i]->father = Nodes[i-1];
-            DSU[i]->min_sdom = Nodes[i-1];
-        }
+
     }
 
     void DFS(TreeNode* pos)

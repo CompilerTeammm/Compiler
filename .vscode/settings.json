@@ -65,7 +65,8 @@
     "set": "cpp",
     "unordered_set": "cpp",
     "cassert": "cpp",
-    "queue": "cpp"
+    "queue": "cpp",
+    "bitset": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",
   "C_Cpp_Runner.cppCompilerPath": "g++",
