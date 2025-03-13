@@ -46,7 +46,7 @@ protected:
     textSegment *text;    // 代码段
     bool use_cachelookup =false;
     bool use_cachelookup4 =false;
-    std::string cachefilepath="RISCVLib/Cachelib.s"//缓存库路径
+    std::string cachefilepath="RISCVLib/Cachelib.s";//缓存库路径
 };
 
 class dataSegment
@@ -70,41 +70,47 @@ private:
 };
 class globlvar:public RISCVGlobalObject{
     private:
-    int align;
-    std::string ty="object";
-    int size;
-    std::vector<std::variant<int,float>> init_vector;
+    int align;//变量对齐方式
+    std::string ty="object";//变量类型(object)
+    int size;//变量所占内存大小
+    std::vector<std::variant<int,float>> init_vector;//初始化数据
     public:
     globlvar(Variable* data);
     ~globlvar()=default;
-    void generate_array_init(Initializer* arry_init,Type* basetype);
+    void generate_array_init(Initializer* arry_init,Type* basetype);//处理数组初始化
     void PrintGloblvar();
-}
+};
 class tempvar:public RISCVTempFloatObject{
     private:
-    int num_lable;
-    int align;
-    float init;
+    int num_lable;//唯一标签编号
+    int align;//对齐方式
+    float init;//存储的浮点数值
     public:
     tempvar(int num_lable,float init);
     ~tempvar()=default;
-    std::string Getname();
+    std::string Getname();//返回 .rodata 段中该浮点数的标签名
     float GetInit(){
-        return init;
+        return init;//获取浮点常量的值
     }
     void PrintTempvar();
-}
+};
 
-class textSegment
-{
+class textSegment{
 private:
     std::vector<functionSegment *> function_list;
-
 public:
     textSegment(RISCVLoweringContext &ctx);
     void GenerateFuncList(RISCVLoweringContext &ctx);
     void PrintTextSwgment();
-} 
-class functionSegment
-{
-}
+}; 
+class functionSegment{
+    private:
+    int align;//存储函数对齐方式
+    std::string name;//函数名
+    std::string ty="funtion";//变量类型(function)
+    RISCVFunction* func;//指向RISCV低级ir形式的函数
+    int size;//该函数占用的字节大小
+    public:
+    functionSegment(RISCVFunction* func);
+    void PrintFuncSegment();
+};
