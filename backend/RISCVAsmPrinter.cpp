@@ -32,6 +32,47 @@ RISCVAsmPrinter::RISCVAsmPrinter(std::string filename,Moudle* unit, RISCVLowerin
     this->data=data;
 }
 
+void RISCVAsmPrinter::SetTextSegment(textSegment* _text){
+    text=_text;
+}
+dataSegment* &RISCVAsmPrinter::GetData{
+    return data;
+}
+
+void RISCVAsmPrinter::set_use_cachelookup(bool condi){
+    use_cachelookup=condi;
+}
+void RISCVAsmPrinter::set_use_cachelookup4(bool condi){
+    use_cachelookup4=condi;
+}
+
+void RISCVAsmPrinter::printAsmGlobal(){
+    std::cout << "    .file  \"" << filename << "\"" << std::endl;
+    std::cout << "    .attribute arch, \"rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zba1p0_zbb1p0\"" << std::endl;
+    std::cout << "    .attribute unaligned_access, 0" << std::endl; 
+    std::cout << "    .attribute stack_align, 16" << std::endl;
+    std::cout << "    .text" << std::endl;
+    this->data->PrintDataSegment_Globval();    
+}
+//这样的格式可以将.hpp代码内容直接包含进来
+void RISCVAsmPrinter::printCacheLookUp(){
+    static const char* cachelookuplib= 
+    #include "../include/RISCVSupport?cachelib.hpp"
+    ;
+    std::cout<<cachelookuplib;
+}
+void RISCVAsmPrinter::printCacheLookUp4(){
+    static const char* cachelookuplib4=
+    #include "../include/RISCVSupport/cachelib4.hpp"
+    ;
+    std::cout<<cachelookuplib4;
+}
+void RISCVAsmPrinter::printParallelLib(){
+    static const char* buildinlib=
+    #include "../include/RISCVSupport/parallel.hpp"
+    ;
+    std::cout<<buildinlib;
+}
 //dataSegment 初始化一个实例 生成全局变量列表,num_lable为用于跟踪生成的标签lable的数量?
 dataSegment::dataSegment(Moudle* module, RISCVLoweringContext& ctx){
     //GenerateGloblvarList(module, ctx);
