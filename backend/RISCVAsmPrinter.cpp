@@ -55,24 +55,24 @@ void RISCVAsmPrinter::PrintAsmGlobal(){
     this->data->PrintDataSegment_Globval();    
 }
 //这样的格式可以将.hpp代码内容直接包含进来
-void RISCVAsmPrinter::PrintCacheLookUp(){
-    static const char* cachelookuplib= 
-    #include "../include/RISCVSupport?cachelib.hpp"
-    ;
-    std::cout<<cachelookuplib;
-}
-void RISCVAsmPrinter::PrintCacheLookUp4(){
-    static const char* cachelookuplib4=
-    #include "../include/RISCVSupport/cachelib4.hpp"
-    ;
-    std::cout<<cachelookuplib4;
-}
-void RISCVAsmPrinter::PrintParallelLib(){
-    static const char* buildinlib=
-    #include "../include/RISCVSupport/parallel.hpp"
-    ;
-    std::cout<<buildinlib;
-}
+// void RISCVAsmPrinter::PrintCacheLookUp(){
+//     static const char* cachelookuplib= 
+//     #include "../include/RISCVSupport?cachelib.hpp"
+//     ;
+//     std::cout<<cachelookuplib;
+// }
+// void RISCVAsmPrinter::PrintCacheLookUp4(){
+//     static const char* cachelookuplib4=
+//     #include "../include/RISCVSupport/cachelib4.hpp"
+//     ;
+//     std::cout<<cachelookuplib4;
+// }
+// void RISCVAsmPrinter::PrintParallelLib(){
+//     static const char* buildinlib=
+//     #include "../include/RISCVSupport/parallel.hpp"
+//     ;
+//     std::cout<<buildinlib;
+// }
 
 void RISCVAsmPrinter::PrintAsm(){
     this->PrintAsmGlobal();
@@ -108,4 +108,9 @@ void textSegment::PrintTextSegment(){
     for(auto& functionSegment: function_list){
         functionSegment->PrintFuncSegment();
     }
+}
+//functionSegment
+functionSegment::functionSegment(RISCVFunction* function):func(function){
+    align=1;
+    name=function->GetName();
 }

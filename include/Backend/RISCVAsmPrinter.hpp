@@ -101,7 +101,7 @@ private:
 public:
     textSegment(RISCVLoweringContext &ctx);
     void GenerateFuncList(RISCVLoweringContext &ctx);
-    void PrintTextSwgment();
+    void PrintTextSegment();
 }; 
 class functionSegment{
     private:
