@@ -46,7 +46,7 @@ void RISCVAsmPrinter::set_use_cachelookup4(bool condi){
     use_cachelookup4=condi;
 }
 
-void RISCVAsmPrinter::printAsmGlobal(){
+void RISCVAsmPrinter::PrintAsmGlobal(){
     std::cout << "    .file  \"" << filename << "\"" << std::endl;
     std::cout << "    .attribute arch, \"rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zba1p0_zbb1p0\"" << std::endl;
     std::cout << "    .attribute unaligned_access, 0" << std::endl; 
@@ -55,26 +55,57 @@ void RISCVAsmPrinter::printAsmGlobal(){
     this->data->PrintDataSegment_Globval();    
 }
 //这样的格式可以将.hpp代码内容直接包含进来
-void RISCVAsmPrinter::printCacheLookUp(){
+void RISCVAsmPrinter::PrintCacheLookUp(){
     static const char* cachelookuplib= 
     #include "../include/RISCVSupport?cachelib.hpp"
     ;
     std::cout<<cachelookuplib;
 }
-void RISCVAsmPrinter::printCacheLookUp4(){
+void RISCVAsmPrinter::PrintCacheLookUp4(){
     static const char* cachelookuplib4=
     #include "../include/RISCVSupport/cachelib4.hpp"
     ;
     std::cout<<cachelookuplib4;
 }
-void RISCVAsmPrinter::printParallelLib(){
+void RISCVAsmPrinter::PrintParallelLib(){
     static const char* buildinlib=
     #include "../include/RISCVSupport/parallel.hpp"
     ;
     std::cout<<buildinlib;
 }
+
+void RISCVAsmPrinter::PrintAsm(){
+    this->PrintAsmGlobal();
+    this->text->PrintTextSegment();
+    this->data->PrintDataSegment_Tempvar();
+    if(Singleton<Enable_Parallel>().flag==true){
+        this->PrintParallelLib();
+    }
+    if(this->use_cachelookup==true){
+        this->PrintCacheLookUp();
+    }
+    if(this->use_cachelookup4==true){
+        this->PrintCacheLookUp4();
+    }
+}
 //dataSegment 初始化一个实例 生成全局变量列表,num_lable为用于跟踪生成的标签lable的数量?
 dataSegment::dataSegment(Moudle* module, RISCVLoweringContext& ctx){
     //GenerateGloblvarList(module, ctx);
    // num_lable=0;
+}
+//textSegment
+textSegment::textSegment(RISCVLoweringContext& ctx){
+    GenerateFuncList(ctx);
+}
+void textSegment::GenerateFuncList(RISCVLoweringContext& ctx){
+    for(auto& function : ctx.GetFunctions()){
+        functionSegment* funcSeg=new functionSegment(function.get());
+        function_list.push_back(funcSeg);
+    }
+}
+void textSegment::PrintTextSegment(){
+    PrintSegmentType(TEXT,oldtype);
+    for(auto& functionSegment: function_list){
+        functionSegment->PrintFuncSegment();
+    }
 }

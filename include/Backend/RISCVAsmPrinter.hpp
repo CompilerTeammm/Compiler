@@ -31,13 +31,13 @@ public:
     ~RISCVAsmPrinter() = default;
     void SetTextSegment(textSegment *);
     dataSegment *&GetData();
-    void printAsmGlobal();
-    void printAsm();
+    void PrintAsmGlobal();
+    void PrintAsm();
 
     void set_use_cachelookup(bool);//缓存查找优化
     void set_use_cachelookup4(bool);
-    void printCacheLookUp();
-    void printCacheLookUp4();
+    void PrintCacheLookUp();
+    void PrintCacheLookUp4();
 //    void printParallelLib();//输出并行计算相关汇编代码
 
 protected:
