@@ -329,7 +329,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
 {
     AllocaInfo Info;
     BlockInfo BkInfo;
-    IDF Idf;
+    IDFCalculator Idf;
 
     // 移除没有users 的 alloca指令
     for(int AllocaNum = 0; AllocaNum != Allocas.size(); ++AllocaNum){
@@ -392,8 +392,10 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         //////// determine which block nodes need phi functions
         std::vector<BasicBlock*> PhiBlocks;
 
+        // 就是为了calculate做准备d
         Idf.setDefiningBlocks(DefineBlock);
         Idf.setLiveInBlocks(LiveInBlocks);
+        //迭代支配边界
         Idf.calculate(PhiBlocks);
         // 到这里应该 PhiBlocks 已经被构建完成了
 
@@ -431,7 +433,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         auto tmp = std::move(RenamePasWorkList.back());
         RenamePasWorkList.pop_back();
         // 一个核心逻辑
-        ReName();
+        // ReName();
     }while(!RenamePasWorkList.empty());
 
     ///////// 下面是重命名之后的额外操作

@@ -2,6 +2,7 @@
 // #include "CoreClass.hpp"
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
+#include "IDF.hpp"
 #include <numeric>
 #include <utility>
 #include <vector>
@@ -19,6 +20,7 @@
 // 辅助森林和并查集的关系  
 // 并查集 通过 link 和 eval 操作，维护一个支持路径压缩的森林结构
 
+// debug 等有了测试样例调试的时候看看
 
 # define MAX_ORDER 1000000
 # define N 10000
@@ -26,6 +28,7 @@ struct TreeNode;
 using BBPtr = std::shared_ptr<BasicBlock>;
 class DominantTree
 {
+    friend class IDFCalculator;
 private:
     // 输入的应该是func，func->BBs 
     // Node 要和 BasicBlock一一对应
@@ -39,6 +42,8 @@ private:
         // init 的时候初始化
         std::list<TreeNode*> predNodes;  // 前驱
         std::list<TreeNode*> succNodes; //  后继
+
+        // std::list<TreeNode*> idom_child;
 
         // 构造函数初始化
         TreeNode* sdom;
@@ -105,6 +110,11 @@ public:
         }
     } 
 
+    TreeNode* getNode(BasicBlock* BB)
+    {
+        return BlocktoNode[BB];
+    }
+
     void InitNodes()
     {
         //   pair <BasicBlock* , TreeNode*>
@@ -148,6 +158,8 @@ public:
         // DSU的初始化再DFS之后，我需要依据DFS的序号来建立关系
         InitDSU();
         GetIdom();
+        // 到这里为止 Nodes 里面的idom和sdom全部被记录了下来了
+        // Nodes[0] 是没有idom的信息的为nullptr
     }
 
     void GetIdom()
@@ -172,22 +184,26 @@ public:
             bucket[min].push_back(i);
             // link(parent,v); 将 v连接到父节点 
             link(father_order,i);
-            for(auto e :bucket[father_order])
+            for(auto e :bucket[min])
             {
                 int u = eval(e);
                 if(DSU[u]->min_sdom == DSU[e]->min_sdom)
                     TN->idom = TN->sdom;
-                else 
+                else if(DSU[u]->min_sdom < DSU[e]->min_sdom)
                     TN->idom = DSU[u]->Nodesbydfs->idom;
+                else
+                    assert("dominant error");
             }
             bucket[father_order].clear();
         }
 
-        for(int i = 1; i <= Nodes.size(); i++)
+        // 根结点不需要跑出来idom
+        for(int i = 2; i <= Nodes.size(); i++)
         {
             TreeNode *TN = DSU[i]->Nodesbydfs;
             if(TN->idom != TN->sdom)
                 TN->idom = DSU[TN->idom->dfs_order]->Nodesbydfs->idom;
+                // TN->idom = DSU[TN->idom->dfs_order]->Nodesbydfs->idom;
         }
     }
 
@@ -238,7 +254,14 @@ public:
         }
     }
 
-    bool dominates(BasicBlock* bb1,BasicBlock* bb2);
+    bool dominates(BasicBlock* bb1,BasicBlock* bb2)
+    {
+        TreeNode* node1 = BlocktoNode[bb1];
+        TreeNode* node2 = BlocktoNode[bb2];
+
+
+    }
+
     ~DominantTree() = default;
 };
 
