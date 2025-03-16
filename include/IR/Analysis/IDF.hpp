@@ -5,6 +5,7 @@
 // iterated D F  迭代支配边界
 class IDFCalculator
 {
+    using TreeNode = DominantTree::TreeNode;
 public:
     IDFCalculator(DominantTree &DT):
             _DT(DT),useLiveIn(false)  {}
@@ -23,6 +24,17 @@ public:
 
     void setDefiningBlocks(std::set<BasicBlock *>& blocks){
         DefBlocks = &blocks;
+    }
+
+    // level = 0; 为最高级的level
+    void caculateLevel(TreeNode* node,int level)
+    {
+        DomLevels[node] = level;
+        for(auto child : node->idomChild)
+        {
+            if(DomLevels.count(child))
+                caculateLevel(child, level+1);
+        }
     }
 
     void calculate(std::vector<BasicBlock*>& IDFBlocks);

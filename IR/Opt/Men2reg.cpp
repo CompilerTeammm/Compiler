@@ -392,12 +392,12 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         //////// determine which block nodes need phi functions
         std::vector<BasicBlock*> PhiBlocks;
 
-        // 就是为了calculate做准备d
+        // 就是为了calculate做准备
         Idf.setDefiningBlocks(DefineBlock);
         Idf.setLiveInBlocks(LiveInBlocks);
         //迭代支配边界
         Idf.calculate(PhiBlocks);
-        // 到这里应该 PhiBlocks 已经被构建完成了
+        // 到这里应该 PhiBlocks 出来了
 
         // 排序以据可以是DFS的遍历顺序
         /// 然后对基本块根据序号进行排序，使得插入phi指令的顺序和编号确定化
@@ -407,7 +407,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
                             return BBNumbers.at(A) < BBNumbers.at(B);
                      });
 
-        // 到这里为止，我应该是拥有了改插入phi的节点了
+        // 到这里为止，我应该是拥有了该插入phi的节点了
         for(int i = 0,e = PhiBlocks.size();i !=e; i++){
             QueuePhiNode(PhiBlocks[i],AllocaNum);
         }

@@ -42,8 +42,8 @@ private:
         // init 的时候初始化
         std::list<TreeNode*> predNodes;  // 前驱
         std::list<TreeNode*> succNodes; //  后继
-
-        // std::list<TreeNode*> idom_child;
+        BasicBlock* curBlock;
+        std::list<TreeNode*> idomChild;
 
         // 构造函数初始化
         TreeNode* sdom;
@@ -119,7 +119,9 @@ public:
     {
         //   pair <BasicBlock* , TreeNode*>
         for(int i = 0; i <= BasicBlocks.size() ; i++) 
-            BlocktoNode[BasicBlocks[i]] = Nodes[i]; 
+            BlocktoNode[BasicBlocks[i]] = Nodes[i],  // map
+            Nodes[i]->curBlock = BasicBlocks[i];     // key-value value不好寻找key
+            
         // 建立了前驱与后继的确定
         for(auto bb : BasicBlocks) 
         {
@@ -157,12 +159,23 @@ public:
         DFS(BlocktoNode[Bbegin]);
         // DSU的初始化再DFS之后，我需要依据DFS的序号来建立关系
         InitDSU();
-        GetIdom();
+        InitIdom();
         // 到这里为止 Nodes 里面的idom和sdom全部被记录了下来了
         // Nodes[0] 是没有idom的信息的为nullptr
     }
 
-    void GetIdom()
+    // 这个遍历也只是可以找到他们的孩子了
+    void buildTree()
+    {
+        for(int i = 1; i < BBsNum; i++)
+        {
+            TreeNode* idom_node = Nodes[i]->idom;
+            if(idom_node)
+                idom_node->idomChild.push_back(Nodes[i]);
+        }
+    }
+
+    void InitIdom()
     {
         // 逆序遍历，从dfs最大的结点开始, sdom求取
         // 需要记录最小的sdom对吧
