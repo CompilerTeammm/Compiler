@@ -14,7 +14,8 @@ void IDFCalculator::calculate(std::vector<BasicBlock*>& IDFBlocks)
 {
     // 计算支配树的层级
     if(DomLevels.empty()){
-          caculateLevel(_DT.Nodes[0],0);
+          DomLevels = _DT.DomLevels;
+          // caculateLevel(_DT.Nodes[0],0);
     }
 
     typedef std::pair<TreeNode*,int> DomTreeNodePair;

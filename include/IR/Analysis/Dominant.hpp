@@ -96,6 +96,9 @@ private:
     // 这个就是一个二维数组
     std::vector<int> bucket[N];
 
+    // IDF的层级留在这里
+    std::map<TreeNode*,int> DomLevels;
+
     size_t BBsNum;
     int count = 1;  // dfs的时候计数赋值的
 public:
@@ -121,7 +124,7 @@ public:
         for(int i = 0; i <= BasicBlocks.size() ; i++) 
             BlocktoNode[BasicBlocks[i]] = Nodes[i],  // map
             Nodes[i]->curBlock = BasicBlocks[i];     // key-value value不好寻找key
-            
+
         // 建立了前驱与后继的确定
         for(auto bb : BasicBlocks) 
         {
@@ -162,6 +165,7 @@ public:
         InitIdom();
         // 到这里为止 Nodes 里面的idom和sdom全部被记录了下来了
         // Nodes[0] 是没有idom的信息的为nullptr
+        caculateLevel(Nodes[0], 0);
     }
 
     // 这个遍历也只是可以找到他们的孩子了
@@ -267,12 +271,39 @@ public:
         }
     }
 
+        // level = 0; 为最高级的level
+    void caculateLevel(TreeNode* node,int level)
+    {
+        DomLevels[node] = level;
+        for(auto child : node->idomChild)
+        {
+            //核心就是一个回溯，easy
+            if(DomLevels.count(child))
+                caculateLevel(child, level+1);
+        }
+    }
+
     bool dominates(BasicBlock* bb1,BasicBlock* bb2)
     {
         TreeNode* node1 = BlocktoNode[bb1];
         TreeNode* node2 = BlocktoNode[bb2];
+        TreeNode* tmpNode = nullptr;
 
+        int tmp1 = DomLevels[node1];
+        int tmp2 = DomLevels[node2];
+        if(tmp1 < tmp2){
+            while(tmp2 != tmp1)
+            {
+                tmpNode = node2->idom;
+                tmp2--;
+            }
 
+            if(tmpNode == node1){
+                return true;
+            }
+        }
+
+        return false;
     }
 
     ~DominantTree() = default;

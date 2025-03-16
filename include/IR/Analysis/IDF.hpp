@@ -26,16 +26,17 @@ public:
         DefBlocks = &blocks;
     }
 
-    // level = 0; 为最高级的level
-    void caculateLevel(TreeNode* node,int level)
-    {
-        DomLevels[node] = level;
-        for(auto child : node->idomChild)
-        {
-            if(DomLevels.count(child))
-                caculateLevel(child, level+1);
-        }
-    }
+    // // level = 0; 为最高级的level
+    // void caculateLevel(TreeNode* node,int level)
+    // {
+    //     DomLevels[node] = level;
+    //     for(auto child : node->idomChild)
+    //     {
+    //         //核心就是一个回溯，easy
+    //         if(DomLevels.count(child))
+    //             caculateLevel(child, level+1);
+    //     }
+    // }
 
     void calculate(std::vector<BasicBlock*>& IDFBlocks);
 
