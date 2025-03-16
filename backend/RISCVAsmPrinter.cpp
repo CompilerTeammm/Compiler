@@ -78,9 +78,9 @@ void RISCVAsmPrinter::PrintAsm(){
     this->PrintAsmGlobal();
     this->text->PrintTextSegment();
     this->data->PrintDataSegment_Tempvar();
-    if(Singleton<Enable_Parallel>().flag==true){
-        this->PrintParallelLib();
-    }
+    // if(Singleton<Enable_Parallel>().flag==true){
+    //     this->PrintParallelLib();
+    // }
     if(this->use_cachelookup==true){
         this->PrintCacheLookUp();
     }
@@ -90,8 +90,15 @@ void RISCVAsmPrinter::PrintAsm(){
 }
 //dataSegment 初始化一个实例 生成全局变量列表,num_lable为用于跟踪生成的标签lable的数量?
 dataSegment::dataSegment(Moudle* module, RISCVLoweringContext& ctx){
-    //GenerateGloblvarList(module, ctx);
-   // num_lable=0;
+    GenerateGloblvarList(module, ctx);
+    num_lable=0;
+}
+void dataSegment::GenerateGloblvarList(Module* moudle,RISCVLoweringContext& ctx){
+    for(auto& data:moudle->GetGlobalVariable()){
+        globlvar* gvar=new globlvar(data.get());
+        ctx.insert_val2mop(dynamic_cast<Value*>(data.get()),gvar);
+        globlvar_list.push_back(gvar);
+    }
 }
 //textSegment
 textSegment::textSegment(RISCVLoweringContext& ctx){
@@ -112,5 +119,14 @@ void textSegment::PrintTextSegment(){
 //functionSegment
 functionSegment::functionSegment(RISCVFunction* function):func(function){
     align=1;
-    name=function->GetName();
+    name=function->GetName();//MIR
+}
+void functionSegment::PrintFuncSegment(){
+    std::cout << "    .align  " << align << std::endl;
+    std::cout << "    .globl  " << name << std::endl;
+    std::cout << "    .type  " << name << ", @" << ty << std::endl;
+    func->printfull();//MIR
+    if(size==-1){
+        std::cout<<"    .size"<<name<<", "<<".-"<<name<<std::endl;
+    }    
 }

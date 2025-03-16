@@ -23,7 +23,7 @@ enum SegmentType
 
 SegmentType ChangeSegmentType(SegmentType newtype);
 void PrintSegmentType(SegmentType newtype, SegmentType *oldtype);
-
+//Moudle为lib CFG的类
 class RISCVAsmPrinter
 {
 public:
@@ -49,8 +49,7 @@ protected:
     std::string cachefilepath="RISCVLib/Cachelib.s";//缓存库路径
 };
 
-class dataSegment
-{
+class dataSegment{
 public:
     dataSegment(Moudle *moudle, RISCVLoweringContext &ctx);//通过 Module* 获取所有全局变量，并存入 globlvar_list。
     ~dataSegment() = default;
