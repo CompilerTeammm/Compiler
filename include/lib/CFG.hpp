@@ -352,6 +352,7 @@ Operand ToInt(Operand op, BasicBlock *block);
 
 /// dh
 // 前端给框架？中端写自己要用的？
+/// 函数的实现还没有写
 class PhiInst : public Instruction
 {
 public:
@@ -361,7 +362,10 @@ public:
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
 
-  static PhiInst *Create(Type *type, int Num, std::string name, BasicBlock *BB);
+  static PhiInst *Create(Instruction* Beforeinst,BasicBlock* curBB,Type* type,std::string Name = "");
+  static PhiInst *Create(Instruction* Beforeinst,BasicBlock* curBB,std::string Name = "");
+  static PhiInst *Create(Type* type);
+
   PhiInst *clone(std::unordered_map<Operand, Operand> &) override;
   void print() final;
 };

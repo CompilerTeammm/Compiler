@@ -124,12 +124,14 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& D
         // 寻找前驱是store的块，才可以终止对pre的回溯
 
         // 需要支配树，但是支配树我还没有实现，需要支配树提供前驱节点
-        for(auto& pre :BB)
+        // 支配树搭建完成，取BB的前驱结点
+        for(auto& preNode :_tree->getNode(BB)->predNodes)
         {
-            if(DefBlock.count(pre))
+            BasicBlock* preBB = preNode->curBlock;
+            if(DefBlock.count(preBB))
                 continue;
             
-            WorkLiveIn.push_back(pre);
+            WorkLiveIn.push_back(preBB);
         }
         
     }
@@ -161,19 +163,16 @@ int BlockInfo:: GetInstIndex(Instruction* Inst)
 bool PromoteMem2Reg::QueuePhiNode(BasicBlock* BB, int AllocaNum)
 {
     // 为了类型匹配我进行了转换
-    auto newBB = std::unique_ptr<BasicBlock> (BB);
+    auto newBB = std::shared_ptr<BasicBlock> (BB);
     PhiInst* &PN = NewPhiNodes[std::make_pair(BBNumbers[newBB],AllocaNum)];
     
     //  had  a phi func
     if(PN)
         return false;
-    
+    AllocaInst* AInst = Allocas[AllocaNum];
     // PhiInst 我还没用实现
-    int num;
-    BasicBlock* BB1;
-    PN =PhiInst::Create(Allocas[AllocaNum]->GetType(),num,
-                        Allocas[AllocaNum]->GetName()+ ".",
-                         BB1);
+    PN =PhiInst::Create(newBB->GetFront(), BB, 
+                        dynamic_cast<HasSubType*>(AInst->GetType())->GetSubType());
     PhiToAllocaMap[PN] = AllocaNum;
 
     return true;
@@ -298,23 +297,23 @@ bool PromoteMem2Reg::promoteSingleBlockAlloca(AllocaInfo &Info, AllocaInst *AI, 
 
 // knowing that the alloca is promotable,we know that it is safe 
 //to kill all insts except for load and store
-void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst* AI)
+void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst *AI)
 {
-    for(auto UI = AI->GetValUseList().begin(),UE = AI->GetValUseList().end(); UI!=UE;)
+    for (auto UI = AI->GetValUseList().begin(), UE = AI->GetValUseList().end(); UI != UE;)
     {
-        Instruction* inst = dynamic_cast<Instruction*> ((*UI)->GetUser());
+        Instruction *inst = dynamic_cast<Instruction *>((*UI)->GetUser());
         ++UI;
-        if(dynamic_cast<LoadInst*> (inst) || dynamic_cast<StoreInst*>(inst))
+        if (dynamic_cast<LoadInst *>(inst) || dynamic_cast<StoreInst *>(inst))
             continue;
 
         // is good for dead code elimination later
-        // 产生了一个值，这个值是 lifetime intrinsic 
+        // 产生了一个值，这个值是 lifetime intrinsic
         if ((inst->GetType())->GetTypeEnum() != IR_Value_VOID)
         {
             // bitcast/GEP
             for (auto UUI = inst->GetValUseList().begin(), UUE = inst->GetValUseList().end(); UUI != UUE;)
             {
-                Instruction *AInst = dynamic_cast<Instruction*>((*UUI)->GetUser());
+                Instruction *AInst = dynamic_cast<Instruction *>((*UUI)->GetUser());
                 ++UUI;
                 delete AInst;
                 // AInst->
@@ -325,11 +324,18 @@ void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst* AI)
     }
 }
 
+void PromoteMem2Reg::RenamePass(BasicBlock *BB, BasicBlock *Pred,
+                                RenamePassData::ValVector &IncomingVals,
+                                std::vector<RenamePassData> &WorkList)
+{
+    
+}
+
 bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas)
 {
     AllocaInfo Info;
     BlockInfo BkInfo;
-    IDFCalculator Idf;
+    IDFCalculator Idf(*_tree);
 
     // 移除没有users 的 alloca指令
     for(int AllocaNum = 0; AllocaNum != Allocas.size(); ++AllocaNum){
@@ -403,12 +409,12 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         /// 然后对基本块根据序号进行排序，使得插入phi指令的顺序和编号确定化
         if(PhiBlocks.size() > 1)
             std::sort(PhiBlocks.begin(),PhiBlocks.end(),
-                     [this](std::unique_ptr<BasicBlock>& A,std::unique_ptr<BasicBlock>& B){
+                     [this](std::shared_ptr<BasicBlock>& A,std::shared_ptr<BasicBlock>& B){
                             return BBNumbers.at(A) < BBNumbers.at(B);
                      });
 
         // 到这里为止，我应该是拥有了该插入phi的节点了
-        for(int i = 0,e = PhiBlocks.size();i !=e; i++){
+        for(int i = 0, e = PhiBlocks.size(); i !=e; i++){
             QueuePhiNode(PhiBlocks[i],AllocaNum);
         }
     }
@@ -418,7 +424,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
 
     //Rename
     // 这个倒是好实现，作用啥的我仔细看看
-    // BkInfo.clear();
+    BkInfo.clear();
 
     // 初始化ValVector，
     RenamePassData::ValVector Values(Allocas.size());
@@ -432,11 +438,10 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
     do{
         auto tmp = std::move(RenamePasWorkList.back());
         RenamePasWorkList.pop_back();
-        // 一个核心逻辑
-        // ReName();
-    }while(!RenamePasWorkList.empty());
 
-    ///////// 下面是重命名之后的额外操作
+        // core function for rename
+        RenamePass(tmp.BB,tmp.PredBB,tmp.Values,RenamePasWorkList);
+    }while(!RenamePasWorkList.empty());
 
     for(int i = 0,e=Allocas.size(); i!=e;i++)
     {

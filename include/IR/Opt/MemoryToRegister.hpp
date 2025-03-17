@@ -41,6 +41,8 @@ public:
 
     void DeletIndex(Instruction* Inst) { InstNumbersIndex.erase(Inst); }
     bool isInterestingInstruction(List<BasicBlock, Instruction>::iterator Inst);
+
+    void clear() { InstNumbersIndex.clear();}
 };
 
 class RenamePassData{
@@ -48,13 +50,13 @@ public:
     typedef std::vector<Value*> ValVector;
 
     RenamePassData()
-    : BB(nullptr),Pred(nullptr),Values()  {}
+    : BB(nullptr),PredBB(nullptr),Values()  {}
 
     RenamePassData(BasicBlock*B,BasicBlock*P , ValVector& V)
-                :BB(B),Pred(P),Values(V) {}
+                :BB(B),PredBB(P),Values(V) {}
 
     BasicBlock* BB;
-    BasicBlock* Pred;
+    BasicBlock* PredBB;
     ValVector Values;
 };
 
@@ -81,6 +83,12 @@ public:
     void ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& DefBlock,
                         std::set<BasicBlock*>& LiveInBlocks,AllocaInfo& info);
 
+    //重命名的函数
+    void RenamePass(BasicBlock* BB,BasicBlock* Pred,
+                    RenamePassData::ValVector& IncomingVals,
+                    std::vector<RenamePassData>& WorkList);
+
+
 protected:
     Function *_func;
     DominantTree * _tree;
@@ -89,7 +97,7 @@ protected:
     std::map<std::pair<int,int>,PhiInst*> NewPhiNodes;
 
     // BBs in Function number
-    std::map<std::unique_ptr<BasicBlock>,int> BBNumbers;
+    std::map<std::shared_ptr<BasicBlock>,int> BBNumbers;
 
     std::map<PhiInst*,int> PhiToAllocaMap;
     // 记录Phi和alloca的对应的关系
