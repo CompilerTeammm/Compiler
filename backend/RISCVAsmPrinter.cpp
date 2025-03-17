@@ -55,18 +55,18 @@ void RISCVAsmPrinter::PrintAsmGlobal(){
     this->data->PrintDataSegment_Globval();    
 }
 //这样的格式可以将.hpp代码内容直接包含进来
-// void RISCVAsmPrinter::PrintCacheLookUp(){
-//     static const char* cachelookuplib= 
-//     #include "../include/RISCVSupport?cachelib.hpp"
-//     ;
-//     std::cout<<cachelookuplib;
-// }
-// void RISCVAsmPrinter::PrintCacheLookUp4(){
-//     static const char* cachelookuplib4=
-//     #include "../include/RISCVSupport/cachelib4.hpp"
-//     ;
-//     std::cout<<cachelookuplib4;
-// }
+void RISCVAsmPrinter::PrintCacheLookUp(){
+    static const char* cachelookuplib= 
+    #include "../include/RISCVSupport/cachelib.hpp"
+    ;
+    std::cout<<cachelookuplib;
+}
+void RISCVAsmPrinter::PrintCacheLookUp4(){
+    static const char* cachelookuplib4=
+    #include "../include/RISCVSupport/cachelib4.hpp"
+    ;
+    std::cout<<cachelookuplib4;
+}
 // void RISCVAsmPrinter::PrintParallelLib(){
 //     static const char* buildinlib=
 //     #include "../include/RISCVSupport/parallel.hpp"
@@ -99,6 +99,9 @@ void dataSegment::GenerateGloblvarList(Module* moudle,RISCVLoweringContext& ctx)
         ctx.insert_val2mop(dynamic_cast<Value*>(data.get()),gvar);
         globlvar_list.push_back(gvar);
     }
+}
+void dataSegment::GenerateTempvarList(RISCVLoweringContext& ctx){
+    
 }
 //textSegment
 textSegment::textSegment(RISCVLoweringContext& ctx){
