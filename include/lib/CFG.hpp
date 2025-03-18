@@ -705,14 +705,6 @@ public:
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
 
-<<<<<<< HEAD
-  static PhiInst *Create(Instruction* Beforeinst,BasicBlock* curBB,Type* type,std::string Name = "");
-  static PhiInst *Create(Instruction* Beforeinst,BasicBlock* curBB,std::string Name = "");
-  static PhiInst *Create(Type* type);
-
-  PhiInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
-=======
   static PhiInst *Create(Type *type, int Num, std::string name, BasicBlock *BB);
   // 暂时使不报错
   PhiInst *clone(std::unordered_map<Operand, Operand> &) override
@@ -901,5 +893,4 @@ public:
     for (auto &i : functions)
       i->print();
   }
->>>>>>> 03cb12804dea9d2369b5d72f945539d6089bec07
 };
