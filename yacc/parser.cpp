@@ -42,19 +42,18 @@
 
 
 // Unqualified %code blocks.
-#line 9 "./parser.y"
+#line 6 "./parser.y"
 
 extern yy::parser::symbol_type yylex();
 namespace yy
 {
-  // Report an error to the user.
   auto parser::error (location_type const& loc,const std::string& msg) -> void
   {
     std::cerr <<loc.begin <<" "<< msg << '\n';
   }
 }
 
-#line 58 "parser.cpp"
+#line 57 "parser.cpp"
 
 
 #ifndef YY_
@@ -146,7 +145,7 @@ namespace yy
 #define YYRECOVERING()  (!!yyerrstatus_)
 
 namespace yy {
-#line 150 "parser.cpp"
+#line 149 "parser.cpp"
 
   /// Build a parser object.
   parser::parser ()
@@ -1161,572 +1160,572 @@ namespace yy {
         {
           switch (yyn)
             {
-  case 2: // GrammarEntrance: CompUnit
-#line 117 "./parser.y"
-                          {Singleton<CompUnit*>()=yystack_[0].value.as < CompUnit* > ();}
-#line 1168 "parser.cpp"
+  case 2: // entry: CompUnit
+#line 104 "./parser.y"
+                {Singleton<CompUnit*>()=yystack_[0].value.as < CompUnit* > ();}
+#line 1167 "parser.cpp"
     break;
 
   case 3: // CompUnit: Decl CompUnit
-#line 119 "./parser.y"
-                        {yylhs.value.as < CompUnit* > ()=yystack_[0].value.as < CompUnit* > ();yylhs.value.as < CompUnit* > ()->push_front((BaseAST*)yystack_[1].value.as < Stmt* > ());yylhs.value.as < CompUnit* > ()->SET(yystack_[1].location);}
-#line 1174 "parser.cpp"
+#line 106 "./parser.y"
+                        {yylhs.value.as < CompUnit* > ()=yystack_[0].value.as < CompUnit* > ();yylhs.value.as < CompUnit* > ()->push_front((BaseAST*)yystack_[1].value.as < Stmt* > ());yylhs.value.as < CompUnit* > ()->SetLoc(yystack_[1].location);}
+#line 1173 "parser.cpp"
     break;
 
   case 4: // CompUnit: FuncDef CompUnit
-#line 120 "./parser.y"
-                           {yylhs.value.as < CompUnit* > ()=yystack_[0].value.as < CompUnit* > ();yylhs.value.as < CompUnit* > ()->push_front((BaseAST*)yystack_[1].value.as < FuncDef* > ());yylhs.value.as < CompUnit* > ()->SET(yystack_[1].location);}
-#line 1180 "parser.cpp"
+#line 107 "./parser.y"
+                           {yylhs.value.as < CompUnit* > ()=yystack_[0].value.as < CompUnit* > ();yylhs.value.as < CompUnit* > ()->push_front((BaseAST*)yystack_[1].value.as < FuncDef* > ());yylhs.value.as < CompUnit* > ()->SetLoc(yystack_[1].location);}
+#line 1179 "parser.cpp"
     break;
 
   case 5: // CompUnit: Decl
-#line 121 "./parser.y"
-               {yylhs.value.as < CompUnit* > ()=new CompUnit((BaseAST*)yystack_[0].value.as < Stmt* > ());yylhs.value.as < CompUnit* > ()->SET(yystack_[0].location);}
-#line 1186 "parser.cpp"
+#line 108 "./parser.y"
+               {yylhs.value.as < CompUnit* > ()=new CompUnit((BaseAST*)yystack_[0].value.as < Stmt* > ());yylhs.value.as < CompUnit* > ()->SetLoc(yystack_[0].location);}
+#line 1185 "parser.cpp"
     break;
 
   case 6: // CompUnit: FuncDef
-#line 122 "./parser.y"
-                  {yylhs.value.as < CompUnit* > ()=new CompUnit((BaseAST*)yystack_[0].value.as < FuncDef* > ());yylhs.value.as < CompUnit* > ()->SET(yystack_[0].location);}
-#line 1192 "parser.cpp"
+#line 109 "./parser.y"
+                  {yylhs.value.as < CompUnit* > ()=new CompUnit((BaseAST*)yystack_[0].value.as < FuncDef* > ());yylhs.value.as < CompUnit* > ()->SetLoc(yystack_[0].location);}
+#line 1191 "parser.cpp"
     break;
 
   case 7: // Decl: ConstDecl
-#line 125 "./parser.y"
-                {yylhs.value.as < Stmt* > ()=(Stmt*)yystack_[0].value.as < ConstDecl* > ();yylhs.value.as < Stmt* > ()->SET(yystack_[0].location);}
-#line 1198 "parser.cpp"
+#line 112 "./parser.y"
+                {yylhs.value.as < Stmt* > ()=(Stmt*)yystack_[0].value.as < ConstDecl* > ();yylhs.value.as < Stmt* > ()->SetLoc(yystack_[0].location);}
+#line 1197 "parser.cpp"
     break;
 
   case 8: // Decl: VarDecl
-#line 126 "./parser.y"
-              {yylhs.value.as < Stmt* > ()=(Stmt*)yystack_[0].value.as < VarDecl* > ();yylhs.value.as < Stmt* > ()->SET(yystack_[0].location);}
-#line 1204 "parser.cpp"
+#line 113 "./parser.y"
+              {yylhs.value.as < Stmt* > ()=(Stmt*)yystack_[0].value.as < VarDecl* > ();yylhs.value.as < Stmt* > ()->SetLoc(yystack_[0].location);}
+#line 1203 "parser.cpp"
     break;
 
   case 9: // ConstDecl: Y_CONST Type ConstDefs Y_SEMICOLON
-#line 129 "./parser.y"
-                                              {yylhs.value.as < ConstDecl* > ()=new ConstDecl(yystack_[2].value.as < AST_Type > (),yystack_[1].value.as < ConstDefs* > ());yylhs.value.as < ConstDecl* > ()->SET(yystack_[3].location);}
-#line 1210 "parser.cpp"
+#line 116 "./parser.y"
+                                              {yylhs.value.as < ConstDecl* > ()=new ConstDecl(yystack_[2].value.as < AST_Type > (),yystack_[1].value.as < ConstDefs* > ());yylhs.value.as < ConstDecl* > ()->SetLoc(yystack_[3].location);}
+#line 1209 "parser.cpp"
     break;
 
   case 10: // ConstDefs: ConstDefs Y_COMMA ConstDef
-#line 132 "./parser.y"
-                                      {yylhs.value.as < ConstDefs* > ()=yystack_[2].value.as < ConstDefs* > ();yystack_[2].value.as < ConstDefs* > ()->push_back(yystack_[0].value.as < ConstDef* > ());yylhs.value.as < ConstDefs* > ()->SET(yystack_[2].location);}
-#line 1216 "parser.cpp"
+#line 119 "./parser.y"
+                                      {yylhs.value.as < ConstDefs* > ()=yystack_[2].value.as < ConstDefs* > ();yystack_[2].value.as < ConstDefs* > ()->push_back(yystack_[0].value.as < ConstDef* > ());yylhs.value.as < ConstDefs* > ()->SetLoc(yystack_[2].location);}
+#line 1215 "parser.cpp"
     break;
 
   case 11: // ConstDefs: ConstDef
-#line 133 "./parser.y"
-                    {yylhs.value.as < ConstDefs* > ()=new ConstDefs(yystack_[0].value.as < ConstDef* > ());yylhs.value.as < ConstDefs* > ()->SET(yystack_[0].location);}
-#line 1222 "parser.cpp"
+#line 120 "./parser.y"
+                    {yylhs.value.as < ConstDefs* > ()=new ConstDefs(yystack_[0].value.as < ConstDef* > ());yylhs.value.as < ConstDefs* > ()->SetLoc(yystack_[0].location);}
+#line 1221 "parser.cpp"
     break;
 
   case 12: // ConstDef: Y_ID Y_ASSIGN ConstInitVal
-#line 136 "./parser.y"
-                                     {yylhs.value.as < ConstDef* > ()=new ConstDef(yystack_[2].value.as < std::string > (),nullptr,yystack_[0].value.as < InitVal* > ());yylhs.value.as < ConstDef* > ()->SET(yystack_[2].location);}
-#line 1228 "parser.cpp"
+#line 123 "./parser.y"
+                                     {yylhs.value.as < ConstDef* > ()=new ConstDef(yystack_[2].value.as < std::string > (),nullptr,yystack_[0].value.as < InitVal* > ());yylhs.value.as < ConstDef* > ()->SetLoc(yystack_[2].location);}
+#line 1227 "parser.cpp"
     break;
 
   case 13: // ConstDef: Y_ID ConstExps Y_ASSIGN ConstInitVal
-#line 137 "./parser.y"
-                                               {yylhs.value.as < ConstDef* > ()=new ConstDef(yystack_[3].value.as < std::string > (),yystack_[2].value.as < Exps* > (),yystack_[0].value.as < InitVal* > ());yylhs.value.as < ConstDef* > ()->SET(yystack_[3].location);}
-#line 1234 "parser.cpp"
+#line 124 "./parser.y"
+                                               {yylhs.value.as < ConstDef* > ()=new ConstDef(yystack_[3].value.as < std::string > (),yystack_[2].value.as < Exps* > (),yystack_[0].value.as < InitVal* > ());yylhs.value.as < ConstDef* > ()->SetLoc(yystack_[3].location);}
+#line 1233 "parser.cpp"
     break;
 
   case 14: // ConstExps: Y_LSQUARE AddExp Y_RSQUARE
-#line 140 "./parser.y"
-                                      {yylhs.value.as < Exps* > ()=new Exps(yystack_[1].value.as < AddExp* > ());yylhs.value.as < Exps* > ()->SET(yystack_[2].location);}
-#line 1240 "parser.cpp"
+#line 127 "./parser.y"
+                                      {yylhs.value.as < Exps* > ()=new Exps(yystack_[1].value.as < AddExp* > ());yylhs.value.as < Exps* > ()->SetLoc(yystack_[2].location);}
+#line 1239 "parser.cpp"
     break;
 
   case 15: // ConstExps: Y_LSQUARE AddExp Y_RSQUARE ConstExps
-#line 141 "./parser.y"
-                                                {yylhs.value.as < Exps* > ()=yystack_[0].value.as < Exps* > ();yylhs.value.as < Exps* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < Exps* > ()->SET(yystack_[3].location);}
-#line 1246 "parser.cpp"
+#line 128 "./parser.y"
+                                                {yylhs.value.as < Exps* > ()=yystack_[0].value.as < Exps* > ();yylhs.value.as < Exps* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < Exps* > ()->SetLoc(yystack_[3].location);}
+#line 1245 "parser.cpp"
     break;
 
   case 16: // ConstInitVal: AddExp
-#line 144 "./parser.y"
-                     {yylhs.value.as < InitVal* > ()=new InitVal((BaseAST*)yystack_[0].value.as < AddExp* > ());yylhs.value.as < InitVal* > ()->SET(yystack_[0].location);}
-#line 1252 "parser.cpp"
+#line 131 "./parser.y"
+                     {yylhs.value.as < InitVal* > ()=new InitVal((BaseAST*)yystack_[0].value.as < AddExp* > ());yylhs.value.as < InitVal* > ()->SetLoc(yystack_[0].location);}
+#line 1251 "parser.cpp"
     break;
 
   case 17: // ConstInitVal: Y_LBRACKET Y_RBRACKET
-#line 145 "./parser.y"
-                                    {yylhs.value.as < InitVal* > ()=new InitVal();yylhs.value.as < InitVal* > ()->SET(yystack_[1].location);}
-#line 1258 "parser.cpp"
+#line 132 "./parser.y"
+                                    {yylhs.value.as < InitVal* > ()=new InitVal();yylhs.value.as < InitVal* > ()->SetLoc(yystack_[1].location);}
+#line 1257 "parser.cpp"
     break;
 
   case 18: // ConstInitVal: Y_LBRACKET ConstInitVals Y_RBRACKET
-#line 146 "./parser.y"
-                                                  {yylhs.value.as < InitVal* > ()=new InitVal((BaseAST*)yystack_[1].value.as < InitVals* > ());yylhs.value.as < InitVal* > ()->SET(yystack_[2].location);}
-#line 1264 "parser.cpp"
+#line 133 "./parser.y"
+                                                  {yylhs.value.as < InitVal* > ()=new InitVal((BaseAST*)yystack_[1].value.as < InitVals* > ());yylhs.value.as < InitVal* > ()->SetLoc(yystack_[2].location);}
+#line 1263 "parser.cpp"
     break;
 
   case 19: // ConstInitVals: ConstInitVal
-#line 149 "./parser.y"
-                            {yylhs.value.as < InitVals* > ()=new InitVals(yystack_[0].value.as < InitVal* > ());yylhs.value.as < InitVals* > ()->SET(yystack_[0].location);}
-#line 1270 "parser.cpp"
+#line 136 "./parser.y"
+                            {yylhs.value.as < InitVals* > ()=new InitVals(yystack_[0].value.as < InitVal* > ());yylhs.value.as < InitVals* > ()->SetLoc(yystack_[0].location);}
+#line 1269 "parser.cpp"
     break;
 
   case 20: // ConstInitVals: ConstInitVals Y_COMMA ConstInitVal
-#line 150 "./parser.y"
-                                                  {yylhs.value.as < InitVals* > ()=yystack_[2].value.as < InitVals* > ();yylhs.value.as < InitVals* > ()->push_back(yystack_[0].value.as < InitVal* > ());yylhs.value.as < InitVals* > ()->SET(yystack_[2].location);}
-#line 1276 "parser.cpp"
+#line 137 "./parser.y"
+                                                  {yylhs.value.as < InitVals* > ()=yystack_[2].value.as < InitVals* > ();yylhs.value.as < InitVals* > ()->push_back(yystack_[0].value.as < InitVal* > ());yylhs.value.as < InitVals* > ()->SetLoc(yystack_[2].location);}
+#line 1275 "parser.cpp"
     break;
 
   case 21: // VarDecl: Type VarDefs Y_SEMICOLON
-#line 153 "./parser.y"
-                                  {yylhs.value.as < VarDecl* > ()=new VarDecl(yystack_[2].value.as < AST_Type > (),yystack_[1].value.as < VarDefs* > ());yylhs.value.as < VarDecl* > ()->SET(yystack_[2].location);}
-#line 1282 "parser.cpp"
+#line 140 "./parser.y"
+                                  {yylhs.value.as < VarDecl* > ()=new VarDecl(yystack_[2].value.as < AST_Type > (),yystack_[1].value.as < VarDefs* > ());yylhs.value.as < VarDecl* > ()->SetLoc(yystack_[2].location);}
+#line 1281 "parser.cpp"
     break;
 
   case 22: // VarDefs: VarDef
-#line 156 "./parser.y"
-                {yylhs.value.as < VarDefs* > ()=new VarDefs(yystack_[0].value.as < VarDef* > ());yylhs.value.as < VarDefs* > ()->SET(yystack_[0].location);}
-#line 1288 "parser.cpp"
+#line 143 "./parser.y"
+                {yylhs.value.as < VarDefs* > ()=new VarDefs(yystack_[0].value.as < VarDef* > ());yylhs.value.as < VarDefs* > ()->SetLoc(yystack_[0].location);}
+#line 1287 "parser.cpp"
     break;
 
   case 23: // VarDefs: VarDefs Y_COMMA VarDef
-#line 157 "./parser.y"
-                                {yylhs.value.as < VarDefs* > ()=yystack_[2].value.as < VarDefs* > ();yylhs.value.as < VarDefs* > ()->push_back(yystack_[0].value.as < VarDef* > ());yylhs.value.as < VarDefs* > ()->SET(yystack_[2].location);}
-#line 1294 "parser.cpp"
+#line 144 "./parser.y"
+                                {yylhs.value.as < VarDefs* > ()=yystack_[2].value.as < VarDefs* > ();yylhs.value.as < VarDefs* > ()->push_back(yystack_[0].value.as < VarDef* > ());yylhs.value.as < VarDefs* > ()->SetLoc(yystack_[2].location);}
+#line 1293 "parser.cpp"
     break;
 
   case 24: // VarDef: Y_ID
-#line 160 "./parser.y"
-             {yylhs.value.as < VarDef* > ()=new VarDef(yystack_[0].value.as < std::string > ());yylhs.value.as < VarDef* > ()->SET(yystack_[0].location);}
-#line 1300 "parser.cpp"
+#line 147 "./parser.y"
+             {yylhs.value.as < VarDef* > ()=new VarDef(yystack_[0].value.as < std::string > ());yylhs.value.as < VarDef* > ()->SetLoc(yystack_[0].location);}
+#line 1299 "parser.cpp"
     break;
 
   case 25: // VarDef: Y_ID Y_ASSIGN InitVal
-#line 161 "./parser.y"
-                              {yylhs.value.as < VarDef* > ()=new VarDef(yystack_[2].value.as < std::string > (),nullptr,yystack_[0].value.as < InitVal* > ());yylhs.value.as < VarDef* > ()->SET(yystack_[2].location);}
-#line 1306 "parser.cpp"
+#line 148 "./parser.y"
+                              {yylhs.value.as < VarDef* > ()=new VarDef(yystack_[2].value.as < std::string > (),nullptr,yystack_[0].value.as < InitVal* > ());yylhs.value.as < VarDef* > ()->SetLoc(yystack_[2].location);}
+#line 1305 "parser.cpp"
     break;
 
   case 26: // VarDef: Y_ID ConstExps
-#line 162 "./parser.y"
-                       {yylhs.value.as < VarDef* > ()=new VarDef(yystack_[1].value.as < std::string > (),yystack_[0].value.as < Exps* > (),nullptr);yylhs.value.as < VarDef* > ()->SET(yystack_[1].location);}
-#line 1312 "parser.cpp"
+#line 149 "./parser.y"
+                       {yylhs.value.as < VarDef* > ()=new VarDef(yystack_[1].value.as < std::string > (),yystack_[0].value.as < Exps* > (),nullptr);yylhs.value.as < VarDef* > ()->SetLoc(yystack_[1].location);}
+#line 1311 "parser.cpp"
     break;
 
   case 27: // VarDef: Y_ID ConstExps Y_ASSIGN InitVal
-#line 163 "./parser.y"
-                                        {yylhs.value.as < VarDef* > ()=new VarDef(yystack_[3].value.as < std::string > (),yystack_[2].value.as < Exps* > (),yystack_[0].value.as < InitVal* > ());yylhs.value.as < VarDef* > ()->SET(yystack_[3].location);}
-#line 1318 "parser.cpp"
+#line 150 "./parser.y"
+                                        {yylhs.value.as < VarDef* > ()=new VarDef(yystack_[3].value.as < std::string > (),yystack_[2].value.as < Exps* > (),yystack_[0].value.as < InitVal* > ());yylhs.value.as < VarDef* > ()->SetLoc(yystack_[3].location);}
+#line 1317 "parser.cpp"
     break;
 
   case 28: // InitVal: AddExp
-#line 166 "./parser.y"
-                {yylhs.value.as < InitVal* > ()=new InitVal((BaseAST*)yystack_[0].value.as < AddExp* > ());yylhs.value.as < InitVal* > ()->SET(yystack_[0].location);}
-#line 1324 "parser.cpp"
+#line 153 "./parser.y"
+                {yylhs.value.as < InitVal* > ()=new InitVal((BaseAST*)yystack_[0].value.as < AddExp* > ());yylhs.value.as < InitVal* > ()->SetLoc(yystack_[0].location);}
+#line 1323 "parser.cpp"
     break;
 
   case 29: // InitVal: Y_LBRACKET Y_RBRACKET
-#line 167 "./parser.y"
-                               {yylhs.value.as < InitVal* > ()=new InitVal(nullptr);yylhs.value.as < InitVal* > ()->SET(yystack_[1].location);}
-#line 1330 "parser.cpp"
+#line 154 "./parser.y"
+                               {yylhs.value.as < InitVal* > ()=new InitVal(nullptr);yylhs.value.as < InitVal* > ()->SetLoc(yystack_[1].location);}
+#line 1329 "parser.cpp"
     break;
 
   case 30: // InitVal: Y_LBRACKET InitVals Y_RBRACKET
-#line 168 "./parser.y"
-                                        {yylhs.value.as < InitVal* > ()=new InitVal((BaseAST*)yystack_[1].value.as < InitVals* > ());yylhs.value.as < InitVal* > ()->SET(yystack_[2].location);}
-#line 1336 "parser.cpp"
+#line 155 "./parser.y"
+                                        {yylhs.value.as < InitVal* > ()=new InitVal((BaseAST*)yystack_[1].value.as < InitVals* > ());yylhs.value.as < InitVal* > ()->SetLoc(yystack_[2].location);}
+#line 1335 "parser.cpp"
     break;
 
   case 31: // InitVals: InitVal
-#line 171 "./parser.y"
-                  {yylhs.value.as < InitVals* > ()=new InitVals(yystack_[0].value.as < InitVal* > ());yylhs.value.as < InitVals* > ()->SET(yystack_[0].location);}
-#line 1342 "parser.cpp"
+#line 158 "./parser.y"
+                  {yylhs.value.as < InitVals* > ()=new InitVals(yystack_[0].value.as < InitVal* > ());yylhs.value.as < InitVals* > ()->SetLoc(yystack_[0].location);}
+#line 1341 "parser.cpp"
     break;
 
   case 32: // InitVals: InitVals Y_COMMA InitVal
-#line 172 "./parser.y"
-                                   {yylhs.value.as < InitVals* > ()=yystack_[2].value.as < InitVals* > ();yylhs.value.as < InitVals* > ()->push_back(yystack_[0].value.as < InitVal* > ());yylhs.value.as < InitVals* > ()->SET(yystack_[2].location);}
-#line 1348 "parser.cpp"
+#line 159 "./parser.y"
+                                   {yylhs.value.as < InitVals* > ()=yystack_[2].value.as < InitVals* > ();yylhs.value.as < InitVals* > ()->push_back(yystack_[0].value.as < InitVal* > ());yylhs.value.as < InitVals* > ()->SetLoc(yystack_[2].location);}
+#line 1347 "parser.cpp"
     break;
 
   case 33: // FuncDef: Type Y_ID Y_LPAR Y_RPAR Block
-#line 175 "./parser.y"
-                                       {yylhs.value.as < FuncDef* > ()=new FuncDef(yystack_[4].value.as < AST_Type > (),yystack_[3].value.as < std::string > (),nullptr,yystack_[0].value.as < Block* > ());yylhs.value.as < FuncDef* > ()->SET(yystack_[4].location);}
-#line 1354 "parser.cpp"
+#line 162 "./parser.y"
+                                       {yylhs.value.as < FuncDef* > ()=new FuncDef(yystack_[4].value.as < AST_Type > (),yystack_[3].value.as < std::string > (),nullptr,yystack_[0].value.as < Block* > ());yylhs.value.as < FuncDef* > ()->SetLoc(yystack_[4].location);}
+#line 1353 "parser.cpp"
     break;
 
   case 34: // FuncDef: Type Y_ID Y_LPAR FuncParams Y_RPAR Block
-#line 176 "./parser.y"
-                                                  {yylhs.value.as < FuncDef* > ()=new FuncDef(yystack_[5].value.as < AST_Type > (),yystack_[4].value.as < std::string > (),yystack_[2].value.as < FuncParams* > (),yystack_[0].value.as < Block* > ());yylhs.value.as < FuncDef* > ()->SET(yystack_[5].location);}
-#line 1360 "parser.cpp"
+#line 163 "./parser.y"
+                                                  {yylhs.value.as < FuncDef* > ()=new FuncDef(yystack_[5].value.as < AST_Type > (),yystack_[4].value.as < std::string > (),yystack_[2].value.as < FuncParams* > (),yystack_[0].value.as < Block* > ());yylhs.value.as < FuncDef* > ()->SetLoc(yystack_[5].location);}
+#line 1359 "parser.cpp"
     break;
 
   case 35: // FuncParams: FuncParam
-#line 179 "./parser.y"
-                      {yylhs.value.as < FuncParams* > ()=new FuncParams(yystack_[0].value.as < FuncParam* > ());yylhs.value.as < FuncParams* > ()->SET(yystack_[0].location);}
-#line 1366 "parser.cpp"
+#line 166 "./parser.y"
+                      {yylhs.value.as < FuncParams* > ()=new FuncParams(yystack_[0].value.as < FuncParam* > ());yylhs.value.as < FuncParams* > ()->SetLoc(yystack_[0].location);}
+#line 1365 "parser.cpp"
     break;
 
   case 36: // FuncParams: FuncParams Y_COMMA FuncParam
-#line 180 "./parser.y"
-                                         {yylhs.value.as < FuncParams* > ()=yystack_[2].value.as < FuncParams* > ();yylhs.value.as < FuncParams* > ()->push_back(yystack_[0].value.as < FuncParam* > ());yylhs.value.as < FuncParams* > ()->SET(yystack_[2].location);}
-#line 1372 "parser.cpp"
+#line 167 "./parser.y"
+                                         {yylhs.value.as < FuncParams* > ()=yystack_[2].value.as < FuncParams* > ();yylhs.value.as < FuncParams* > ()->push_back(yystack_[0].value.as < FuncParam* > ());yylhs.value.as < FuncParams* > ()->SetLoc(yystack_[2].location);}
+#line 1371 "parser.cpp"
     break;
 
   case 37: // FuncParam: Type Y_ID
-#line 183 "./parser.y"
-                     {yylhs.value.as < FuncParam* > ()=new FuncParam(yystack_[1].value.as < AST_Type > (),yystack_[0].value.as < std::string > ());yylhs.value.as < FuncParam* > ()->SET(yystack_[1].location);}
-#line 1378 "parser.cpp"
+#line 170 "./parser.y"
+                     {yylhs.value.as < FuncParam* > ()=new FuncParam(yystack_[1].value.as < AST_Type > (),yystack_[0].value.as < std::string > ());yylhs.value.as < FuncParam* > ()->SetLoc(yystack_[1].location);}
+#line 1377 "parser.cpp"
     break;
 
   case 38: // FuncParam: Type Y_ID Y_LSQUARE Y_RSQUARE
-#line 184 "./parser.y"
-                                         {yylhs.value.as < FuncParam* > ()=new FuncParam(yystack_[3].value.as < AST_Type > (),yystack_[2].value.as < std::string > (),true);yylhs.value.as < FuncParam* > ()->SET(yystack_[3].location);}
-#line 1384 "parser.cpp"
+#line 171 "./parser.y"
+                                         {yylhs.value.as < FuncParam* > ()=new FuncParam(yystack_[3].value.as < AST_Type > (),yystack_[2].value.as < std::string > (),true);yylhs.value.as < FuncParam* > ()->SetLoc(yystack_[3].location);}
+#line 1383 "parser.cpp"
     break;
 
   case 39: // FuncParam: Type Y_ID ArraySubscripts
-#line 185 "./parser.y"
-                                     {yylhs.value.as < FuncParam* > ()=new FuncParam(yystack_[2].value.as < AST_Type > (),yystack_[1].value.as < std::string > (),false,yystack_[0].value.as < Exps* > ());yylhs.value.as < FuncParam* > ()->SET(yystack_[2].location);}
-#line 1390 "parser.cpp"
+#line 172 "./parser.y"
+                                     {yylhs.value.as < FuncParam* > ()=new FuncParam(yystack_[2].value.as < AST_Type > (),yystack_[1].value.as < std::string > (),false,yystack_[0].value.as < Exps* > ());yylhs.value.as < FuncParam* > ()->SetLoc(yystack_[2].location);}
+#line 1389 "parser.cpp"
     break;
 
   case 40: // FuncParam: Type Y_ID Y_LSQUARE Y_RSQUARE ArraySubscripts
-#line 186 "./parser.y"
-                                                         {yylhs.value.as < FuncParam* > ()=new FuncParam(yystack_[4].value.as < AST_Type > (),yystack_[3].value.as < std::string > (),true,yystack_[0].value.as < Exps* > ());yylhs.value.as < FuncParam* > ()->SET(yystack_[4].location);}
-#line 1396 "parser.cpp"
+#line 173 "./parser.y"
+                                                         {yylhs.value.as < FuncParam* > ()=new FuncParam(yystack_[4].value.as < AST_Type > (),yystack_[3].value.as < std::string > (),true,yystack_[0].value.as < Exps* > ());yylhs.value.as < FuncParam* > ()->SetLoc(yystack_[4].location);}
+#line 1395 "parser.cpp"
     break;
 
   case 41: // Block: Y_LBRACKET BlockItems Y_RBRACKET
-#line 189 "./parser.y"
-                                        {yylhs.value.as < Block* > ()=new Block(yystack_[1].value.as < BlockItems* > ());yylhs.value.as < Block* > ()->SET(yystack_[2].location);}
-#line 1402 "parser.cpp"
+#line 176 "./parser.y"
+                                        {yylhs.value.as < Block* > ()=new Block(yystack_[1].value.as < BlockItems* > ());yylhs.value.as < Block* > ()->SetLoc(yystack_[2].location);}
+#line 1401 "parser.cpp"
     break;
 
   case 42: // Block: Y_LBRACKET Y_RBRACKET
-#line 190 "./parser.y"
-                             {yylhs.value.as < Block* > ()=new Block(nullptr);yylhs.value.as < Block* > ()->SET(yystack_[1].location);}
-#line 1408 "parser.cpp"
+#line 177 "./parser.y"
+                             {yylhs.value.as < Block* > ()=new Block(nullptr);yylhs.value.as < Block* > ()->SetLoc(yystack_[1].location);}
+#line 1407 "parser.cpp"
     break;
 
   case 43: // BlockItems: BlockItem
-#line 193 "./parser.y"
-                      {yylhs.value.as < BlockItems* > ()=new BlockItems(yystack_[0].value.as < Stmt* > ());yylhs.value.as < BlockItems* > ()->SET(yystack_[0].location);}
-#line 1414 "parser.cpp"
+#line 180 "./parser.y"
+                      {yylhs.value.as < BlockItems* > ()=new BlockItems(yystack_[0].value.as < Stmt* > ());yylhs.value.as < BlockItems* > ()->SetLoc(yystack_[0].location);}
+#line 1413 "parser.cpp"
     break;
 
   case 44: // BlockItems: BlockItems BlockItem
-#line 194 "./parser.y"
-                                 {yylhs.value.as < BlockItems* > ()=yystack_[1].value.as < BlockItems* > ();yylhs.value.as < BlockItems* > ()->push_back(yystack_[0].value.as < Stmt* > ());yylhs.value.as < BlockItems* > ()->SET(yystack_[1].location);}
-#line 1420 "parser.cpp"
+#line 181 "./parser.y"
+                                 {yylhs.value.as < BlockItems* > ()=yystack_[1].value.as < BlockItems* > ();yylhs.value.as < BlockItems* > ()->push_back(yystack_[0].value.as < Stmt* > ());yylhs.value.as < BlockItems* > ()->SetLoc(yystack_[1].location);}
+#line 1419 "parser.cpp"
     break;
 
   case 45: // BlockItem: Decl
-#line 197 "./parser.y"
-                {yylhs.value.as < Stmt* > ()=(Stmt*)yystack_[0].value.as < Stmt* > ();yylhs.value.as < Stmt* > ()->SET(yystack_[0].location);}
-#line 1426 "parser.cpp"
+#line 184 "./parser.y"
+                {yylhs.value.as < Stmt* > ()=(Stmt*)yystack_[0].value.as < Stmt* > ();yylhs.value.as < Stmt* > ()->SetLoc(yystack_[0].location);}
+#line 1425 "parser.cpp"
     break;
 
   case 46: // BlockItem: Stmt
-#line 198 "./parser.y"
-                {yylhs.value.as < Stmt* > ()=(Stmt*)yystack_[0].value.as < Stmt* > ();yylhs.value.as < Stmt* > ()->SET(yystack_[0].location);}
-#line 1432 "parser.cpp"
+#line 185 "./parser.y"
+                {yylhs.value.as < Stmt* > ()=(Stmt*)yystack_[0].value.as < Stmt* > ();yylhs.value.as < Stmt* > ()->SetLoc(yystack_[0].location);}
+#line 1431 "parser.cpp"
     break;
 
   case 47: // Stmt: LVal Y_ASSIGN AddExp Y_SEMICOLON
-#line 201 "./parser.y"
-                                       {yylhs.value.as < Stmt* > ()=new AssignStmt(yystack_[3].value.as < LVal* > (),yystack_[1].value.as < AddExp* > ());yylhs.value.as < Stmt* > ()->SET(yystack_[3].location);}
-#line 1438 "parser.cpp"
+#line 188 "./parser.y"
+                                       {yylhs.value.as < Stmt* > ()=new AssignStmt(yystack_[3].value.as < LVal* > (),yystack_[1].value.as < AddExp* > ());yylhs.value.as < Stmt* > ()->SetLoc(yystack_[3].location);}
+#line 1437 "parser.cpp"
     break;
 
   case 48: // Stmt: Y_SEMICOLON
-#line 202 "./parser.y"
-                  {yylhs.value.as < Stmt* > ()=new ExpStmt(nullptr);yylhs.value.as < Stmt* > ()->SET(yystack_[0].location);}
-#line 1444 "parser.cpp"
+#line 189 "./parser.y"
+                  {yylhs.value.as < Stmt* > ()=new ExpStmt(nullptr);yylhs.value.as < Stmt* > ()->SetLoc(yystack_[0].location);}
+#line 1443 "parser.cpp"
     break;
 
   case 49: // Stmt: AddExp Y_SEMICOLON
-#line 203 "./parser.y"
-                         {yylhs.value.as < Stmt* > ()=new ExpStmt(yystack_[1].value.as < AddExp* > ());yylhs.value.as < Stmt* > ()->SET(yystack_[1].location);}
-#line 1450 "parser.cpp"
+#line 190 "./parser.y"
+                         {yylhs.value.as < Stmt* > ()=new ExpStmt(yystack_[1].value.as < AddExp* > ());yylhs.value.as < Stmt* > ()->SetLoc(yystack_[1].location);}
+#line 1449 "parser.cpp"
     break;
 
   case 50: // Stmt: Block
-#line 204 "./parser.y"
-            {yylhs.value.as < Stmt* > ()=yystack_[0].value.as < Block* > ();yylhs.value.as < Stmt* > ()->SET(yystack_[0].location);}
-#line 1456 "parser.cpp"
+#line 191 "./parser.y"
+            {yylhs.value.as < Stmt* > ()=yystack_[0].value.as < Block* > ();yylhs.value.as < Stmt* > ()->SetLoc(yystack_[0].location);}
+#line 1455 "parser.cpp"
     break;
 
   case 51: // Stmt: Y_WHILE Y_LPAR LOrExp Y_RPAR Stmt
-#line 205 "./parser.y"
-                                        {yylhs.value.as < Stmt* > ()=new WhileStmt(yystack_[2].value.as < LOrExp* > (),yystack_[0].value.as < Stmt* > ());yylhs.value.as < Stmt* > ()->SET(yystack_[4].location);}
-#line 1462 "parser.cpp"
+#line 192 "./parser.y"
+                                        {yylhs.value.as < Stmt* > ()=new WhileStmt(yystack_[2].value.as < LOrExp* > (),yystack_[0].value.as < Stmt* > ());yylhs.value.as < Stmt* > ()->SetLoc(yystack_[4].location);}
+#line 1461 "parser.cpp"
     break;
 
   case 52: // Stmt: Y_IF Y_LPAR LOrExp Y_RPAR Stmt Y_ELSE Stmt
-#line 206 "./parser.y"
-                                                 {yylhs.value.as < Stmt* > ()=new IfStmt(yystack_[4].value.as < LOrExp* > (),yystack_[2].value.as < Stmt* > (),yystack_[0].value.as < Stmt* > ());yylhs.value.as < Stmt* > ()->SET(yystack_[6].location);}
-#line 1468 "parser.cpp"
+#line 193 "./parser.y"
+                                                 {yylhs.value.as < Stmt* > ()=new IfStmt(yystack_[4].value.as < LOrExp* > (),yystack_[2].value.as < Stmt* > (),yystack_[0].value.as < Stmt* > ());yylhs.value.as < Stmt* > ()->SetLoc(yystack_[6].location);}
+#line 1467 "parser.cpp"
     break;
 
   case 53: // Stmt: Y_IF Y_LPAR LOrExp Y_RPAR Stmt
-#line 207 "./parser.y"
-                                     {yylhs.value.as < Stmt* > ()=new IfStmt(yystack_[2].value.as < LOrExp* > (),yystack_[0].value.as < Stmt* > ());yylhs.value.as < Stmt* > ()->SET(yystack_[4].location);}
-#line 1474 "parser.cpp"
+#line 194 "./parser.y"
+                                     {yylhs.value.as < Stmt* > ()=new IfStmt(yystack_[2].value.as < LOrExp* > (),yystack_[0].value.as < Stmt* > ());yylhs.value.as < Stmt* > ()->SetLoc(yystack_[4].location);}
+#line 1473 "parser.cpp"
     break;
 
   case 54: // Stmt: Y_BREAK Y_SEMICOLON
-#line 208 "./parser.y"
-                          {yylhs.value.as < Stmt* > ()=new BreakStmt();yylhs.value.as < Stmt* > ()->SET(yystack_[1].location);}
-#line 1480 "parser.cpp"
+#line 195 "./parser.y"
+                          {yylhs.value.as < Stmt* > ()=new BreakStmt();yylhs.value.as < Stmt* > ()->SetLoc(yystack_[1].location);}
+#line 1479 "parser.cpp"
     break;
 
   case 55: // Stmt: Y_CONTINUE Y_SEMICOLON
-#line 209 "./parser.y"
-                             {yylhs.value.as < Stmt* > ()=new ContinueStmt();yylhs.value.as < Stmt* > ()->SET(yystack_[1].location);}
-#line 1486 "parser.cpp"
+#line 196 "./parser.y"
+                             {yylhs.value.as < Stmt* > ()=new ContinueStmt();yylhs.value.as < Stmt* > ()->SetLoc(yystack_[1].location);}
+#line 1485 "parser.cpp"
     break;
 
   case 56: // Stmt: Y_RETURN AddExp Y_SEMICOLON
-#line 210 "./parser.y"
-                                  {yylhs.value.as < Stmt* > ()=new ReturnStmt(yystack_[1].value.as < AddExp* > ());yylhs.value.as < Stmt* > ()->SET(yystack_[2].location);}
-#line 1492 "parser.cpp"
+#line 197 "./parser.y"
+                                  {yylhs.value.as < Stmt* > ()=new ReturnStmt(yystack_[1].value.as < AddExp* > ());yylhs.value.as < Stmt* > ()->SetLoc(yystack_[2].location);}
+#line 1491 "parser.cpp"
     break;
 
   case 57: // Stmt: Y_RETURN Y_SEMICOLON
-#line 211 "./parser.y"
-                           {yylhs.value.as < Stmt* > ()=new ReturnStmt();yylhs.value.as < Stmt* > ()->SET(yystack_[1].location);}
-#line 1498 "parser.cpp"
+#line 198 "./parser.y"
+                           {yylhs.value.as < Stmt* > ()=new ReturnStmt();yylhs.value.as < Stmt* > ()->SetLoc(yystack_[1].location);}
+#line 1497 "parser.cpp"
     break;
 
   case 58: // LVal: Y_ID
-#line 214 "./parser.y"
-           {yylhs.value.as < LVal* > ()=new LVal(yystack_[0].value.as < std::string > ());yylhs.value.as < LVal* > ()->SET(yystack_[0].location);}
-#line 1504 "parser.cpp"
+#line 201 "./parser.y"
+           {yylhs.value.as < LVal* > ()=new LVal(yystack_[0].value.as < std::string > ());yylhs.value.as < LVal* > ()->SetLoc(yystack_[0].location);}
+#line 1503 "parser.cpp"
     break;
 
   case 59: // LVal: Y_ID ArraySubscripts
-#line 215 "./parser.y"
-                           {yylhs.value.as < LVal* > ()=new LVal(yystack_[1].value.as < std::string > (),yystack_[0].value.as < Exps* > ());yylhs.value.as < LVal* > ()->SET(yystack_[1].location);}
-#line 1510 "parser.cpp"
+#line 202 "./parser.y"
+                           {yylhs.value.as < LVal* > ()=new LVal(yystack_[1].value.as < std::string > (),yystack_[0].value.as < Exps* > ());yylhs.value.as < LVal* > ()->SetLoc(yystack_[1].location);}
+#line 1509 "parser.cpp"
     break;
 
   case 60: // ArraySubscripts: Y_LSQUARE AddExp Y_RSQUARE
-#line 218 "./parser.y"
-                                            {yylhs.value.as < Exps* > ()=new Exps(yystack_[1].value.as < AddExp* > ());yylhs.value.as < Exps* > ()->SET(yystack_[2].location);}
-#line 1516 "parser.cpp"
+#line 205 "./parser.y"
+                                            {yylhs.value.as < Exps* > ()=new Exps(yystack_[1].value.as < AddExp* > ());yylhs.value.as < Exps* > ()->SetLoc(yystack_[2].location);}
+#line 1515 "parser.cpp"
     break;
 
   case 61: // ArraySubscripts: Y_LSQUARE AddExp Y_RSQUARE ArraySubscripts
-#line 219 "./parser.y"
-                                                            {yylhs.value.as < Exps* > ()=yystack_[0].value.as < Exps* > ();yylhs.value.as < Exps* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < Exps* > ()->SET(yystack_[3].location);}
-#line 1522 "parser.cpp"
+#line 206 "./parser.y"
+                                                            {yylhs.value.as < Exps* > ()=yystack_[0].value.as < Exps* > ();yylhs.value.as < Exps* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < Exps* > ()->SetLoc(yystack_[3].location);}
+#line 1521 "parser.cpp"
     break;
 
   case 62: // PrimaryExp: Y_LPAR AddExp Y_RPAR
-#line 222 "./parser.y"
-                                 {yylhs.value.as < HasOperand* > ()=(HasOperand*)yystack_[1].value.as < AddExp* > ();yylhs.value.as < HasOperand* > ()->SET(yystack_[2].location);}
-#line 1528 "parser.cpp"
+#line 209 "./parser.y"
+                                 {yylhs.value.as < HasOperand* > ()=(HasOperand*)yystack_[1].value.as < AddExp* > ();yylhs.value.as < HasOperand* > ()->SetLoc(yystack_[2].location);}
+#line 1527 "parser.cpp"
     break;
 
   case 63: // PrimaryExp: LVal
-#line 223 "./parser.y"
-                 {yylhs.value.as < HasOperand* > ()=(HasOperand*)yystack_[0].value.as < LVal* > ();yylhs.value.as < HasOperand* > ()->SET(yystack_[0].location);}
-#line 1534 "parser.cpp"
+#line 210 "./parser.y"
+                 {yylhs.value.as < HasOperand* > ()=(HasOperand*)yystack_[0].value.as < LVal* > ();yylhs.value.as < HasOperand* > ()->SetLoc(yystack_[0].location);}
+#line 1533 "parser.cpp"
     break;
 
   case 64: // PrimaryExp: num_INT
-#line 224 "./parser.y"
-                    {yylhs.value.as < HasOperand* > ()=(HasOperand*)(new ConstValue<int>(yystack_[0].value.as < int > ()));yylhs.value.as < HasOperand* > ()->SET(yystack_[0].location);}
-#line 1540 "parser.cpp"
+#line 211 "./parser.y"
+                    {yylhs.value.as < HasOperand* > ()=(HasOperand*)(new ConstValue<int>(yystack_[0].value.as < int > ()));yylhs.value.as < HasOperand* > ()->SetLoc(yystack_[0].location);}
+#line 1539 "parser.cpp"
     break;
 
   case 65: // PrimaryExp: num_FLOAT
-#line 225 "./parser.y"
-                      {yylhs.value.as < HasOperand* > ()=(HasOperand*)(new ConstValue<float>(yystack_[0].value.as < float > ()));yylhs.value.as < HasOperand* > ()->SET(yystack_[0].location);}
-#line 1546 "parser.cpp"
+#line 212 "./parser.y"
+                      {yylhs.value.as < HasOperand* > ()=(HasOperand*)(new ConstValue<float>(yystack_[0].value.as < float > ()));yylhs.value.as < HasOperand* > ()->SetLoc(yystack_[0].location);}
+#line 1545 "parser.cpp"
     break;
 
   case 66: // PrimaryExp: Y_ID Y_LPAR Y_RPAR
-#line 226 "./parser.y"
-                               {yylhs.value.as < HasOperand* > ()=(HasOperand*)(new FunctionCall(yystack_[2].value.as < std::string > ()));yylhs.value.as < HasOperand* > ()->SET(yystack_[2].location);}
-#line 1552 "parser.cpp"
+#line 213 "./parser.y"
+                               {yylhs.value.as < HasOperand* > ()=(HasOperand*)(new FunctionCall(yystack_[2].value.as < std::string > ()));yylhs.value.as < HasOperand* > ()->SetLoc(yystack_[2].location);}
+#line 1551 "parser.cpp"
     break;
 
   case 67: // PrimaryExp: Y_ID Y_LPAR CallParams Y_RPAR
-#line 227 "./parser.y"
-                                          {yylhs.value.as < HasOperand* > ()=(HasOperand*)(new FunctionCall(yystack_[3].value.as < std::string > (),yystack_[1].value.as < CallParams* > ()));yylhs.value.as < HasOperand* > ()->SET(yystack_[3].location);}
-#line 1558 "parser.cpp"
+#line 214 "./parser.y"
+                                          {yylhs.value.as < HasOperand* > ()=(HasOperand*)(new FunctionCall(yystack_[3].value.as < std::string > (),yystack_[1].value.as < CallParams* > ()));yylhs.value.as < HasOperand* > ()->SetLoc(yystack_[3].location);}
+#line 1557 "parser.cpp"
     break;
 
   case 68: // UnaryExp: PrimaryExp
-#line 230 "./parser.y"
-                     {yylhs.value.as < UnaryExp* > ()=new UnaryExp(yystack_[0].value.as < HasOperand* > ());yylhs.value.as < UnaryExp* > ()->SET(yystack_[0].location);}
-#line 1564 "parser.cpp"
+#line 217 "./parser.y"
+                     {yylhs.value.as < UnaryExp* > ()=new UnaryExp(yystack_[0].value.as < HasOperand* > ());yylhs.value.as < UnaryExp* > ()->SetLoc(yystack_[0].location);}
+#line 1563 "parser.cpp"
     break;
 
   case 69: // UnaryExp: Y_ADD UnaryExp
-#line 231 "./parser.y"
-                         {yylhs.value.as < UnaryExp* > ()=yystack_[0].value.as < UnaryExp* > ();yylhs.value.as < UnaryExp* > ()->push_front(AST_ADD);yylhs.value.as < UnaryExp* > ()->SET(yystack_[1].location);}
-#line 1570 "parser.cpp"
+#line 218 "./parser.y"
+                         {yylhs.value.as < UnaryExp* > ()=yystack_[0].value.as < UnaryExp* > ();yylhs.value.as < UnaryExp* > ()->push_front(AST_ADD);yylhs.value.as < UnaryExp* > ()->SetLoc(yystack_[1].location);}
+#line 1569 "parser.cpp"
     break;
 
   case 70: // UnaryExp: Y_SUB UnaryExp
-#line 232 "./parser.y"
-                         {yylhs.value.as < UnaryExp* > ()=yystack_[0].value.as < UnaryExp* > ();yylhs.value.as < UnaryExp* > ()->push_front(AST_SUB);yylhs.value.as < UnaryExp* > ()->SET(yystack_[1].location);}
-#line 1576 "parser.cpp"
+#line 219 "./parser.y"
+                         {yylhs.value.as < UnaryExp* > ()=yystack_[0].value.as < UnaryExp* > ();yylhs.value.as < UnaryExp* > ()->push_front(AST_SUB);yylhs.value.as < UnaryExp* > ()->SetLoc(yystack_[1].location);}
+#line 1575 "parser.cpp"
     break;
 
   case 71: // UnaryExp: Y_NOT UnaryExp
-#line 233 "./parser.y"
-                         {yylhs.value.as < UnaryExp* > ()=yystack_[0].value.as < UnaryExp* > ();yylhs.value.as < UnaryExp* > ()->push_front(AST_NOT);yylhs.value.as < UnaryExp* > ()->SET(yystack_[1].location);}
-#line 1582 "parser.cpp"
+#line 220 "./parser.y"
+                         {yylhs.value.as < UnaryExp* > ()=yystack_[0].value.as < UnaryExp* > ();yylhs.value.as < UnaryExp* > ()->push_front(AST_NOT);yylhs.value.as < UnaryExp* > ()->SetLoc(yystack_[1].location);}
+#line 1581 "parser.cpp"
     break;
 
   case 72: // CallParams: AddExp
-#line 236 "./parser.y"
-                   {yylhs.value.as < CallParams* > ()=new CallParams(yystack_[0].value.as < AddExp* > ());yylhs.value.as < CallParams* > ()->SET(yystack_[0].location);}
-#line 1588 "parser.cpp"
+#line 223 "./parser.y"
+                   {yylhs.value.as < CallParams* > ()=new CallParams(yystack_[0].value.as < AddExp* > ());yylhs.value.as < CallParams* > ()->SetLoc(yystack_[0].location);}
+#line 1587 "parser.cpp"
     break;
 
   case 73: // CallParams: AddExp Y_COMMA CallParams
-#line 237 "./parser.y"
-                                      {yylhs.value.as < CallParams* > ()=yystack_[0].value.as < CallParams* > ();yylhs.value.as < CallParams* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < CallParams* > ()->SET(yystack_[2].location);}
-#line 1594 "parser.cpp"
+#line 224 "./parser.y"
+                                      {yylhs.value.as < CallParams* > ()=yystack_[0].value.as < CallParams* > ();yylhs.value.as < CallParams* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < CallParams* > ()->SetLoc(yystack_[2].location);}
+#line 1593 "parser.cpp"
     break;
 
   case 74: // MulExp: UnaryExp
-#line 240 "./parser.y"
-                 {yylhs.value.as < MulExp* > ()=new MulExp(yystack_[0].value.as < UnaryExp* > ());yylhs.value.as < MulExp* > ()->SET(yystack_[0].location);}
-#line 1600 "parser.cpp"
+#line 227 "./parser.y"
+                 {yylhs.value.as < MulExp* > ()=new MulExp(yystack_[0].value.as < UnaryExp* > ());yylhs.value.as < MulExp* > ()->SetLoc(yystack_[0].location);}
+#line 1599 "parser.cpp"
     break;
 
   case 75: // MulExp: MulExp Y_MUL UnaryExp
-#line 241 "./parser.y"
-                              {yylhs.value.as < MulExp* > ()=yystack_[2].value.as < MulExp* > ();yylhs.value.as < MulExp* > ()->push_back(AST_MUL);yylhs.value.as < MulExp* > ()->push_back(yystack_[0].value.as < UnaryExp* > ());yylhs.value.as < MulExp* > ()->SET(yystack_[2].location);}
-#line 1606 "parser.cpp"
+#line 228 "./parser.y"
+                              {yylhs.value.as < MulExp* > ()=yystack_[2].value.as < MulExp* > ();yylhs.value.as < MulExp* > ()->push_back(AST_MUL);yylhs.value.as < MulExp* > ()->push_back(yystack_[0].value.as < UnaryExp* > ());yylhs.value.as < MulExp* > ()->SetLoc(yystack_[2].location);}
+#line 1605 "parser.cpp"
     break;
 
   case 76: // MulExp: MulExp Y_DIV UnaryExp
-#line 242 "./parser.y"
-                              {yylhs.value.as < MulExp* > ()=yystack_[2].value.as < MulExp* > ();yylhs.value.as < MulExp* > ()->push_back(AST_DIV);yylhs.value.as < MulExp* > ()->push_back(yystack_[0].value.as < UnaryExp* > ());yylhs.value.as < MulExp* > ()->SET(yystack_[2].location);}
-#line 1612 "parser.cpp"
+#line 229 "./parser.y"
+                              {yylhs.value.as < MulExp* > ()=yystack_[2].value.as < MulExp* > ();yylhs.value.as < MulExp* > ()->push_back(AST_DIV);yylhs.value.as < MulExp* > ()->push_back(yystack_[0].value.as < UnaryExp* > ());yylhs.value.as < MulExp* > ()->SetLoc(yystack_[2].location);}
+#line 1611 "parser.cpp"
     break;
 
   case 77: // MulExp: MulExp Y_MODULO UnaryExp
-#line 243 "./parser.y"
-                                 {yylhs.value.as < MulExp* > ()=yystack_[2].value.as < MulExp* > ();yylhs.value.as < MulExp* > ()->push_back(AST_MODULO);yylhs.value.as < MulExp* > ()->push_back(yystack_[0].value.as < UnaryExp* > ());yylhs.value.as < MulExp* > ()->SET(yystack_[2].location);}
-#line 1618 "parser.cpp"
+#line 230 "./parser.y"
+                                 {yylhs.value.as < MulExp* > ()=yystack_[2].value.as < MulExp* > ();yylhs.value.as < MulExp* > ()->push_back(AST_MODULO);yylhs.value.as < MulExp* > ()->push_back(yystack_[0].value.as < UnaryExp* > ());yylhs.value.as < MulExp* > ()->SetLoc(yystack_[2].location);}
+#line 1617 "parser.cpp"
     break;
 
   case 78: // AddExp: MulExp
-#line 245 "./parser.y"
-               {yylhs.value.as < AddExp* > ()=new AddExp(yystack_[0].value.as < MulExp* > ());yylhs.value.as < AddExp* > ()->SET(yystack_[0].location);}
-#line 1624 "parser.cpp"
+#line 232 "./parser.y"
+               {yylhs.value.as < AddExp* > ()=new AddExp(yystack_[0].value.as < MulExp* > ());yylhs.value.as < AddExp* > ()->SetLoc(yystack_[0].location);}
+#line 1623 "parser.cpp"
     break;
 
   case 79: // AddExp: AddExp Y_ADD MulExp
-#line 246 "./parser.y"
-                            {yylhs.value.as < AddExp* > ()=yystack_[2].value.as < AddExp* > ();yylhs.value.as < AddExp* > ()->push_back(AST_ADD);yylhs.value.as < AddExp* > ()->push_back(yystack_[0].value.as < MulExp* > ());yylhs.value.as < AddExp* > ()->SET(yystack_[2].location);}
-#line 1630 "parser.cpp"
+#line 233 "./parser.y"
+                            {yylhs.value.as < AddExp* > ()=yystack_[2].value.as < AddExp* > ();yylhs.value.as < AddExp* > ()->push_back(AST_ADD);yylhs.value.as < AddExp* > ()->push_back(yystack_[0].value.as < MulExp* > ());yylhs.value.as < AddExp* > ()->SetLoc(yystack_[2].location);}
+#line 1629 "parser.cpp"
     break;
 
   case 80: // AddExp: AddExp Y_SUB MulExp
-#line 247 "./parser.y"
-                            {yylhs.value.as < AddExp* > ()=yystack_[2].value.as < AddExp* > ();yylhs.value.as < AddExp* > ()->push_back(AST_SUB);yylhs.value.as < AddExp* > ()->push_back(yystack_[0].value.as < MulExp* > ());yylhs.value.as < AddExp* > ()->SET(yystack_[2].location);}
-#line 1636 "parser.cpp"
+#line 234 "./parser.y"
+                            {yylhs.value.as < AddExp* > ()=yystack_[2].value.as < AddExp* > ();yylhs.value.as < AddExp* > ()->push_back(AST_SUB);yylhs.value.as < AddExp* > ()->push_back(yystack_[0].value.as < MulExp* > ());yylhs.value.as < AddExp* > ()->SetLoc(yystack_[2].location);}
+#line 1635 "parser.cpp"
     break;
 
   case 81: // RelExp: AddExp
-#line 249 "./parser.y"
-               {yylhs.value.as < RelExp* > ()=new RelExp(yystack_[0].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SET(yystack_[0].location);}
-#line 1642 "parser.cpp"
+#line 236 "./parser.y"
+               {yylhs.value.as < RelExp* > ()=new RelExp(yystack_[0].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SetLoc(yystack_[0].location);}
+#line 1641 "parser.cpp"
     break;
 
   case 82: // RelExp: AddExp Y_LESS RelExp
-#line 250 "./parser.y"
-                             {yylhs.value.as < RelExp* > ()=yystack_[0].value.as < RelExp* > ();yylhs.value.as < RelExp* > ()->push_front(AST_LESS);yylhs.value.as < RelExp* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SET(yystack_[2].location);}
-#line 1648 "parser.cpp"
+#line 237 "./parser.y"
+                             {yylhs.value.as < RelExp* > ()=yystack_[0].value.as < RelExp* > ();yylhs.value.as < RelExp* > ()->push_front(AST_LESS);yylhs.value.as < RelExp* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SetLoc(yystack_[2].location);}
+#line 1647 "parser.cpp"
     break;
 
   case 83: // RelExp: AddExp Y_GREAT RelExp
-#line 251 "./parser.y"
-                              {yylhs.value.as < RelExp* > ()=yystack_[0].value.as < RelExp* > ();yylhs.value.as < RelExp* > ()->push_front(AST_GREAT);yylhs.value.as < RelExp* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SET(yystack_[2].location);}
-#line 1654 "parser.cpp"
+#line 238 "./parser.y"
+                              {yylhs.value.as < RelExp* > ()=yystack_[0].value.as < RelExp* > ();yylhs.value.as < RelExp* > ()->push_front(AST_GREAT);yylhs.value.as < RelExp* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SetLoc(yystack_[2].location);}
+#line 1653 "parser.cpp"
     break;
 
   case 84: // RelExp: AddExp Y_LESSEQ RelExp
-#line 252 "./parser.y"
-                               {yylhs.value.as < RelExp* > ()=yystack_[0].value.as < RelExp* > ();yylhs.value.as < RelExp* > ()->push_front(AST_LESSEQ);yylhs.value.as < RelExp* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SET(yystack_[2].location);}
-#line 1660 "parser.cpp"
+#line 239 "./parser.y"
+                               {yylhs.value.as < RelExp* > ()=yystack_[0].value.as < RelExp* > ();yylhs.value.as < RelExp* > ()->push_front(AST_LESSEQ);yylhs.value.as < RelExp* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SetLoc(yystack_[2].location);}
+#line 1659 "parser.cpp"
     break;
 
   case 85: // RelExp: AddExp Y_GREATEQ RelExp
-#line 253 "./parser.y"
-                                {yylhs.value.as < RelExp* > ()=yystack_[0].value.as < RelExp* > ();yylhs.value.as < RelExp* > ()->push_front(AST_GREATEQ);yylhs.value.as < RelExp* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SET(yystack_[2].location);}
-#line 1666 "parser.cpp"
+#line 240 "./parser.y"
+                                {yylhs.value.as < RelExp* > ()=yystack_[0].value.as < RelExp* > ();yylhs.value.as < RelExp* > ()->push_front(AST_GREATEQ);yylhs.value.as < RelExp* > ()->push_front(yystack_[2].value.as < AddExp* > ());yylhs.value.as < RelExp* > ()->SetLoc(yystack_[2].location);}
+#line 1665 "parser.cpp"
     break;
 
   case 86: // EqExp: RelExp
-#line 255 "./parser.y"
-              {yylhs.value.as < EqExp* > ()=new EqExp(yystack_[0].value.as < RelExp* > ());yylhs.value.as < EqExp* > ()->SET(yystack_[0].location);}
-#line 1672 "parser.cpp"
+#line 242 "./parser.y"
+              {yylhs.value.as < EqExp* > ()=new EqExp(yystack_[0].value.as < RelExp* > ());yylhs.value.as < EqExp* > ()->SetLoc(yystack_[0].location);}
+#line 1671 "parser.cpp"
     break;
 
   case 87: // EqExp: RelExp Y_EQ EqExp
-#line 256 "./parser.y"
-                         {yylhs.value.as < EqExp* > ()=yystack_[0].value.as < EqExp* > ();yylhs.value.as < EqExp* > ()->push_front(AST_EQ);yylhs.value.as < EqExp* > ()->push_front(yystack_[2].value.as < RelExp* > ());yylhs.value.as < EqExp* > ()->SET(yystack_[2].location);}
-#line 1678 "parser.cpp"
+#line 243 "./parser.y"
+                         {yylhs.value.as < EqExp* > ()=yystack_[0].value.as < EqExp* > ();yylhs.value.as < EqExp* > ()->push_front(AST_EQ);yylhs.value.as < EqExp* > ()->push_front(yystack_[2].value.as < RelExp* > ());yylhs.value.as < EqExp* > ()->SetLoc(yystack_[2].location);}
+#line 1677 "parser.cpp"
     break;
 
   case 88: // EqExp: RelExp Y_NOTEQ EqExp
-#line 257 "./parser.y"
-                            {yylhs.value.as < EqExp* > ()=yystack_[0].value.as < EqExp* > ();yylhs.value.as < EqExp* > ()->push_front(AST_NOTEQ);yylhs.value.as < EqExp* > ()->push_front(yystack_[2].value.as < RelExp* > ());yylhs.value.as < EqExp* > ()->SET(yystack_[2].location);}
-#line 1684 "parser.cpp"
+#line 244 "./parser.y"
+                            {yylhs.value.as < EqExp* > ()=yystack_[0].value.as < EqExp* > ();yylhs.value.as < EqExp* > ()->push_front(AST_NOTEQ);yylhs.value.as < EqExp* > ()->push_front(yystack_[2].value.as < RelExp* > ());yylhs.value.as < EqExp* > ()->SetLoc(yystack_[2].location);}
+#line 1683 "parser.cpp"
     break;
 
   case 89: // LAndExp: EqExp
-#line 259 "./parser.y"
-               {yylhs.value.as < LAndExp* > ()=new LAndExp(yystack_[0].value.as < EqExp* > ());yylhs.value.as < LAndExp* > ()->SET(yystack_[0].location);}
-#line 1690 "parser.cpp"
+#line 246 "./parser.y"
+               {yylhs.value.as < LAndExp* > ()=new LAndExp(yystack_[0].value.as < EqExp* > ());yylhs.value.as < LAndExp* > ()->SetLoc(yystack_[0].location);}
+#line 1689 "parser.cpp"
     break;
 
   case 90: // LAndExp: EqExp Y_AND LAndExp
-#line 260 "./parser.y"
-                             {yylhs.value.as < LAndExp* > ()=yystack_[0].value.as < LAndExp* > ();yylhs.value.as < LAndExp* > ()->push_front(AST_AND);yylhs.value.as < LAndExp* > ()->push_front(yystack_[2].value.as < EqExp* > ());yylhs.value.as < LAndExp* > ()->SET(yystack_[2].location);}
-#line 1696 "parser.cpp"
+#line 247 "./parser.y"
+                             {yylhs.value.as < LAndExp* > ()=yystack_[0].value.as < LAndExp* > ();yylhs.value.as < LAndExp* > ()->push_front(AST_AND);yylhs.value.as < LAndExp* > ()->push_front(yystack_[2].value.as < EqExp* > ());yylhs.value.as < LAndExp* > ()->SetLoc(yystack_[2].location);}
+#line 1695 "parser.cpp"
     break;
 
   case 91: // LOrExp: LAndExp
-#line 262 "./parser.y"
-                {yylhs.value.as < LOrExp* > ()=new LOrExp(yystack_[0].value.as < LAndExp* > ());yylhs.value.as < LOrExp* > ()->SET(yystack_[0].location);}
-#line 1702 "parser.cpp"
+#line 249 "./parser.y"
+                {yylhs.value.as < LOrExp* > ()=new LOrExp(yystack_[0].value.as < LAndExp* > ());yylhs.value.as < LOrExp* > ()->SetLoc(yystack_[0].location);}
+#line 1701 "parser.cpp"
     break;
 
   case 92: // LOrExp: LAndExp Y_OR LOrExp
-#line 263 "./parser.y"
-                            {yylhs.value.as < LOrExp* > ()=yystack_[0].value.as < LOrExp* > ();yylhs.value.as < LOrExp* > ()->push_front(AST_OR);yylhs.value.as < LOrExp* > ()->push_front(yystack_[2].value.as < LAndExp* > ());yylhs.value.as < LOrExp* > ()->SET(yystack_[2].location);}
-#line 1708 "parser.cpp"
+#line 250 "./parser.y"
+                            {yylhs.value.as < LOrExp* > ()=yystack_[0].value.as < LOrExp* > ();yylhs.value.as < LOrExp* > ()->push_front(AST_OR);yylhs.value.as < LOrExp* > ()->push_front(yystack_[2].value.as < LAndExp* > ());yylhs.value.as < LOrExp* > ()->SetLoc(yystack_[2].location);}
+#line 1707 "parser.cpp"
     break;
 
   case 93: // Type: Y_INT
-#line 265 "./parser.y"
+#line 252 "./parser.y"
             {yylhs.value.as < AST_Type > ()=AST_INT;}
-#line 1714 "parser.cpp"
+#line 1713 "parser.cpp"
     break;
 
   case 94: // Type: Y_FLOAT
-#line 266 "./parser.y"
+#line 253 "./parser.y"
               {yylhs.value.as < AST_Type > ()=AST_FLOAT;}
-#line 1720 "parser.cpp"
+#line 1719 "parser.cpp"
     break;
 
   case 95: // Type: Y_VOID
-#line 267 "./parser.y"
+#line 254 "./parser.y"
              {yylhs.value.as < AST_Type > ()=AST_VOID;}
-#line 1726 "parser.cpp"
+#line 1725 "parser.cpp"
     break;
 
 
-#line 1730 "parser.cpp"
+#line 1729 "parser.cpp"
 
             default:
               break;
@@ -2116,31 +2115,31 @@ namespace yy {
   "Y_MODULO", "Y_DIV", "Y_GREAT", "Y_GREATEQ", "Y_LESS", "Y_LESSEQ",
   "Y_EQ", "Y_ASSIGN", "Y_NOTEQ", "Y_NOT", "Y_AND", "Y_OR", "Y_LPAR",
   "Y_RPAR", "Y_LSQUARE", "Y_RSQUARE", "Y_LBRACKET", "Y_RBRACKET",
-  "Y_SEMICOLON", "Y_COMMA", "$accept", "GrammarEntrance", "CompUnit",
-  "Decl", "ConstDecl", "ConstDefs", "ConstDef", "ConstExps",
-  "ConstInitVal", "ConstInitVals", "VarDecl", "VarDefs", "VarDef",
-  "InitVal", "InitVals", "FuncDef", "FuncParams", "FuncParam", "Block",
-  "BlockItems", "BlockItem", "Stmt", "LVal", "ArraySubscripts",
-  "PrimaryExp", "UnaryExp", "CallParams", "MulExp", "AddExp", "RelExp",
-  "EqExp", "LAndExp", "LOrExp", "Type", YY_NULLPTR
+  "Y_SEMICOLON", "Y_COMMA", "$accept", "entry", "CompUnit", "Decl",
+  "ConstDecl", "ConstDefs", "ConstDef", "ConstExps", "ConstInitVal",
+  "ConstInitVals", "VarDecl", "VarDefs", "VarDef", "InitVal", "InitVals",
+  "FuncDef", "FuncParams", "FuncParam", "Block", "BlockItems", "BlockItem",
+  "Stmt", "LVal", "ArraySubscripts", "PrimaryExp", "UnaryExp",
+  "CallParams", "MulExp", "AddExp", "RelExp", "EqExp", "LAndExp", "LOrExp",
+  "Type", YY_NULLPTR
   };
 #endif
 
 
 #if YYDEBUG
-  const short
+  const unsigned char
   parser::yyrline_[] =
   {
-       0,   117,   117,   119,   120,   121,   122,   125,   126,   129,
-     132,   133,   136,   137,   140,   141,   144,   145,   146,   149,
-     150,   153,   156,   157,   160,   161,   162,   163,   166,   167,
-     168,   171,   172,   175,   176,   179,   180,   183,   184,   185,
-     186,   189,   190,   193,   194,   197,   198,   201,   202,   203,
-     204,   205,   206,   207,   208,   209,   210,   211,   214,   215,
-     218,   219,   222,   223,   224,   225,   226,   227,   230,   231,
-     232,   233,   236,   237,   240,   241,   242,   243,   245,   246,
-     247,   249,   250,   251,   252,   253,   255,   256,   257,   259,
-     260,   262,   263,   265,   266,   267
+       0,   104,   104,   106,   107,   108,   109,   112,   113,   116,
+     119,   120,   123,   124,   127,   128,   131,   132,   133,   136,
+     137,   140,   143,   144,   147,   148,   149,   150,   153,   154,
+     155,   158,   159,   162,   163,   166,   167,   170,   171,   172,
+     173,   176,   177,   180,   181,   184,   185,   188,   189,   190,
+     191,   192,   193,   194,   195,   196,   197,   198,   201,   202,
+     205,   206,   209,   210,   211,   212,   213,   214,   217,   218,
+     219,   220,   223,   224,   227,   228,   229,   230,   232,   233,
+     234,   236,   237,   238,   239,   240,   242,   243,   244,   246,
+     247,   249,   250,   252,   253,   254
   };
 
   void
@@ -2172,7 +2171,7 @@ namespace yy {
 
 
 } // yy
-#line 2176 "parser.cpp"
+#line 2175 "parser.cpp"
 
-#line 269 "./parser.y"
+#line 256 "./parser.y"
 

@@ -13,7 +13,7 @@
 //    passManager->RunImpl<Mem2Reg, Function>(func);
 // }
 
-#include "./include/lib/CFG.hpp"
+#include "./include/lib/CoreClass.hpp"
 // #include "../include/ir/opt/New_passManager.hpp"
 #include "./yacc/parser.hpp"
 #include <fstream>
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
    // auto PM = std::make_unique<_PassManager>();
    // PM->DecodeArgs(argc, argv);
    // PM->RunOnTest();
-   // Singleton<Module>().Test();
+   Singleton<Module>().Test();
    fflush(stdout);
    fclose(stdout);
    return 0;

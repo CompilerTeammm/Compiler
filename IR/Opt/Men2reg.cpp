@@ -123,7 +123,6 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& D
         // 接下来是for循环的对前驱的遍历，需要建立支配关系，
         // 寻找前驱是store的块，才可以终止对pre的回溯
 
-        // 需要支配树，但是支配树我还没有实现，需要支配树提供前驱节点
         // 支配树搭建完成，取BB的前驱结点
         for(auto& preNode :_tree->getNode(BB)->predNodes)
         {
@@ -166,9 +165,10 @@ bool PromoteMem2Reg::QueuePhiNode(BasicBlock* BB, int AllocaNum)
     auto newBB = std::shared_ptr<BasicBlock> (BB);
     PhiInst* &PN = NewPhiNodes[std::make_pair(BBNumbers[newBB],AllocaNum)];
     
-    //  had  a phi func
+    // if the BB already has a phi node , return false
     if(PN)
         return false;
+    
     AllocaInst* AInst = Allocas[AllocaNum];
     // PhiInst 我还没用实现
     PN =PhiInst::Create(newBB->GetFront(), BB, 
@@ -324,11 +324,38 @@ void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst *AI)
     }
 }
 
+
+// One way is to using stack to store the value, DFS 遍历， replace , delete
+
+// RenamPassWorkList add  {BB = entry,Pred = nullptr,
+//  IncomingVals = {Undef ... ...}  }
+// IncomingVals  <->  Allocas
+// store --> IncomingVals   load   <-- IncomingVals
 void PromoteMem2Reg::RenamePass(BasicBlock *BB, BasicBlock *Pred,
                                 RenamePassData::ValVector &IncomingVals,
                                 std::vector<RenamePassData> &WorkList)
 {
-    
+    // llvm 中使用 goto 实现，有点意思
+    while(true)
+    {
+        // 之后都是要删掉的不怕
+        //存在 phiInst 语句
+        if(PhiInst* phiInst = dynamic_cast<PhiInst*>(*(BB->begin())))
+        {
+            // compute the number of edges from Pred to BB
+            if(PhiToAllocaMap.count(phiInst)){
+                // phi has tow types, one is mem2reg , another is from before
+                std::set<PhiInst*> ThisPassInsert;
+                for(auto Inst = BB->begin(); Inst != BB->end();)
+                {
+                    if(ThisPassInsert.find(phiInst)!= ThisPassInsert.end()){
+                        int AllocaNum = PhiToAllocaMap[phiInst];
+                        
+                    }
+                }
+            }
+        }
+    }
 }
 
 bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas)
@@ -405,8 +432,8 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         Idf.calculate(PhiBlocks);
         // 到这里应该 PhiBlocks 出来了
 
-        // 排序以据可以是DFS的遍历顺序
-        /// 然后对基本块根据序号进行排序，使得插入phi指令的顺序和编号确定化
+        // 排序就是Fuction中BBs的顺序
+        ///使得插入phi指令的顺序和编号确定化
         if(PhiBlocks.size() > 1)
             std::sort(PhiBlocks.begin(),PhiBlocks.end(),
                      [this](std::shared_ptr<BasicBlock>& A,std::shared_ptr<BasicBlock>& B){
@@ -423,7 +450,6 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         return;
 
     //Rename
-    // 这个倒是好实现，作用啥的我仔细看看
     BkInfo.clear();
 
     // 初始化ValVector，
@@ -432,16 +458,19 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         Values[i] = UndefValue::Get(Allocas[i]->GetType());
     
     /// WorkList 主要是
-    std::vector<RenamePassData> RenamePasWorkList;
-    // 这里sb报错，不知道为啥
-    RenamePasWorkList.emplace_back(_func->begin(),nullptr,std::move(Values));
+    std::vector<RenamePassData> RenamePassWorkList;
+    
+    //隐式类型的转换  
+    // WorkList最开始就是把 entry放进去
+    RenamePassWorkList.emplace_back(_func->begin(),nullptr,std::move(Values));
     do{
-        auto tmp = std::move(RenamePasWorkList.back());
-        RenamePasWorkList.pop_back();
+        auto tmp = std::move(RenamePassWorkList.back());
+        RenamePassWorkList.pop_back();
 
         // core function for rename
-        RenamePass(tmp.BB,tmp.PredBB,tmp.Values,RenamePasWorkList);
-    }while(!RenamePasWorkList.empty());
+        // transfer WorkList 
+        RenamePass(tmp.BB,tmp.PredBB,tmp.Values,RenamePassWorkList);
+    }while(!RenamePassWorkList.empty());
 
     for(int i = 0,e=Allocas.size(); i!=e;i++)
     {

@@ -93,10 +93,12 @@ protected:
     Function *_func;
     DominantTree * _tree;
     std::vector<AllocaInst *> Allocas;
+    
+    // AllocaInst* 与 AllocaNum 建立关系
     std::map<AllocaInst* ,int> AllocaLookup;
     std::map<std::pair<int,int>,PhiInst*> NewPhiNodes;
 
-    // BBs in Function number
+    // BBs in Function number in order
     std::map<std::shared_ptr<BasicBlock>,int> BBNumbers;
 
     std::map<PhiInst*,int> PhiToAllocaMap;

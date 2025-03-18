@@ -45,7 +45,7 @@
 #ifndef YY_YY_PARSER_HPP_INCLUDED
 # define YY_YY_PARSER_HPP_INCLUDED
 // "%code requires" blocks.
-#line 4 "./parser.y"
+#line 1 "./parser.y"
 
 #include "../include/lib/ast/AstNode.hpp"
 #include "Singleton.hpp"
@@ -618,7 +618,7 @@ namespace yy {
         S_Y_SEMICOLON = 37,                      // Y_SEMICOLON
         S_Y_COMMA = 38,                          // Y_COMMA
         S_YYACCEPT = 39,                         // $accept
-        S_GrammarEntrance = 40,                  // GrammarEntrance
+        S_entry = 40,                            // entry
         S_CompUnit = 41,                         // CompUnit
         S_Decl = 42,                             // Decl
         S_ConstDecl = 43,                        // ConstDecl
@@ -2240,7 +2240,7 @@ switch (yykind)
 
 #if YYDEBUG
     // YYRLINE[YYN] -- Source line where rule number YYN was defined.
-    static const short yyrline_[];
+    static const unsigned char yyrline_[];
     /// Report on the debug stream that the rule \a r is going to be reduced.
     virtual void yy_reduce_print_ (int r) const;
     /// Print the state stack on the debug stream.

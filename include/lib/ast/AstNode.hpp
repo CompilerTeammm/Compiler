@@ -1,8 +1,49 @@
+// #pragma once
+// // #include "../CoreClass.hpp"
+// #include "../CoreClass.hpp"
+// // #include "../Type.hpp"
+// #include "BaseAst.hpp"
+// #include "MagicEnum.hpp"
+
 #pragma once
-#include "../CoreClass.hpp"
 #include "../CFG.hpp"
-// #include "../Type.hpp"
+#include "../MyList.hpp"
+#include "../MagicEnum.hpp"
 #include "BaseAst.hpp"
+#include <cassert>
+#include <list>
+#include <memory>
+#include <string>
+
+class BaseAST;
+class CompUnit; // codegen, acquire what's in list has codegen
+class Grammar_Assistance;
+class ConstDecl; // codegen(CompUnit) GetInst
+class ConstDefs; // codegen(CompUnit) GetInst
+class InnerBaseExps;
+class InitVal;
+class InitVals;
+class VarDecl;
+class VarDefs;
+class FuncDef;
+class FuncParams;
+class FuncParam;
+class Block;
+class BlockItems;
+class AssignStmt;
+class ExpStmt;
+class WhileStmt;
+class IfStmt;
+class BreakStmt;
+class ContinueStmt;
+class ReturnStmt;
+class LVal;
+template <typename T>
+class BaseExp;
+class FunctionCall;
+template <typename T>
+class ConstValue;
+class BaseDef;
 
 enum AST_Type
 {
@@ -26,50 +67,7 @@ enum AST_Type
   AST_OR,
 };
 
-std::string ast_type_to_string(AST_Type type)
-{
-  switch (type)
-  {
-  case AST_INT:
-    return "AST_INT";
-  case AST_FLOAT:
-    return "AST_FLOAT";
-  case AST_VOID:
-    return "AST_VOID";
-  case AST_ADD:
-    return "AST_ADD";
-  case AST_SUB:
-    return "AST_SUB";
-  case AST_MUL:
-    return "AST_MUL";
-  case AST_MODULO:
-    return "AST_MODULO";
-  case AST_DIV:
-    return "AST_DIV";
-  case AST_GREAT:
-    return "AST_GREAT";
-  case AST_GREATEQ:
-    return "AST_GREATEQ";
-  case AST_LESS:
-    return "AST_LESS";
-  case AST_LESSEQ:
-    return "AST_LESSEQ";
-  case AST_EQ:
-    return "AST_EQ";
-  case AST_ASSIGN:
-    return "AST_ASSIGN";
-  case AST_NOTEQ:
-    return "AST_NOTEQ";
-  case AST_NOT:
-    return "AST_NOT";
-  case AST_AND:
-    return "AST_AND";
-  case AST_OR:
-    return "AST_OR";
-  default:
-    return "UNKNOWN";
-  }
-}
+void AstToType(AST_Type type);
 
 struct GetInstState
 {
@@ -88,23 +86,6 @@ class Stmt : public BaseAST
 {
 public:
   virtual BasicBlock *GetInst(GetInstState) = 0;
-};
-
-template <typename T>
-class ConstValue : public HasOperand
-{
-  T data;
-
-public:
-  ConstValue(T _data) : data(_data) {}
-  Operand GetOperand(BasicBlock *block)
-  {
-    if (std::is_same<T, int>::value)
-      return ConstIRInt::GetNewConstant(data);
-    else
-      return ConstIRFloat::GetNewConstant(data);
-  }
-  void print(int x) final;
 };
 
 template <typename T>
@@ -247,16 +228,24 @@ public:
     }
   }
 
-  void print(int x) final;
+  void print(int x) final
+  {
+    if (!OpList.empty())
+    {
+      for (int i = 0; i < x; i++)
+        std::cout << "  ";
+      std::cout << magic_enum::enum_name(OpList.front())
+                << " Level Expression\n";
+    }
+    for (auto &i : DataList)
+      i->print(x + !OpList.empty());
+  }
 };
 
 using UnaryExp = BaseExp<HasOperand>; // 基本
-using AddExp = BaseExp<MulExp>;       // 加减
 using MulExp = BaseExp<UnaryExp>;     // 乘除
+using AddExp = BaseExp<MulExp>;       // 加减
 using RelExp = BaseExp<AddExp>;       // 逻辑
-using EqExp = BaseExp<RelExp>;        //==
-using LAndExp = BaseExp<EqExp>;       //&&
-using LOrExp = BaseExp<LAndExp>;      //||
 
 template <>
 inline Operand BaseExp<RelExp>::GetOperand(BasicBlock *block)
@@ -308,6 +297,8 @@ inline Operand BaseExp<RelExp>::GetOperand(BasicBlock *block)
   return oper;
 }
 
+using EqExp = BaseExp<RelExp>; //==
+
 template <>
 inline void BaseExp<EqExp>::GetOperand(BasicBlock *block, BasicBlock *_true,
                                        BasicBlock *_false)
@@ -336,6 +327,8 @@ inline void BaseExp<EqExp>::GetOperand(BasicBlock *block, BasicBlock *_true,
   }
 }
 
+using LAndExp = BaseExp<EqExp>; //&&
+
 template <>
 inline void BaseExp<LAndExp>::GetOperand(BasicBlock *block, BasicBlock *is_true,
                                          BasicBlock *is_false)
@@ -363,6 +356,8 @@ inline void BaseExp<LAndExp>::GetOperand(BasicBlock *block, BasicBlock *is_true,
   }
 }
 
+using LOrExp = BaseExp<LAndExp>; //||
+
 class InnerBaseExps : public BaseAST
 {
 protected:
@@ -372,7 +367,67 @@ public:
   InnerBaseExps(AddExp *_data) { push_front(_data); }
   void push_front(AddExp *_data) { DataList.push_front(_data); }
   void push_back(AddExp *_data) { DataList.push_back(_data); }
-  void print(int x);
+  void print(int x)
+  {
+    BaseAST::print(x);
+    std::cout << '\n';
+    for (auto &i : DataList)
+      i->print(x + 1);
+  }
+};
+
+class Exps : public InnerBaseExps
+{
+public:
+  Exps(AddExp *_data);
+  Type *GenerateArrayTypeDescriptor();
+  Type *GenerateArrayTypeDescriptor(Type *base_type);
+  std::vector<Operand> GetVisitDescripter(BasicBlock *block);
+};
+
+class CallParams : public InnerBaseExps
+{
+public:
+  CallParams(AddExp *_addexp);
+  std::vector<Operand> GetParams(BasicBlock *block);
+};
+
+class InitVal : public BaseAST
+{
+private:
+  std::unique_ptr<BaseAST> val;
+
+public:
+  InitVal() = default;
+  explicit InitVal(BaseAST *_data);
+  Operand GetFirst(BasicBlock *block);
+  Operand GetOperand(Type *_tp, BasicBlock *block);
+  void print(int x)
+  {
+    BaseAST::print(x);
+    if (val == nullptr)
+      std::cout << ":empty{}\n";
+    else
+      std::cout << '\n', val->print(x + 1);
+  }
+};
+
+class InitVals : public BaseAST
+{
+private:
+  BaseList<InitVal> DataList;
+
+public:
+  explicit InitVals(InitVal *_data);
+  void push_back(InitVal *_data);
+  Operand GetOperand(Type *_tp, BasicBlock *block);
+  void print(int x)
+  {
+    BaseAST::print(x);
+    std::cout << '\n';
+    for (auto &i : DataList)
+      ((BaseAST *)i.get())->print(x + 1);
+  }
 };
 
 class BaseDef : public Stmt
@@ -383,376 +438,20 @@ protected:
   std::unique_ptr<InitVal> initval;
 
 public:
-  BaseDef(std::string _name, Exps *_ad = nullptr, InitVal *_initval = nullptr) : name(_name), array_descriptor(_ad), initval(_initval) {}
-  // 待优化
-  BasicBlock *GetInst(GetInstState state) final
+  BaseDef(std::string _name, Exps *_ad = nullptr, InitVal *_initval = nullptr);
+
+  BasicBlock *GetInst(GetInstState) final;
+
+  void codegen();
+  void print(int x)
   {
-    if (array_descriptor)
-    {
-      auto tmp = array_descriptor->GenerateArrayTypeDescriptor();
-      auto alloca = state.cur_block->GenerateAlloca(tmp, name);
-
-      if (initval)
-      {
-        Operand init = initval->GetOperand(tmp, state.cur_block);
-        std::vector<Operand> args;
-        auto src = new Var(Var::Constant, tmp, "");
-        src->add_use(init);
-        args.push_back(alloca);
-        args.push_back(src);
-        args.push_back(ConstIRInt::GetNewConstant(tmp->GetSize()));
-        args.push_back(ConstIRBoolean::GetNewConstant(false));
-        state.cur_block->GenerateCallInst("llvm.memcpy.p0.p0.i32", args, 0);
-        std::vector<int> temp;
-        static_cast<Initializer *>(init)->Var2Store(state.cur_block, name, temp);
-      }
-    }
-    else
-    {
-      auto ir_data_type = Singleton<IR_DataType>();
-      auto decl_type = NewTypeFromIRDataType(ir_data_type);
-      bool isConstDecl = Singleton<IR_CONSTDECL_FLAG>().flag == 1;
-      if (isConstDecl)
-      {
-        Operand var = (initval) ? initval->GetFirst(nullptr) : (ir_data_type == IR_Value_INT) ? ConstIRInt::GetNewConstant()
-                                                           : (ir_data_type == IR_Value_Float) ? ConstIRFloat::GetNewConstant()
-                                                                                              : (assert(0), Operand());
-
-        var = (ir_data_type == IR_Value_INT) ? ToInt(var, nullptr) : ToFloat(var, nullptr);
-        Singleton<Module>().Register(name, var);
-      }
-      else
-      {
-        auto alloca = state.cur_block->GenerateAlloca(decl_type, name);
-        if (initval)
-        {
-          state.cur_block->GenerateStoreInst(initval->GetFirst(state.cur_block), alloca);
-        }
-      }
-    }
-    return state.cur_block;
-  }
-
-  void codegen()
-  {
+    BaseAST::print(x);
+    std::cout << ":" << name << '\n';
     if (array_descriptor != nullptr)
-    {
-      auto desc = array_descriptor->GenerateArrayTypeDescriptor();
-      auto var = new Var(Var::GlobalVar, desc, name);
-      if (initval != nullptr)
-      {
-        var->add_use(initval->GetOperand(desc, nullptr));
-      }
-    }
-    else
-    {
-      auto inner_data_type = Singleton<IR_DataType>();
-      auto decl_type = NewTypeFromIRDataType(inner_data_type);
-      auto var = new Var(Var::GlobalVar, decl_type, name);
-      bool is_const_decl = Singleton<IR_CONSTDECL_FLAG>().flag == 1;
-
-      if (is_const_decl)
-      {
-        Operand init_value;
-        if (initval == nullptr)
-        {
-          switch (inner_data_type)
-          {
-          case IR_Value_INT:
-            init_value = ConstIRInt::GetNewConstant();
-            break;
-          case IR_Value_Float:
-            init_value = ConstIRFloat::GetNewConstant();
-            break;
-          default:
-            throw std::runtime_error("Unsupported data type in BaseDef::codegen");
-          }
-        }
-        else
-        {
-          init_value = initval->GetFirst(nullptr);
-        }
-
-        if (inner_data_type == IR_Value_INT)
-        {
-          init_value = ToInt(init_value, nullptr);
-        }
-        else if (inner_data_type == IR_Value_Float)
-        {
-          init_value = ToFloat(init_value, nullptr);
-        }
-        else
-        {
-          throw std::runtime_error("Unsupported data type in BaseDef::codegen");
-        }
-
-        Singleton<Module>().Register(name, init_value);
-      }
-      else
-      {
-        if (initval != nullptr)
-        {
-          var->add_use(initval->GetFirst(nullptr));
-        }
-      }
-    }
+      array_descriptor->print(x + 1);
+    if (initval != nullptr)
+      initval->print(x + 1);
   }
-  void print(int x);
-};
-
-class Exps : public InnerBaseExps
-{
-public:
-  Exps(AddExp *_data) : InnerBaseExps(_data) {}
-  Type *GenerateArrayTypeDescriptor()
-  {
-    auto base_type = NewTypeFromIRDataType(Singleton<IR_DataType>());
-
-    for (auto it = DataList.rbegin(); it != DataList.rend(); ++it)
-    {
-      Value *operand = (*it)->GetOperand(nullptr);
-      if (auto fuc = dynamic_cast<ConstIRInt *>(operand))
-      {
-        base_type = ArrayType::NewArrayTypeGet(fuc->GetVal(), base_type);
-      }
-      else if (auto fuc = dynamic_cast<ConstIRFloat *>(operand))
-      {
-        base_type = ArrayType::NewArrayTypeGet(fuc->GetVal(), base_type);
-      }
-      else
-      {
-        throw std::runtime_error("Unexpected operand type in GetDeclDescipter()");
-      }
-    }
-    return base_type;
-  }
-  Type *GenerateArrayTypeDescriptor(Type *base_type)
-  {
-    for (auto i = DataList.rbegin(); i != DataList.rend(); i++)
-    {
-      auto con = (*i)->GetOperand(nullptr);
-      if (auto fuc = dynamic_cast<ConstIRInt *>(con))
-      {
-        base_type = ArrayType::NewArrayTypeGet(fuc->GetVal(), base_type);
-      }
-      else if (auto fuc = dynamic_cast<ConstIRFloat *>(con))
-      {
-        base_type = ArrayType::NewArrayTypeGet(fuc->GetVal(), base_type);
-      }
-      else
-        throw std::runtime_error("Unexpected operand type in GetDeclDescipter()");
-    }
-    return base_type;
-  }
-  std::vector<Operand> GetVisitDescripter(BasicBlock *block)
-  {
-    std::vector<Operand> tmp;
-    for (auto &i : DataList)
-      tmp.push_back(i->GetOperand(block));
-    return tmp;
-  }
-};
-
-class Initializer : public Value, public std::vector<Operand>
-{
-public:
-  Initializer(Type *_tp) : Value(_tp) {}
-  void Var2Store(BasicBlock *block, const std::string &name,
-                 std::vector<int> &gep_data)
-  {
-    auto module = Singleton<Module>().GetValueByName(name);
-    auto base_gep = dynamic_cast<GepInst *>(block->GenerateGepInst(module));
-
-    for (size_t i = 0; i < this->size(); i++)
-    {
-      auto &handle = (*this)[i];
-      gep_data.push_back(i);
-      if (auto inits = dynamic_cast<Initializer *>(handle))
-      {
-        inits->Var2Store(block, name, gep_data);
-      }
-      else
-      {
-        if (!handle->isConst())
-        {
-          auto gep = base_gep;
-          for (int j : gep_data)
-            gep->add_use(ConstIRInt::GetNewConstant(j));
-
-          block->GenerateStoreInst(handle, gep);
-          if (handle->GetType()->GetTypeEnum() == IR_Value_INT)
-            handle = ConstIRInt::GetNewConstant();
-          else
-            handle = ConstIRFloat::GetNewConstant();
-        }
-      }
-      gep_data.pop_back();
-    }
-  }
-
-  Operand GetInitVal(std::vector<int> &idx, int dep = 0)
-  {
-    auto basetp = dynamic_cast<HasSubType *>(GetType())->GetBaseType();
-    auto getZero = [&]() -> Operand
-    {
-      if (basetp == IntType::NewIntTypeGet())
-      {
-        return ConstIRInt::GetNewConstant();
-      }
-      else if (basetp == FloatType::NewFloatTypeGet())
-      {
-        return ConstIRFloat::GetNewConstant();
-      }
-      else
-      {
-        return ConstIRBoolean::GetNewConstant();
-      }
-    };
-    int thissize = size();
-    if (thissize == 0)
-    {
-      return getZero();
-    }
-    // 先检查索引是否越界
-    auto arrType = dynamic_cast<ArrayType *>(type);
-    if (!arrType)
-    {
-      return getZero(); // 如果tp不是数组，直接返回默认值
-    }
-    int limi = arrType->GetNum();
-    auto i = idx[dep];
-    if (i >= limi)
-    {
-      return getZero();
-    }
-    // 索引超出已初始化部分
-    if (i >= thissize)
-    {
-      return getZero();
-    }
-    // 递归访问子数组
-    auto handle = (*this)[i];
-    if (auto inits = dynamic_cast<Initializer *>(handle))
-    {
-      return inits->GetInitVal(idx, dep + 1);
-    }
-    return handle;
-  }
-
-  void print();
-};
-
-class InitVal : public BaseAST
-{
-private:
-  std::unique_ptr<BaseAST> val;
-
-public:
-  InitVal() = default;
-  InitVal(BaseAST *_data) { val.reset(_data); }
-  Operand GetFirst(BasicBlock *block)
-  {
-    if (auto fuc = dynamic_cast<AddExp *>(val.get()))
-      return fuc->GetOperand(block);
-    else
-      assert(0);
-  }
-  Operand GetOperand(Type *_tp, BasicBlock *block)
-  {
-    if (auto fuc = dynamic_cast<AddExp *>(val.get()))
-      return fuc->GetOperand(block);
-    else if (auto fuc = dynamic_cast<InitVals *>(val.get()))
-    {
-      return fuc->GetOperand(_tp, block);
-    }
-    else
-      return new Initializer(_tp);
-  }
-  void print(int x);
-};
-
-class InitVals : public BaseAST
-{
-  BaseList<InitVal> DataList;
-
-public:
-  InitVals(InitVal *_data) { DataList.push_back(_data); }
-  void push_back(InitVal *_data) { DataList.push_back(_data); }
-  Operand GetOperand(Type *_tp, BasicBlock *block)
-  {
-    assert(_tp->GetTypeEnum() == IR_ARRAY);
-
-    auto ret = new Initializer(_tp);
-    size_t offs = 0;
-    std::map<Type *, Type *> type_map;
-    for (ArrayType *atp = dynamic_cast<ArrayType *>(_tp); atp; atp = dynamic_cast<ArrayType *>(atp->GetSubType()))
-    {
-      type_map[atp->GetSubType()] = atp;
-    }
-    auto max_type = [&](Type *tp) -> Type *
-    {
-      while (offs % tp->GetSize() != 0)
-      {
-        tp = dynamic_cast<ArrayType *>(tp)->GetSubType();
-      }
-      return tp;
-    };
-
-    auto sub = dynamic_cast<ArrayType *>(_tp)->GetSubType();
-
-    for (auto &i : DataList)
-    {
-      Type *expectedType = max_type(sub); // 缓存结果
-      Operand tmp = i->GetOperand(expectedType, block);
-
-      if (tmp->GetType() != expectedType)
-      {
-        if (Singleton<IR_DataType>() == IR_Value_INT)
-          tmp = ToInt(tmp, block);
-        else if (Singleton<IR_DataType>() == IR_Value_Float)
-          tmp = ToFloat(tmp, block);
-        else
-          assert(0);
-      }
-
-      offs += tmp->GetType()->GetSize();
-      ret->push_back(tmp);
-      Type *lastType = ret->back()->GetType();
-      while (lastType != expectedType)
-      {
-        auto upper = dynamic_cast<ArrayType *>(type_map[lastType]);
-        int ele = upper->GetNum();
-        auto omit = new Initializer(upper);
-
-        for (int j = 0; j < ele; j++)
-        {
-          omit->push_back(ret->back());
-          ret->pop_back();
-        }
-        std::reverse(omit->begin(), omit->end());
-        ret->push_back(omit);
-        lastType = ret->back()->GetType();
-      }
-    }
-    Type *lastType = ret->back()->GetType();
-    while (lastType != sub)
-    {
-      auto upper = dynamic_cast<ArrayType *>(type_map[lastType]);
-      int ele = upper->GetNum();
-      auto omit = new Initializer(upper);
-      for (int i = 0; i < ele && !ret->empty() && ret->back()->GetType() == upper->GetSubType(); i++)
-      {
-        omit->push_back(ret->back());
-        ret->pop_back();
-      }
-      std::reverse(omit->begin(), omit->end());
-      ret->push_back(omit);
-      lastType = ret->back()->GetType();
-    }
-    return ret;
-  }
-
-  void print(int x);
 };
 
 // codegen:IR  print:AST
@@ -762,15 +461,18 @@ private:
   BaseList<BaseAST> DataList;
 
 public:
-  CompUnit(BaseAST *_data) { DataList.push_back(_data); }
-  void push_back(BaseAST *_data) { DataList.push_back(_data); }
-  void push_front(BaseAST *_data) { DataList.push_front(_data); }
-  void codegen()
+  explicit CompUnit(BaseAST *_data);
+  void push_back(BaseAST *_data);
+  void push_front(BaseAST *_data);
+  void codegen();
+  void print(int x)
   {
+    BaseAST::print(x);
+    std::cout << '\n';
     for (auto &i : DataList)
-      i->codegen();
+      i->print(x + 1);
+    std::cout << '\n';
   }
-  void print(int x);
 };
 
 class VarDef : public BaseDef
@@ -781,42 +483,20 @@ public:
 
 class VarDefs : public Stmt
 {
+private:
   BaseList<VarDef> DataList;
 
 public:
-  VarDefs(VarDef *_vardef) { DataList.push_back(_vardef); }
-  void push_back(VarDef *_data) { DataList.push_back(_data); }
-  BasicBlock *GetInst(GetInstState state) final
+  explicit VarDefs(VarDef *_vardef);
+  void push_back(VarDef *_data);
+  BasicBlock *GetInst(GetInstState state) final;
+  void codegen();
+  void print(int x)
   {
     for (auto &i : DataList)
-      state.cur_block = i->GetInst(state);
-    return state.cur_block;
+      i->print(x);
   }
-
-  void codegen()
-  {
-    for (auto &i : DataList)
-      i->codegen();
-  }
-  void print(int x);
 };
-
-void AstToType(AST_Type type)
-{
-  switch (type)
-  {
-  case AST_INT:
-    Singleton<IR_DataType>() = IR_Value_INT;
-    break;
-  case AST_FLOAT:
-    Singleton<IR_DataType>() = IR_Value_Float;
-    break;
-  case AST_VOID:
-  default:
-    std::cerr << "void as variable is not allowed!\n";
-    assert(0);
-  }
-}
 
 class VarDecl : public Stmt
 {
@@ -825,20 +505,15 @@ private:
   std::unique_ptr<VarDefs> vardefs;
 
 public:
-  VarDecl(AST_Type _tp, VarDefs *_vardefs) : type(_tp), vardefs(_vardefs) {}
-  BasicBlock *GetInst(GetInstState state) final
+  VarDecl(AST_Type _tp, VarDefs *_vardefs);
+  BasicBlock *GetInst(GetInstState state) final;
+  void codegen();
+  void print(int x)
   {
-    Singleton<IR_CONSTDECL_FLAG>().flag = 0;
-    AstToType(type);
-    return vardefs->GetInst(state);
+    BaseAST::print(x);
+    std::cout << ":" << magic_enum::enum_name(type) << '\n';
+    vardefs->print(x + 1);
   }
-  void codegen()
-  {
-    Singleton<IR_CONSTDECL_FLAG>().flag = 0;
-    AstToType(type);
-    vardefs->codegen();
-  }
-  void print(int x);
 };
 
 class ConstDef : public BaseDef
@@ -849,24 +524,19 @@ public:
 
 class ConstDefs : public Stmt
 {
+private:
   BaseList<ConstDef> DataList;
 
 public:
-  ConstDefs(ConstDef *_constdef) { DataList.push_back(_constdef); }
-  void push_back(ConstDef *_data) { DataList.push_back(_data); }
-  BasicBlock *GetInst(GetInstState state) final
+  ConstDefs(ConstDef *_constdef);
+  void push_back(ConstDef *_data);
+  BasicBlock *GetInst(GetInstState state) final;
+  void codegen();
+  void print(int x)
   {
     for (auto &i : DataList)
-      state.cur_block = i->GetInst(state);
-    return state.cur_block;
+      i->print(x);
   }
-
-  void codegen()
-  {
-    for (auto &i : DataList)
-      i->codegen();
-  }
-  void print(int x);
 };
 
 class ConstDecl : public Stmt
@@ -876,51 +546,53 @@ private:
   std::unique_ptr<ConstDefs> constdefs;
 
 public:
-  ConstDecl(AST_Type _tp, ConstDefs *_constdefs) : type(_tp), constdefs(_constdefs) {}
-  BasicBlock *GetInst(GetInstState state) final
+  ConstDecl(AST_Type _tp, ConstDefs *_constdefs);
+  BasicBlock *GetInst(GetInstState state) final;
+  void codegen();
+  void print(int x)
   {
-    Singleton<IR_CONSTDECL_FLAG>().flag = 1;
-    AstToType(type);
-    return constdefs->GetInst(state);
+    BaseAST::print(x);
+    std::cout << ":TYPE:" << magic_enum::enum_name(type) << '\n';
+    constdefs->print(x + 1);
   }
+};
 
-  void codegen()
+template <typename T>
+class ConstValue : public HasOperand
+{
+  T data;
+
+public:
+  ConstValue(T _data) : data(_data) {}
+  Operand GetOperand(BasicBlock *block)
   {
-    Singleton<IR_CONSTDECL_FLAG>().flag = 1;
-    AstToType(type);
-    constdefs->codegen();
+    if (std::is_same<T, int>::value)
+      return ConstIRInt::GetNewConstant(data);
+    else
+      return ConstIRFloat::GetNewConstant(data);
   }
-  void print(int x);
+  void print(int x) final
+  {
+    BaseAST::print(x);
+    std::cout << ":" << data << '\n';
+  }
 };
 
 class FunctionCall : public HasOperand
 {
+private:
   std::string name;
   std::unique_ptr<CallParams> callparams;
 
 public:
-  FunctionCall(std::string _name, CallParams *ptr = nullptr) : name(_name), callparams(ptr) {}
-  Operand GetOperand(BasicBlock *block)
+  FunctionCall(std::string _name, CallParams *ptr = nullptr);
+  Operand GetOperand(BasicBlock *block);
+  void print(int x)
   {
-    std::vector<Operand> args;
+    BaseAST::print(x);
+    std::cout << name;
     if (callparams != nullptr)
-      args = callparams->GetParams(block);
-    return block->GenerateCallInst(name, args, begin);
-  }
-
-  void print(int x);
-};
-
-class CallParams : public InnerBaseExps
-{
-public:
-  CallParams(AddExp *_addexp) : InnerBaseExps(_addexp) {}
-  std::vector<Operand> CallParams::GetParams(BasicBlock *block)
-  {
-    std::vector<Operand> params;
-    for (auto &i : DataList)
-      params.push_back(i->GetOperand(block));
-    return params;
+      callparams->print(x + 1);
   }
 };
 
@@ -933,118 +605,54 @@ private:
   std::unique_ptr<Exps> array_subscripts;
 
 public:
-  FuncParam(AST_Type _tp, std::string _name, bool is_empty = false, Exps *ptr = nullptr) : tp(_tp), name(_name), empty_square(is_empty), array_subscripts(ptr) {}
-  void GetVar(Function &tmp)
+  FuncParam(AST_Type _tp, std::string _name, bool is_empty = false, Exps *ptr = nullptr);
+
+  void GetVar(Function &tmp);
+  void print(int x)
   {
-    auto get_type = [](AST_Type _tp) -> Type *
-    {
-      switch (_tp)
-      {
-      case AST_INT:
-        return IntType::NewIntTypeGet();
-      case AST_FLOAT:
-        return FloatType::NewFloatTypeGet();
-      default:
-        throw std::invalid_argument("Unknown AST_Type");
-      }
-    };
-
-    auto GetPointerType = [](Type *innerType) -> Type *
-    {
-      if (innerType)
-      {
-        return PointerType::NewPointerTypeGet(innerType);
-      }
-      return nullptr;
-    };
-
+    BaseAST::print(x);
+    std::cout << ":" << magic_enum::enum_name(tp);
+    if (empty_square == 1)
+      std::cout << "ptr";
+    std::cout << name;
     if (array_subscripts != nullptr)
-    {
-      auto vec = array_subscripts->GenerateArrayTypeDescriptor(get_type(tp));
-      vec = GetPointerType(empty_square ? vec : dynamic_cast<HasSubType *>(vec)->GetSubType());
-      tmp.PushParam(name, new Var(Var::Param, vec, name));
-    }
-    else
-    {
-      Type *varType = get_type(tp);
-      if (empty_square)
-      {
-        varType = GetPointerType(varType);
-      }
-      tmp.PushParam(name, new Var(Var::Param, varType, name));
-    }
+      array_subscripts->print(x + 1);
   }
-
-  void print(int x);
 };
 
 class FuncParams : public BaseAST
 {
+private:
   BaseList<FuncParam> DataList;
 
 public:
-  FuncParams(FuncParam *ptr) { DataList.push_back(ptr); }
-  void push_back(FuncParam *ptr) { DataList.push_back(ptr); }
-  void GetVar(Function &tmp)
+  FuncParams(FuncParam *ptr);
+  void push_back(FuncParam *ptr);
+  void GetVar(Function &tmp);
+  void print(int x)
   {
     for (auto &i : DataList)
-      i->GetVar(tmp);
-    return;
+      i->print(x);
   }
-
-  void print(int x);
 };
 
-class FuncDef : public BaseAST
+class BlockItems : public Stmt
 {
-  AST_Type tp;
-  std::string name;
-  std::unique_ptr<FuncParams> params;
-  std::unique_ptr<Block> func_body;
+private:
+  BaseList<Stmt> DataList;
 
 public:
-  FuncDef(AST_Type _tp, std::string _name, FuncParams *_params, Block *_func_body) : tp(_tp), name(_name), params(_params), func_body(_func_body) {}
+  BlockItems(Stmt *ptr);
+  void push_back(Stmt *ptr);
 
-  void FuncDef::codegen()
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x)
   {
-    auto get_type = [](AST_Type _tp)
-    {
-      switch (_tp)
-      {
-      case AST_INT:
-        return IR_DataType::IR_Value_INT;
-      case AST_FLOAT:
-        return IR_DataType::IR_Value_Float;
-      case AST_VOID:
-        return IR_DataType::IR_Value_VOID;
-      default:
-        std::cerr << "Wrong Type\n";
-        assert(0);
-      }
-    };
-    auto &func = Singleton<Module>().GenerateFunction(get_type(tp), name);
-    Singleton<Module>().layer_increase();
-    if (params != nullptr)
-      params->GetVar(func);
-    assert(func_body != nullptr);
-    GetInstState state = {func.GetFront(), nullptr, nullptr};
-    auto end_block = func_body->GetInst(state);
-    if (!end_block->IsEnd())
-    {
-      if (func.GetType()->GetTypeEnum() == IR_Value_VOID)
-        end_block->GenerateRetInst();
-      else
-      {
-        if (func.GetName() == "main")
-          end_block->GenerateRetInst(ConstIRInt::GetNewConstant(0));
-        else
-          end_block->GenerateRetInst(UndefValue::Get(func.GetType()));
-      }
-    }
-    Singleton<Module>().layer_decrease();
+    BaseAST::print(x);
+    std::cout << '\n';
+    for (auto &i : DataList)
+      i->print(x + 1);
   }
-
-  void print(int x);
 };
 
 class Block : public Stmt
@@ -1053,39 +661,32 @@ private:
   std::unique_ptr<BlockItems> items;
 
 public:
-  Block(BlockItems *ptr) : items(ptr) {}
-  BasicBlock *GetInst(GetInstState state) final
-  {
-    if (items == nullptr)
-      return state.cur_block;
-    Singleton<Module>().layer_increase();
-    auto tmp = items->GetInst(state);
-    Singleton<Module>().layer_decrease();
-    return tmp;
-  }
+  Block(BlockItems *ptr);
 
-  void print(int x);
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x) { items->print(x); }
 };
 
-class BlockItems : public Stmt
+class FuncDef : public BaseAST
 {
-  BaseList<Stmt> DataList;
+private:
+  AST_Type tp;
+  std::string name;
+  std::unique_ptr<FuncParams> params;
+  std::unique_ptr<Block> func_body;
 
 public:
-  BlockItems(Stmt *ptr) { DataList.push_back(ptr); }
-  void push_back(Stmt *ptr) { DataList.push_back(ptr); }
-  BasicBlock *GetInst(GetInstState state) final
-  {
-    for (auto &i : DataList)
-    {
-      state.cur_block = i->GetInst(state);
-      if (state.cur_block->IsEnd())
-        return state.cur_block;
-    }
-    return state.cur_block;
-  }
+  FuncDef(AST_Type _tp, std::string _name, FuncParams *_params, Block *_func_body);
 
-  void print(int x);
+  void codegen();
+  void print(int x)
+  {
+    BaseAST::print(x);
+    std::cout << ":" << name << ":" << magic_enum::enum_name(tp) << '\n';
+    if (params != nullptr)
+      params->print(x + 1);
+    func_body->print(x + 1);
+  }
 };
 
 class LVal : public HasOperand
@@ -1095,78 +696,20 @@ private:
   std::unique_ptr<Exps> array_descriptor;
 
 public:
-  LVal(std::string _name, Exps *ptr = nullptr) : name(_name), array_descriptor(ptr) {}
-  std::string GetName() { return name; }
-  Operand LVal::GetPointer(BasicBlock *block)
+  LVal(std::string _name, Exps *ptr = nullptr);
+  std::string GetName();
+
+  Operand GetPointer(BasicBlock *block);
+  Operand GetOperand(BasicBlock *block);
+  void print(int x)
   {
-    auto ptr = Singleton<Module>().GetValueByName(name);
-    if (ptr->isConst())
-      return ptr;
-    auto ptrType = dynamic_cast<PointerType *>(ptr->GetType());
-    if (!ptrType)
-    {
-      assert(false && "Invalid pointer type");
-      return ptr;
-    }
-    auto subType = ptrType->GetSubType();
-    std::vector<Operand> tmp;
+    BaseAST::print(x);
     if (array_descriptor != nullptr)
-    {
-      tmp = array_descriptor->GetVisitDescripter(block);
-    }
-    Operand handle;
-    if (subType->GetTypeEnum() == IR_ARRAY)
-    {
-      handle = block->GenerateGepInst(ptr);
-      dynamic_cast<GepInst *>(handle)->add_use(ConstIRInt::GetNewConstant());
-    }
-    else if (subType->GetTypeEnum() == IR_PTR)
-    {
-      if (array_descriptor == nullptr)
-        return ptr;
-      handle = block->GenerateLoadInst(ptr);
-    }
-    else
-    {
-      assert(tmp.empty());
-      return ptr;
-    }
-    for (auto &i : tmp)
-    {
-      if (auto gep = dynamic_cast<GepInst *>(handle))
-      {
-        gep->add_use(i);
-      }
-      else
-      {
-        handle = block->GenerateGepInst(handle);
-        dynamic_cast<GepInst *>(handle)->add_use(i);
-      }
-      if (i != tmp.back() && dynamic_cast<PointerType *>(handle->GetType())->GetSubType()->GetTypeEnum() == IR_PTR)
-      {
-        block->GenerateLoadInst(handle);
-      }
-    }
-    return handle;
+      std::cout << ":with array descripters";
+    std::cout << ":" << name << '\n';
+    if (array_descriptor != nullptr)
+      array_descriptor->print(x + 1);
   }
-
-  Operand GetOperand(BasicBlock *block)
-  {
-    auto ptr = GetPointer(block);
-    if (ptr->isConst())
-      return ptr;
-    if (auto gep = dynamic_cast<GepInst *>(ptr))
-    {
-      if (dynamic_cast<PointerType *>(gep->GetType())->GetSubType()->GetTypeEnum() == IR_ARRAY)
-      {
-        gep->add_use(ConstIRInt::GetNewConstant());
-        return gep;
-      }
-    }
-    return block->GenerateLoadInst(ptr);
-  }
-
-  void print(int x);
 };
 
 class AssignStmt : public Stmt
@@ -1176,33 +719,35 @@ private:
   std::unique_ptr<AddExp> exp;
 
 public:
-  AssignStmt(LVal *m, AddExp *n)
-      : lval(std::unique_ptr<LVal>(std::move(m))), exp(std::unique_ptr<AddExp>(std::move(n))) {}
-  BasicBlock *GetInst(GetInstState state) final
-  {
-    Operand tmp = exp->GetOperand(state.cur_block);
-    auto valueptr = lval->GetPointer(state.cur_block);
-    state.cur_block->GenerateStoreInst(tmp, valueptr);
-    return state.cur_block;
-  }
+  AssignStmt(LVal *m, AddExp *n);
 
-  void print(int x);
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x)
+  {
+    BaseAST::print(x);
+    std::cout << '\n';
+    assert(lval != nullptr);
+    lval->print(x + 1);
+    exp->print(x + 1);
+  }
 };
 
 class ExpStmt : public Stmt
 {
+private:
   std::unique_ptr<AddExp> exp;
 
 public:
-  ExpStmt(AddExp *ptr) : exp(std::unique_ptr<AddExp>(std::move(ptr))) {}
-  BasicBlock *GetInst(GetInstState state) final
-  {
-    if (exp != nullptr)
-      Operand tmp = exp->GetOperand(state.cur_block);
-    return state.cur_block;
-  }
+  ExpStmt(AddExp *ptr);
 
-  void print(int x);
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x)
+  {
+    if (exp == nullptr)
+      BaseAST::print(x);
+    else
+      exp->print(x);
+  }
 };
 
 class WhileStmt : public Stmt
@@ -1212,39 +757,17 @@ private:
   std::unique_ptr<Stmt> stmt;
 
 public:
-  WhileStmt(LOrExp *p1, Stmt *p2) : cond(std::unique_ptr<LOrExp>(std::move(p1))), stmt(std::unique_ptr<Stmt>(std::move(p2))) {}
-  BasicBlock *GetInst(GetInstState state) final
+  WhileStmt(LOrExp *p1, Stmt *p2);
+
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x)
   {
-    auto condition_part = state.cur_block->GenerateNewBlock("wc" + std::to_string(begin));
-    auto inner_loop = state.cur_block->GenerateNewBlock("wloop." + std::to_string(begin) + "." + std::to_string(end));
-    auto nxt_block = state.cur_block->GenerateNewBlock("wn" + std::to_string(begin));
-
-    state.cur_block->GenerateUnCondInst(condition_part); // 跳条件块
-
-    cond->GetOperand(condition_part, inner_loop, nxt_block); // 条件跳循环或出口
-    // 生成循环体
-    GetInstState loop_state = {inner_loop, nxt_block, condition_part};
-    inner_loop = stmt->GetInst(loop_state);
-    if (inner_loop && !inner_loop->GetValUseList().is_empty())
-    {
-      if (!inner_loop->IsEnd())
-        inner_loop->GenerateUnCondInst(condition_part); // 循环跳回条件
-    }
-    else
-    {
-      delete inner_loop;
-      inner_loop = nullptr;
-    }
-    // 如果出口没人用，删掉
-    if (nxt_block->GetValUseList().is_empty())
-    {
-      delete nxt_block;
-      return state.cur_block;
-    }
-    return nxt_block;
+    BaseAST::print(x);
+    std::cout << '\n';
+    assert(cond != nullptr && stmt != nullptr);
+    cond->print(x + 1);
+    stmt->print(x + 1);
   }
-
-  void print(int x);
 };
 
 class IfStmt : public Stmt
@@ -1254,106 +777,55 @@ private:
   std::unique_ptr<Stmt> true_stmt, false_stmt;
 
 public:
-  IfStmt(LOrExp *p0, Stmt *p1, Stmt *p2 = nullptr) : cond(std::unique_ptr<LOrExp>(std::move(p0))), true_stmt(p1), false_stmt(p2) {}
-  BasicBlock *GetInst(GetInstState state) final
+  IfStmt(LOrExp *p0, Stmt *p1, Stmt *p2 = nullptr);
+
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x)
   {
-    BasicBlock *nextBlock = nullptr;
-    auto trueBlock = state.cur_block->GenerateNewBlock();
-    BasicBlock *falseBlock = nullptr;
-    GetInstState t_state = state;
-    t_state.cur_block = trueBlock;
+    BaseAST::print(x);
+    std::cout << '\n';
+    assert(true_stmt != nullptr);
+    true_stmt->print(x + 1);
     if (false_stmt != nullptr)
-      falseBlock = state.cur_block->GenerateNewBlock();
-
-    if (falseBlock != nullptr)
-      cond->GetOperand(state.cur_block, trueBlock, falseBlock);
-    else
-    {
-      nextBlock = state.cur_block->GenerateNewBlock();
-      cond->GetOperand(state.cur_block, trueBlock, nextBlock);
-    }
-
-    auto deleteUnusedBlock = [](BasicBlock *&tmp)
-    {
-      if (tmp == nullptr)
-        return;
-      if (tmp->GetValUseList().is_empty())
-      {
-        delete tmp;
-        tmp = nullptr;
-      }
-    };
-
-    deleteUnusedBlock(trueBlock);
-    deleteUnusedBlock(falseBlock);
-    deleteUnusedBlock(nextBlock);
-
-    auto makeUncondJump = [&](BasicBlock *tmp)
-    {
-      if (!tmp->IsEnd())
-      {
-        if (nextBlock == nullptr)
-          nextBlock = state.cur_block->GenerateNewBlock();
-        tmp->GenerateUnCondInst(nextBlock);
-      }
-    };
-    if (trueBlock != nullptr)
-    {
-      trueBlock = true_stmt->GetInst(t_state);
-      makeUncondJump(trueBlock);
-    }
-    if (falseBlock != nullptr)
-    {
-      GetInstState f_state = state;
-      f_state.cur_block = falseBlock;
-      falseBlock = false_stmt->GetInst(f_state);
-      makeUncondJump(falseBlock);
-    }
-    return (nextBlock == nullptr ? state.cur_block : nextBlock);
+      false_stmt->print(x + 1);
   }
-
-  void print(int x);
 };
 
 class BreakStmt : public Stmt
 {
-  BasicBlock *GetInst(GetInstState state) final
+public:
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x)
   {
-    state.cur_block->GenerateUnCondInst(state.break_block);
-    return state.cur_block;
+    BaseAST::print(x);
+    std::cout << '\n';
   }
-  void print(int x);
 };
 
 class ContinueStmt : public Stmt
 {
-  BasicBlock *GetInst(GetInstState state) final
+public:
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x)
   {
-    state.cur_block->GenerateUnCondInst(state.continue_block);
-    return state.cur_block;
+    BaseAST::print(x);
+    std::cout << '\n';
   }
-
-  void print(int x);
 };
 
 class ReturnStmt : public Stmt
 {
+private:
   std::unique_ptr<AddExp> ret_val;
 
 public:
-  ReturnStmt(AddExp *ptr = nullptr) : ret_val(std::unique_ptr<AddExp>(std::move(ptr))) {}
-  // 现有的基本块生成 返回指令
-  BasicBlock *GetInst(GetInstState state) final
+  ReturnStmt(AddExp *ptr = nullptr);
+  BasicBlock *GetInst(GetInstState state) final;
+  void print(int x)
   {
+    BaseAST::print(x);
+    std::cout << '\n';
     if (ret_val != nullptr)
-    {
-      auto ret = ret_val->GetOperand(state.cur_block);
-      state.cur_block->GenerateRetInst(ret);
-    }
-    else
-      state.cur_block->GenerateRetInst();
-    return state.cur_block;
+      ret_val->print(x + 1);
   }
-
-  void print(int x);
 };
