@@ -3,6 +3,7 @@
 #include "../Analysis/Dominant.hpp"
 #include "Passbase.hpp"
 #include <map>
+#include<vector>
 #pragma once
 
 // 寻找定义和使用 alloc 的基本块
@@ -104,6 +105,8 @@ protected:
     std::map<PhiInst*,int> PhiToAllocaMap;
     // 记录Phi和alloca的对应的关系
     // std::map<PhiInst*,int> PhiToAllocaMap;
+
+    std::set<BasicBlock*> Visited;
 };
 
 

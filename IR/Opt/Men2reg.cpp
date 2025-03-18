@@ -333,28 +333,103 @@ void PromoteMem2Reg::removeLifetimeIntrinsicUsers(AllocaInst *AI)
 // store --> IncomingVals   load   <-- IncomingVals
 void PromoteMem2Reg::RenamePass(BasicBlock *BB, BasicBlock *Pred,
                                 RenamePassData::ValVector &IncomingVals,
-                                std::vector<RenamePassData> &WorkList)
-{
+                                std::vector<RenamePassData> &WorkList){
     // llvm 中使用 goto 实现，有点意思
+
+    // 这个填充phi函数的逻辑，我怎么感觉就是一坨大的
     while(true)
-    {
-        // 之后都是要删掉的不怕
-        //存在 phiInst 语句
-        if(PhiInst* phiInst = dynamic_cast<PhiInst*>(*(BB->begin())))
+    {   
+        if(PhiInst* PhiInt = dynamic_cast<PhiInst*>((*BB->begin())))
         {
-            // compute the number of edges from Pred to BB
-            if(PhiToAllocaMap.count(phiInst)){
-                // phi has tow types, one is mem2reg , another is from before
-                std::set<PhiInst*> ThisPassInsert;
+            if(PhiToAllocaMap.count(PhiInt))
+            {
                 for(auto Inst = BB->begin(); Inst != BB->end();)
                 {
-                    if(ThisPassInsert.find(phiInst)!= ThisPassInsert.end()){
-                        int AllocaNum = PhiToAllocaMap[phiInst];
-                        
+                    if(PhiToAllocaMap.count(PhiInt))
+                    {
+                        // 这个逻辑我感觉有大问题吧？？？？
+                        int AllocaNum = PhiToAllocaMap[PhiInt];
+                        PhiInt->addIncoming(IncomingVals[AllocaNum],Pred);
+                        IncomingVals[AllocaNum] = PhiInt;
+                        ++Inst;
+                        PhiInt = dynamic_cast<PhiInst*>(*Inst);
+                        if(!PhiInt)
+                            break;
+                    }
+                    else {
+                        break;
                     }
                 }
             }
         }
+
+
+        // set是一个去重容器，插入返回一个pair 类型的值，第二个值是bool值，表示插入成功与否
+        // auto it = Visited.insert(BB);
+        if(!Visited.insert(BB).second)
+            return;
+
+        // 遍历BB 中的语句
+        for(auto inst = BB->begin();inst != BB->end();){
+            Instruction* I = *inst;
+            ++inst;
+
+            if(LoadInst* LI = dynamic_cast<LoadInst*>(I)) 
+            {
+                // 不能是对 alloca 地址的操作
+                auto op = LI->GetOperand(0);
+                AllocaInst* AI = dynamic_cast<AllocaInst*> (op);
+                if(!AI)
+                    continue;
+                
+                auto it = AllocaLookup.find(AI);
+                if(it == AllocaLookup.end())
+                    continue;
+                
+                // alloca and IncomingVals one to one
+                Value* V = IncomingVals[it->second];
+
+                LI->ReplaceAllUseWith(V);
+                delete LI;
+            }
+            else if(StoreInst* SI = dynamic_cast<StoreInst*>(I)){
+                // 同样 store 指令对其地址的操作也不可以被优化
+                auto &des = SI->GetUserUseList();
+                Value* Des = des[1]->GetValue(); //取第二个操作数 ？？？
+                AllocaInst* AI = dynamic_cast<AllocaInst*>(Des);
+                if(!AI)
+                    continue;
+                
+                auto it = AllocaLookup.find(AI);
+                if(it == AllocaLookup.end())
+                    continue;
+                
+                IncomingVals[it->second] = SI->GetOperand(0);
+                delete SI;
+            }
+        }
+
+        auto cur = _tree->getNode(BB);
+        if(cur->succNodes.empty())
+            return;
+        
+        // keep track of the successor so we dont visit the same successor twice
+        std::set<BasicBlock*> VisitedSucc;
+
+        auto It = cur->succNodes.begin();
+        Pred = BB;
+        BB = (*It)->curBlock;
+        It++;
+
+        VisitedSucc.insert(BB);
+        while(It != cur->succNodes.end())
+        {
+            // 把未处理的结点，全部塞进去
+            BasicBlock* tmp = (*It)->curBlock;
+            if(VisitedSucc.insert(tmp).second)  // 前驱都是不变的
+                WorkList.emplace_back(tmp,Pred,IncomingVals);
+        }
+
     }
 }
 
@@ -476,12 +551,15 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
     {
         Instruction* A =Allocas[i];
 
-        if(!A->is_empty())
-            A->ReplaceAllUseWith(UndefValue::Get(A->GetType()));
-        delete A;
+        if(A->is_empty())
+            A->ReplaceAllUseWith(UndefValue::Get(A->GetType())),
+            delete A;
     }
 
-    return true;
+    bool IsEliminate = true;
+
+
+    NewPhiNodes.clear();
 }
 
 void Mem2reg::run()
