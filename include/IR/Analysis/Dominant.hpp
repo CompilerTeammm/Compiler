@@ -2,6 +2,7 @@
 // #include "CoreClass.hpp"
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
+#include "IDF.hpp"
 #include <numeric>
 #include <utility>
 #include <vector>
@@ -15,10 +16,19 @@
 
 // 不在BasicBlock里面搞，在DominantTree确定前驱与后继
 // 一旦优化初始化了，DominantTree就已经搭建好了，可以有前驱后继，支配等条件
+
+// 辅助森林和并查集的关系  
+// 并查集 通过 link 和 eval 操作，维护一个支持路径压缩的森林结构
+
+// debug 等有了测试样例调试的时候看看
+
+# define MAX_ORDER 1000000
+# define N 10000
 struct TreeNode;
-using BBPtr = std::unique_ptr<BasicBlock>;
+using BBPtr = std::shared_ptr<BasicBlock>;
 class DominantTree
 {
+    friend class IDFCalculator;
 private:
     // 输入的应该是func，func->BBs 
     // Node 要和 BasicBlock一一对应
@@ -32,6 +42,8 @@ private:
         // init 的时候初始化
         std::list<TreeNode*> predNodes;  // 前驱
         std::list<TreeNode*> succNodes; //  后继
+        BasicBlock* curBlock;
+        std::list<TreeNode*> idomChild;
 
         // 构造函数初始化
         TreeNode* sdom;
@@ -44,16 +56,30 @@ private:
         {}
     };
 
+    //重新设计，不采用指针的形式，化简成int形式
     struct dsuNode
     {
-        TreeNode* father;
-        TreeNode* min_sdom;
-        int record;   // 记录的这个不是dfs的排序，而是bbs数组 1，2，3，4这样，可能之后有用
+        int parent;            //都变成了dfs_order 
+        int min_sdom;          //都变成了dfs_order
+        TreeNode *Nodesbydfs;  // 寻找Nodes中Node的关键,仅此一个指针与Nodes建立关系
+   
         dsuNode()
-            :father(nullptr),min_sdom(nullptr),
-            record(0)
-        {}
+            : parent(0), min_sdom(0),
+              Nodesbydfs(nullptr) // record(0),
+        { }
     };
+
+    // struct dsuNode
+    // {
+    //     TreeNode* parent;
+    //     TreeNode* min_sdom;
+    //     TreeNode* Nodesbydfs;  // 寻找Nodes中Node的关键
+    //     //int record;   // 记录的这个不是dfs的排序，而是bbs数组 1，2，3，4这样，可能之后有用
+    //     dsuNode()
+    //         :parent (nullptr),min_sdom(nullptr),
+    //         Nodesbydfs(0)//record(0),
+    //     {}
+    // };
 
     Function* _func;    
 
@@ -65,6 +91,13 @@ private:
 
     // DSU并查集一般用数组实现
     std::vector<dsuNode*> DSU;
+
+    // 维护一个 bucket  sdom 为 u 的点集
+    // 这个就是一个二维数组
+    std::vector<int> bucket[N];
+
+    // IDF的层级留在这里
+    std::map<TreeNode*,int> DomLevels;
 
     size_t BBsNum;
     int count = 1;  // dfs的时候计数赋值的
@@ -80,11 +113,18 @@ public:
         }
     } 
 
+    TreeNode* getNode(BasicBlock* BB)
+    {
+        return BlocktoNode[BB];
+    }
+
     void InitNodes()
     {
         //   pair <BasicBlock* , TreeNode*>
         for(int i = 0; i <= BasicBlocks.size() ; i++) 
-            BlocktoNode[BasicBlocks[i]] = Nodes[i]; 
+            BlocktoNode[BasicBlocks[i]] = Nodes[i],  // map
+            Nodes[i]->curBlock = BasicBlocks[i];     // key-value value不好寻找key
+
         // 建立了前驱与后继的确定
         for(auto bb : BasicBlocks) 
         {
@@ -120,48 +160,102 @@ public:
         InitNodes();
         BasicBlock *Bbegin = *(_func->begin());
         DFS(BlocktoNode[Bbegin]);
+        // DSU的初始化再DFS之后，我需要依据DFS的序号来建立关系
         InitDSU();
+        InitIdom();
+        // 到这里为止 Nodes 里面的idom和sdom全部被记录了下来了
+        // Nodes[0] 是没有idom的信息的为nullptr
+        caculateLevel(Nodes[0], 0);
     }
 
-    void GetIdom()
+    // 这个遍历也只是可以找到他们的孩子了
+    void buildTree()
     {
-        for(int i = BBsNum; i > 1; i--)
+        for(int i = 1; i < BBsNum; i++)
         {
-            TreeNode* father,sdom_cadidate;
-            TreeNode* node = BlocktoNode[BasicBlocks[BBsNum]];
-            int dfs_order = node->dfs_order;
-            father = Nodes[dfs_order]->dfs_fa;
-            for(auto e : Nodes[dfs_order]->predNodes){
-                // ??? 是不是逻辑错了
-                if(e->dfs_order != 0){
-                    sdom_cadidate = 
-                    std::min(sdom_cadidate,eval(e));
-                }
-            }
+            TreeNode* idom_node = Nodes[i]->idom;
+            if(idom_node)
+                idom_node->idomChild.push_back(Nodes[i]);
         }
     }
 
-    TreeNode* find(TreeNode* node)
+    void InitIdom()
     {
-        //并查集实现查找的策略
-        if(node == DSU[node->dfs_order]->father)
-            return node;
-        TreeNode* tmp = DSU[node->dfs_order]->father;
-        // DSU[node->dfs_order] = find(); 
+        // 逆序遍历，从dfs最大的结点开始, sdom求取
+        // 需要记录最小的sdom对吧
+        for (int i = Nodes.size(); i >= 1; i--)
+        {
+            // int min;
+            // TreeNode* tmp = nullptr;
+            int min = MAX_ORDER;
+            TreeNode *TN = DSU[i]->Nodesbydfs;
+            int father_order = TN->dfs_fa->dfs_order;
+            //遍历前驱
+            for (auto e : TN->predNodes)
+            {
+                // eval(v) 返回 v 到根路径上 最小的 min_sdom
+                min = std::min(min,eval(e->dfs_order));
+            }
+            DSU[i]->min_sdom = min;
+            TN->sdom = DSU[min]->Nodesbydfs;
+            bucket[min].push_back(i);
+            // link(parent,v); 将 v连接到父节点 
+            link(father_order,i);
+            for(auto e :bucket[min])
+            {
+                int u = eval(e);
+                if(DSU[u]->min_sdom == DSU[e]->min_sdom)
+                    TN->idom = TN->sdom;
+                else if(DSU[u]->min_sdom < DSU[e]->min_sdom)
+                    TN->idom = DSU[u]->Nodesbydfs->idom;
+                else
+                    assert("dominant error");
+            }
+            bucket[father_order].clear();
+        }
+
+        // 根结点不需要跑出来idom
+        for(int i = 2; i <= Nodes.size(); i++)
+        {
+            TreeNode *TN = DSU[i]->Nodesbydfs;
+            if(TN->idom != TN->sdom)
+                TN->idom = DSU[TN->idom->dfs_order]->Nodesbydfs->idom;
+                // TN->idom = DSU[TN->idom->dfs_order]->Nodesbydfs->idom;
+        }
     }
 
-    TreeNode* eval(TreeNode* node){
-
-    }
-
+    // 我把DSU和Nodes也建立了联系
+    // Nodes.dfs_num = DSU 的序号 1，2，3，4
+    // DSU的TreeNodes* 指针可以找到对应的 Nodes   TreeNode* TN = DSU[i]->Nodesbydfs;
     void InitDSU()
     {
-        for(int i = 1; i <= BBsNum; i++)
+        for(int i = 1; i < DSU.size();i ++)
         {
-            DSU[i]->record = i;
-            DSU[i]->father = Nodes[i-1];
-            DSU[i]->min_sdom = Nodes[i-1];
+            int order = Nodes[i-1]->dfs_order;
+            DSU[order]->Nodesbydfs = Nodes[i-1];
+            DSU[order]->parent = order;
+            DSU[order]->min_sdom = order;
         }
+    }
+
+    // 跟新 DSU[v]结点中的 parent结点
+    void link(int parent, int v)
+    {
+        DSU[v]->parent = parent;
+    }
+
+    // 传入的是结点 TreeNode* 
+    int eval(int order)
+    {
+        if(DSU[order]->parent == order)
+            return DSU[order]->min_sdom;
+
+        eval(DSU[order]->parent);
+        if(DSU[DSU[order]->parent]->min_sdom < DSU[order]->min_sdom)
+             DSU[order]->min_sdom = DSU[DSU[order]->parent]->min_sdom;
+        DSU[order]->parent = DSU[DSU[order]->parent]->parent;  // 压缩路径
+        
+        return DSU[order]->min_sdom;
     }
 
     void DFS(TreeNode* pos)
@@ -177,7 +271,41 @@ public:
         }
     }
 
-    bool dominates(BasicBlock* bb1,BasicBlock* bb2);
+        // level = 0; 为最高级的level
+    void caculateLevel(TreeNode* node,int level)
+    {
+        DomLevels[node] = level;
+        for(auto child : node->idomChild)
+        {
+            //核心就是一个回溯，easy
+            if(DomLevels.count(child))
+                caculateLevel(child, level+1);
+        }
+    }
+
+    bool dominates(BasicBlock* bb1,BasicBlock* bb2)
+    {
+        TreeNode* node1 = BlocktoNode[bb1];
+        TreeNode* node2 = BlocktoNode[bb2];
+        TreeNode* tmpNode = nullptr;
+
+        int tmp1 = DomLevels[node1];
+        int tmp2 = DomLevels[node2];
+        if(tmp1 < tmp2){
+            while(tmp2 != tmp1)
+            {
+                tmpNode = node2->idom;
+                tmp2--;
+            }
+
+            if(tmpNode == node1){
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     ~DominantTree() = default;
 };
 

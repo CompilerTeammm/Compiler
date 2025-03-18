@@ -6,6 +6,8 @@
 #include <memory>
 #include <type_traits>
 
+class Function;
+class Module;
 // 我这里是参考了他们的用队列来储存我自己的优化Passes的名字，依次出队列进行遍历
 enum PassName
 {
