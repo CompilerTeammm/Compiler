@@ -248,11 +248,76 @@ void dataSegment::LegalizeGloablVar(RISCVLoweringContext& ctx){
 }
 //globlvar
 globlvar::globlvar(Variable* data):RISCVGlobalObject(data->GetType(),data->GetName()){
-    InnerDataType tp=(dynamic_cast<PointerType*>(data->GetType()))->GetSubType()->GetTypeEnum();
-    if(tp==InnerDataType::IR_Value_INT||tp==InnerDataType::IR_Value_Float){
+    IR_DataType tp=(dynamic_cast<PointerType*>(data->GetType()))->GetSubType()->GetTypeEnum();
+    if(tp==IR_DataType::IR_Value_INT||tp==IR_DataType::IR_Value_Float){
         align=2;
         size=4;
+        if(data->GetInitializer()){
+            if(tp==IR_DataType::IR_Value_INT){
+                std::string num=data->GetInitializer()->GetName();
+                int init=std::stoi(num);
+                init_vector.push_back(init);
+            }
+            if(tp == InnerDataType::IR_Value_Float) {
+                ConstIRFloat* temp = dynamic_cast<ConstIRFloat*>(data->GetInitializer());
+                float init = temp->GetVal();
+                init_vector.push_back(init);
+            }
+        }
     }
+    else if (tp == InnerDataType::IR_ARRAY) {
+        align = 3;
+        Type* basetype = dynamic_cast<HasSubType*>(data->GetType())->get_baseType();
+        if(Initializer* arry_init = dynamic_cast<Initializer*>(data->GetInitializer())) {
+            size = arry_init->GetType()->get_size();
+            int init_size = arry_init->size();
+            if (init_size == 0) {
+                // sec = "bss";
+            }
+            else {
+                // sec = "data";
+                int limi = dynamic_cast<ArrayType*>(arry_init->GetType())->GetNumEle();
+                for(int i=0;i<limi;i++){
+                    if(i < init_size){
+                        if(auto inits=dynamic_cast<Initializer*>((*arry_init)[i])) {
+                            //递归
+                            generate_array_init(inits, basetype);  
+                        }
+                        else {//Leaf 
+                            if(basetype->GetTypeEnum() == IR_Value_INT) {
+                                std::string num = (*arry_init)[i]->GetName();
+                                int init = std::stoi(num);
+                                init_vector.push_back(init);
+                            }
+                            else if (basetype->GetTypeEnum() == IR_Value_Float) {
+                                ConstIRFloat* temp = dynamic_cast<ConstIRFloat*>((*arry_init)[i]);
+                                float init = temp->GetVal();
+                                init_vector.push_back(init);
+                            }
+                        }
+                    }
+                    else {
+                        Type* temptp = dynamic_cast<ArrayType*>(arry_init->GetType())->GetSubType();
+                        size_t zeronum = temptp->get_size() / basetype->get_size();
+                        for(int i=0; i<zeronum; i++) {
+                            if(basetype->GetTypeEnum() == IR_Value_INT) {
+                                init_vector.push_back(static_cast<int>(0));
+                            }
+                            else if (basetype->GetTypeEnum() == IR_Value_Float) {
+                                init_vector.push_back(static_cast<float>(0));                        
+                            }
+                        }
+                    }
+                }
+            } 
+        }
+        else {
+            // undefined arr;
+            size = (dynamic_cast<PointerType*>(data->GetType()))->GetSubType()->get_size();
+            // sec = "bss";
+        }
+    }
+    else align = -1;//Error
 }
 //textSegment
 textSegment::textSegment(RISCVLoweringContext& ctx){
