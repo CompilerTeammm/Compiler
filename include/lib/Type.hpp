@@ -53,15 +53,15 @@ public:
     }
 
     // 类型转换：IntType -> FloatType
-    FloatType *ToFloatType()
-    {
-        return FloatType::NewFloatTypeGet();
-    }
-    // 类型转换：IntType -> Int64Type
-    Int64Type *ToInt64Type()
-    {
-        return Int64Type::NewInt64TypeGet();
-    }
+    // FloatType *ToFloatType()
+    // {
+    //     return FloatType::NewFloatTypeGet();
+    // }
+    // // 类型转换：IntType -> Int64Type
+    // Int64Type *ToInt64Type()
+    // {
+    //     return Int64Type::NewInt64TypeGet();
+    // }
 };
 
 // 加入了int64的类型
@@ -217,19 +217,4 @@ public:
     }
 };
 
-Type *NewTypeFromIRDataType(IR_DataType _type)
-{
-    switch (_type)
-    {
-    case IR_DataType::IR_Value_INT:
-        return IntType::NewIntTypeGet();
-    case IR_DataType::IR_Value_Float:
-        return FloatType::NewFloatTypeGet();
-    case IR_DataType::IR_Value_VOID:
-        return VoidType::NewVoidTypeGet();
-    case IR_DataType::IR_PTR:
-        return PointerType::NewPointerTypeGet(NewTypeFromIRDataType(IR_Value_INT));
-    default:
-        return nullptr;
-    }
-}
+Type *NewTypeFromIRDataType(IR_DataType _type);

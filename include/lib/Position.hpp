@@ -17,7 +17,7 @@ public:
   loc() : begin(0), end(0) {}
 
   loc(int _line) : begin(_line), end(_line) {}
-  void SET(const loc &_) { *this = _; }
+  void SetLoc(const loc &_) { *this = _; }
 };
 
 #endif

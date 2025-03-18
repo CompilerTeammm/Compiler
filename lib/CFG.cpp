@@ -1,119 +1,110 @@
-#pragma once
-#include "../include/lib/CoreClass.hpp"
 #include "../include/lib/CFG.hpp"
+#include "../include/lib/CoreClass.hpp"
+#include "../include/lib/MagicEnum.hpp"
+// #include "../util/my_stl.hpp"
+#include <algorithm>
+#include <cassert>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <queue>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+#define BaseEnumNum 8
 
-ConstantData::ConstantData(Type *_tp) : Value(_tp) {}
-
-ConstantData *ConstantData::getNullValue(Type *tp)
+template <typename T>
+T *normal_clone(T *from, std::unordered_map<Operand, Operand> &mapping)
 {
-    IR_DataType type = tp->GetTypeEnum();
-    if (type == IR_DataType::IR_Value_INT)
-        return ConstIRInt::GetNewConstant(0);
-    else if (type == IR_DataType::IR_Value_Float)
-        return ConstIRFloat::GetNewConstant(0);
-    else
-        return nullptr;
+    if (mapping.find(from) != mapping.end())
+        return dynamic_cast<T *>(mapping[from]);
+    auto tmp = new T(from->GetType());
+    mapping[from] = tmp;
+    return dynamic_cast<T *>(from->User::clone(mapping));
 }
 
-bool ConstantData::isConst()
+Initializer::Initializer(Type *_tp) : Value(_tp) {}
+
+void Initializer::Var2Store(BasicBlock *block, const std::string &name, std::vector<int> &gep_data)
 {
-    return true;
+    auto module = Singleton<Module>().GetValueByName(name);
+    auto base_gep = dynamic_cast<GepInst *>(block->GenerateGepInst(module));
+
+    for (size_t i = 0; i < this->size(); i++)
+    {
+        auto &handle = (*this)[i];
+        gep_data.push_back(i);
+        if (auto inits = dynamic_cast<Initializer *>(handle))
+        {
+            inits->Var2Store(block, name, gep_data);
+        }
+        else
+        {
+            if (!handle->isConst())
+            {
+                auto gep = base_gep;
+                for (int j : gep_data)
+                    gep->add_use(ConstIRInt::GetNewConstant(j));
+
+                block->GenerateStoreInst(handle, gep);
+                if (handle->GetType()->GetTypeEnum() == IR_Value_INT)
+                    handle = ConstIRInt::GetNewConstant();
+                else
+                    handle = ConstIRFloat::GetNewConstant();
+            }
+        }
+        gep_data.pop_back();
+    }
 }
 
-bool ConstantData::isZero()
+Operand Initializer::GetInitVal(std::vector<int> &idx, int dep)
 {
-    if (auto Int = dynamic_cast<ConstIRInt *>(this))
-        return Int->GetVal() == 0;
-    else if (auto Float = dynamic_cast<ConstIRFloat *>(this))
-        return Float->GetVal() == 0;
-    else if (auto Bool = dynamic_cast<ConstIRBoolean *>(this))
-        return Bool->GetVal() == false;
-    else
-        return false;
-}
+    auto basetp = dynamic_cast<HasSubType *>(GetType())->GetBaseType();
+    auto getZero = [&]() -> Operand
+    {
+        if (basetp == IntType::NewIntTypeGet())
+        {
+            return ConstIRInt::GetNewConstant();
+        }
+        else if (basetp == FloatType::NewFloatTypeGet())
+        {
+            return ConstIRFloat::GetNewConstant();
+        }
+        else
+        {
+            return ConstIRBoolean::GetNewConstant();
+        }
+    };
+    int thissize = size();
+    if (thissize == 0)
+    {
+        return getZero();
+    }
 
-ConstantData *ConstantData::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
+    auto arrType = dynamic_cast<ArrayType *>(type);
+    if (!arrType)
+    {
+        return getZero();
+    }
 
-ConstIRBoolean::ConstIRBoolean(bool _val)
-    : ConstantData(BoolType::NewBoolTypeGet()), val(_val)
-{
-    if (val)
-        name = "true";
-    else
-        name = "false";
-}
+    int limi = arrType->GetNum();
+    auto i = idx[dep];
+    if (i >= limi)
+    {
+        return getZero();
+    }
+    if (i >= thissize)
+    {
+        return getZero();
+    }
 
-ConstIRBoolean *ConstIRBoolean::GetNewConstant(bool _val)
-{
-    static ConstIRBoolean true_const(true);
-    static ConstIRBoolean false_const(false);
-    if (_val)
-        return &true_const;
-    else
-        return &false_const;
-}
-
-bool ConstIRBoolean::GetVal()
-{
-    return val;
-}
-
-ConstIRInt::ConstIRInt(int _val)
-    : ConstantData(IntType::NewIntTypeGet()), val(_val)
-{
-    name = std::to_string(val);
-}
-
-ConstIRInt *ConstIRInt::GetNewConstant(int _val)
-{
-    static std::map<int, ConstIRInt *> int_const_map;
-    if (int_const_map.find(_val) == int_const_map.end())
-        int_const_map[_val] = new ConstIRInt(_val);
-    return int_const_map[_val];
-}
-
-int ConstIRInt::GetVal()
-{
-    return val;
-}
-
-ConstIRFloat::ConstIRFloat(float _val)
-    : ConstantData(FloatType::NewFloatTypeGet()), val(_val)
-{
-    // 使用 double 更精确地处理浮点数的二进制表示
-    double tmp = val;
-    std::stringstream hexStream;
-    hexStream << "0x" << std::hex << *(reinterpret_cast<long long *>(&tmp)); // 十六进制表示
-    name = hexStream.str();
-}
-
-ConstIRFloat *ConstIRFloat::GetNewConstant(float _val)
-{
-    static std::map<float, ConstIRFloat *> float_const_map;
-    if (float_const_map.find(_val) == float_const_map.end())
-        float_const_map[_val] = new ConstIRFloat(_val);
-    return float_const_map[_val];
-}
-
-float ConstIRFloat::GetVal()
-{
-    return val;
-}
-
-double ConstIRFloat::GetValAsDouble() const
-{
-    return static_cast<double>(val);
-}
-
-UndefValue *UndefValue::Get(Type *_ty)
-{
-    static std::map<Type *, UndefValue *> Undefs;
-    UndefValue *&UnVal = Undefs[_ty];
-    if (!UnVal)
-        UnVal = new UndefValue(_ty);
-    return UnVal;
+    auto handle = (*this)[i];
+    if (auto inits = dynamic_cast<Initializer *>(handle))
+    {
+        return inits->GetInitVal(idx, dep + 1);
+    }
+    return handle;
 }
 
 Var::Var(UsageTag tag, Type *_tp, std::string _id)
@@ -214,34 +205,34 @@ BuiltinFunc *BuiltinFunc::GetBuiltinFunc(std::string _id)
     return iter->second;
 }
 
-CallInst *BuiltinFunc::BuiltinTransform(CallInst *callinst)
-{
-    std::string funcName = callinst->GetOperand(0)->GetName();
+// CallInst *BuiltinFunc::BuiltinTransform(CallInst *callinst)
+// {
+//     std::string funcName = callinst->GetOperand(0)->GetName();
 
-    if (!CheckBuiltin(funcName))
-    {
-        return callinst;
-    }
+//     if (!CheckBuiltin(funcName))
+//     {
+//         return callinst;
+//     }
 
-    if (funcName == "llvm.memcpy.p0.p0.i32")
-    {
-        auto dst = callinst->GetOperand(1);
-        auto src = callinst->GetOperand(2);
-        auto size = callinst->GetOperand(3);
+//     if (funcName == "llvm.memcpy.p0.p0.i32")
+//     {
+//         auto dst = callinst->GetOperand(1);
+//         auto src = callinst->GetOperand(2);
+//         auto size = callinst->GetOperand(3);
 
-        std::vector<Operand> args{dst, src, size};
+//         std::vector<Operand> args{dst, src, size};
 
-        auto tmp = new CallInst(BuiltinFunc::GetBuiltinFunc("memcpy@plt"), args, "");
+//         auto tmp = new CallInst(BuiltinFunc::GetBuiltinFunc("memcpy@plt"), args, "");
 
-        // 替换原来的调用
-        callinst->InstReplace(tmp);
+//         // 替换原来的调用
+//         callinst->InstReplace(tmp);
 
-        delete callinst;
-        return tmp;
-    }
+//         delete callinst;
+//         return tmp;
+//     }
 
-    return callinst;
-}
+//     return callinst;
+// }
 
 Instruction *BuiltinFunc::GenerateCallInst(std::string id, std::vector<Operand> args)
 {
@@ -290,14 +281,6 @@ LoadInst::LoadInst(Operand _src)
     add_use(_src);
 }
 
-LoadInst *LoadInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void LoadInst::print()
-{
-}
-
 StoreInst::StoreInst(Type *_tp)
     : Instruction(_tp, Op::Store) {}
 
@@ -314,14 +297,6 @@ Operand StoreInst::GetDef()
     return nullptr;
 }
 
-StoreInst *StoreInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void StoreInst::print()
-{
-}
-
 AllocaInst::AllocaInst(Type *_tp)
     : Instruction(_tp, Op::Alloca) {}
 
@@ -329,14 +304,6 @@ bool AllocaInst::isUsed()
 {
     auto &ValUseList = GetValUseList();
     return !ValUseList.is_empty();
-}
-
-AllocaInst *AllocaInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void AllocaInst::print()
-{
 }
 
 CallInst::CallInst(Type *_tp)
@@ -351,14 +318,6 @@ CallInst::CallInst(Value *_func, std::vector<Operand> &_args, std::string label)
     {
         add_use(n);
     }
-}
-
-CallInst *CallInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void CallInst::print()
-{
 }
 
 RetInst::RetInst()
@@ -380,12 +339,32 @@ Operand RetInst::GetDef()
     return nullptr;
 }
 
-RetInst *RetInst::clone(std::unordered_map<Operand, Operand> &mapping)
+bool isBinaryBool(BinaryInst::Operation _op)
 {
+    switch (_op)
+    {
+    case BinaryInst::Op_E:
+    case BinaryInst::Op_NE:
+    case BinaryInst::Op_G:
+    case BinaryInst::Op_GE:
+    case BinaryInst::Op_L:
+    case BinaryInst::Op_LE:
+        return true;
+    default:
+        return false;
+    }
 }
 
-void RetInst::print()
+BinaryInst::BinaryInst(Operand _A, Operation __op, Operand _B, bool Atom)
+    : Instruction(isBinaryBool(__op) ? BoolType::NewBoolTypeGet()
+                                     : _A->GetType())
 {
+    op = __op;
+    // 与User中的OpID对应
+    id = static_cast<Instruction::Op>(__op + 8);
+    add_use(_A);
+    add_use(_B);
+    Atomic = Atom;
 }
 
 CondInst::CondInst(Type *_tp)
@@ -404,14 +383,6 @@ Operand CondInst::GetDef()
     return nullptr;
 }
 
-CondInst *CondInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void CondInst::print()
-{
-}
-
 UnCondInst::UnCondInst(Type *_tp)
     : Instruction(_tp, Op::UnCond) {}
 
@@ -424,14 +395,6 @@ UnCondInst::UnCondInst(BasicBlock *_BB)
 Operand UnCondInst::GetDef()
 {
     return nullptr;
-}
-
-UnCondInst *UnCondInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void UnCondInst::print()
-{
 }
 
 // bool isBinaryBool(BinaryInst::Operation _op)
@@ -457,14 +420,6 @@ ZextInst::ZextInst(Operand ptr) : Instruction(IntType::NewIntTypeGet(), Op::Zext
     add_use(ptr);
 }
 
-ZextInst *ZextInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void ZextInst::print()
-{
-}
-
 SextInst::SextInst(Type *_tp) : Instruction(_tp, Op::Sext) {}
 
 SextInst::SextInst(Operand ptr) : Instruction(Int64Type::NewInt64TypeGet(), Op::Sext)
@@ -472,27 +427,11 @@ SextInst::SextInst(Operand ptr) : Instruction(Int64Type::NewInt64TypeGet(), Op::
     add_use(ptr);
 }
 
-SextInst *SextInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void SextInst::print()
-{
-}
-
 TruncInst::TruncInst(Type *_tp) : Instruction(_tp, Op::Trunc) {}
 
 TruncInst::TruncInst(Operand ptr) : Instruction(IntType::NewIntTypeGet(), Op::Trunc)
 {
     add_use(ptr);
-}
-
-TruncInst *TruncInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void TruncInst::print()
-{
 }
 
 MaxInst::MaxInst(Type *_tp) : Instruction(_tp, Op::Max) {}
@@ -504,14 +443,6 @@ MaxInst::MaxInst(Operand _A, Operand _B) : Instruction(_A->GetType(), Op::Max)
     id = Op::Max;
 }
 
-MaxInst *MaxInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void MaxInst::print()
-{
-}
-
 MinInst::MinInst(Type *_tp) : Instruction(_tp, Op::Min) {}
 
 MinInst::MinInst(Operand _A, Operand _B) : Instruction(_A->GetType(), Op::Min)
@@ -521,14 +452,6 @@ MinInst::MinInst(Operand _A, Operand _B) : Instruction(_A->GetType(), Op::Min)
     id = Op::Min;
 }
 
-MinInst *MinInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void MinInst::print()
-{
-}
-
 SelectInst::SelectInst(Type *_tp) : Instruction(_tp, Op::Select) {}
 
 SelectInst::SelectInst(Operand _cond, Operand _true, Operand _false) : Instruction(_true->GetType(), Op::Select)
@@ -536,14 +459,6 @@ SelectInst::SelectInst(Operand _cond, Operand _true, Operand _false) : Instructi
     add_use(_cond);
     add_use(_true);
     add_use(_false);
-}
-
-SelectInst *SelectInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void SelectInst::print()
-{
 }
 
 GepInst::GepInst(Type *_tp) : Instruction(_tp, Op::Gep) {}
@@ -569,6 +484,11 @@ void GepInst::AddArg(Value *arg)
 
 Type *GepInst::GetType()
 {
+    int limi = useruselist.size() - 1;
+    type = useruselist[0]->GetValue()->GetType();
+    for (int i = 1; i <= limi; i++)
+        type = dynamic_cast<HasSubType *>(type)->GetSubType();
+    return type = PointerType::NewPointerTypeGet(type);
 }
 
 std::vector<Operand> GepInst::GetIndexs()
@@ -577,14 +497,6 @@ std::vector<Operand> GepInst::GetIndexs()
     for (int i = 1; i < useruselist.size(); i++)
         indexs.push_back(useruselist[i]->GetValue());
     return indexs;
-}
-
-GepInst *GepInst::clone(std::unordered_map<Operand, Operand> &mapping)
-{
-}
-
-void GepInst::print()
-{
 }
 
 // 类型转换
@@ -643,10 +555,730 @@ PhiInst::PhiInst(Instruction *BeforeInst) : oprandNum(0)
     id = Op::Phi;
 }
 
-PhiInst *PhiInst::clone(std::unordered_map<Operand, Operand> &mapping)
+// PhiInst *PhiInst::clone(std::unordered_map<Operand, Operand> &mapping)
+// {
+// }
+
+// void PhiInst::print()
+// {
+// }
+
+ConstantData *ConstantData::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return this;
+}
+
+UndefValue *UndefValue::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return this;
+}
+
+Value *Var::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    if (this->usage == Var::Constant ||
+        this->usage == Var::GlobalVar)
+        return this;
+    else
+    {
+        assert(mapping.find(this) != mapping.end() && "variable not copied!");
+        return mapping[this];
+    }
+}
+
+LoadInst *LoadInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<LoadInst>(this, mapping);
+}
+
+StoreInst *StoreInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<StoreInst>(this, mapping);
+}
+
+AllocaInst *AllocaInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<AllocaInst>(this, mapping);
+}
+
+CallInst *CallInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<CallInst>(this, mapping);
+}
+
+RetInst *RetInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<RetInst>(this, mapping);
+}
+
+CondInst *CondInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<CondInst>(this, mapping);
+}
+
+UnCondInst *UnCondInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<UnCondInst>(this, mapping);
+}
+
+BinaryInst *BinaryInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    auto tmp = normal_clone<BinaryInst>(this, mapping);
+    tmp->op = op;
+    tmp->id = static_cast<Instruction::Op>(op + 8);
+    tmp->Atomic = Atomic;
+    return tmp;
+}
+
+ZextInst *ZextInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<ZextInst>(this, mapping);
+}
+
+SextInst *SextInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<SextInst>(this, mapping);
+}
+
+TruncInst *TruncInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<TruncInst>(this, mapping);
+}
+
+MaxInst *MaxInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<MaxInst>(this, mapping);
+}
+
+MinInst *MinInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<MinInst>(this, mapping);
+}
+
+SelectInst *SelectInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<SelectInst>(this, mapping);
+}
+
+GepInst *GepInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<GepInst>(this, mapping);
+}
+
+FP2SIInst *FP2SIInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<FP2SIInst>(this, mapping);
+}
+
+SI2FPInst *SI2FPInst::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    return normal_clone<SI2FPInst>(this, mapping);
+}
+
+// BB
+std::vector<BasicBlock::InstPtr> &BasicBlock::GetInsts()
+{
+    return instructions;
+}
+
+BasicBlock::BasicBlock()
+    : Value(VoidType::NewVoidTypeGet()), LoopDepth(0), visited(false), index(0), reachable(false)
 {
 }
 
-void PhiInst::print()
+BasicBlock::~BasicBlock() = default;
+
+void BasicBlock::init_Insts()
 {
+    instructions.clear();
+    NextBlocks.clear();
+    PredBlocks.clear();
+}
+
+BasicBlock *BasicBlock::clone(std::unordered_map<Operand, Operand> &mapping)
+{
+    if (mapping.find(this) != mapping.end())
+        return dynamic_cast<BasicBlock *>(mapping[this]);
+    auto temp = new BasicBlock();
+    mapping[this] = temp;
+    for (auto i : (*this))
+        temp->push_back(dynamic_cast<Instruction *>(i->clone(mapping)));
+    return temp;
+}
+
+void BasicBlock::print()
+{
+    std::cout << "BasicBlock " << GetName() << " (Index: " << index << ", LoopDepth: " << LoopDepth << "):\n";
+    for (const auto &inst : instructions)
+    {
+        std::cout << "  ";
+        inst->print();
+    }
+}
+
+std::vector<BasicBlock *> BasicBlock::GetNextBlocks() const
+{
+    return NextBlocks;
+}
+
+const std::vector<BasicBlock *> &BasicBlock::GetPredBlocks() const
+{
+    return PredBlocks;
+}
+
+void BasicBlock::AddNextBlock(BasicBlock *block)
+{
+    NextBlocks.push_back(block);
+}
+
+void BasicBlock::AddPredBlock(BasicBlock *pre)
+{
+    PredBlocks.push_back(pre);
+}
+
+void BasicBlock::RemovePredBlock(BasicBlock *pre)
+{
+    PredBlocks.erase(
+        std::remove(PredBlocks.begin(), PredBlocks.end(), pre),
+        PredBlocks.end());
+}
+
+bool BasicBlock::is_empty_Insts() const
+{
+    return instructions.empty();
+}
+
+Instruction *BasicBlock::GetLastInsts() const
+{
+    return is_empty_Insts() ? nullptr : instructions.back().get();
+}
+
+void BasicBlock::ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
+{
+    for (auto &block : NextBlocks)
+    {
+        if (block == oldBlock)
+        {
+            block = newBlock;
+            return;
+        }
+    }
+}
+
+void BasicBlock::ReplacePreBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
+{
+    for (auto &block : PredBlocks)
+    {
+        if (block == oldBlock)
+        {
+            block = newBlock;
+            return;
+        }
+    }
+}
+
+template <typename A, typename B>
+std::variant<float, int> calc(A a, BinaryInst::Operation op, B b)
+{
+    switch (op)
+    {
+    case BinaryInst::Op_Add:
+        return a + b;
+    case BinaryInst::Op_Sub:
+        return a - b;
+    case BinaryInst::Op_Mul:
+        return a * b;
+    case BinaryInst::Op_Div:
+        return a / b;
+    case BinaryInst::Op_And:
+        return (a != 0) && (b != 0);
+    case BinaryInst::Op_Or:
+        return (a != 0) || (b != 0);
+    case BinaryInst::Op_Mod:
+        return (int)a % (int)b;
+    case BinaryInst::Op_E:
+        return a == b;
+    case BinaryInst::Op_NE:
+        return a != b;
+    case BinaryInst::Op_G:
+        return a > b;
+    case BinaryInst::Op_GE:
+        return a >= b;
+    case BinaryInst::Op_L:
+        return a < b;
+    case BinaryInst::Op_LE:
+        return a <= b;
+    default:
+        assert(0);
+        break;
+    }
+}
+
+Operand BasicBlock::GenerateBinaryInst(Operand _A, BinaryInst::Operation op, Operand _B)
+{
+    bool tpA = (_A->GetTypeEnum() == IR_DataType::IR_Value_INT);
+    bool tpB = (_B->GetTypeEnum() == IR_DataType::IR_Value_INT);
+    BinaryInst *tmp;
+
+    if (tpA != tpB)
+    {
+        assert(op != BinaryInst::Op_And && op != BinaryInst::Op_Or && op != BinaryInst::Op_Mod);
+        if (tpA)
+        {
+            tmp = new BinaryInst(GenerateSI2FPInst(_A), op, _B);
+        }
+        else
+        {
+            tmp = new BinaryInst(_A, op, GenerateSI2FPInst(_B));
+        }
+    }
+    else
+    {
+        if (_A->GetTypeEnum() == IR_Value_INT)
+        {
+            bool isBooleanA = (_A->GetType() == IntType::NewIntTypeGet());
+            bool isBooleanB = (_B->GetType() == IntType::NewIntTypeGet());
+
+            if (isBooleanA != isBooleanB)
+            {
+                if (!isBooleanA)
+                {
+                    _A = GenerateZextInst(_A);
+                }
+                else
+                {
+                    _B = GenerateZextInst(_B);
+                }
+            }
+        }
+        tmp = new BinaryInst(_A, op, _B);
+    }
+
+    push_back(tmp);
+    return Operand(tmp->GetDef());
+}
+
+Operand BasicBlock::GenerateBinaryInst(BasicBlock *bb, Operand _A, BinaryInst::Operation op, Operand _B)
+{
+    if (_A->isConst() && _B->isConst())
+    {
+        if (op == BinaryInst::Op_Div && _B->isConstZero())
+        {
+            assert(_A->GetType() != BoolType::NewBoolTypeGet() &&
+                   _B->GetType() != BoolType::NewBoolTypeGet() && "InvalidType");
+            return (_A->GetType() == IntType::NewIntTypeGet())
+                       ? UndefValue::Get(IntType::NewIntTypeGet())
+                       : UndefValue::Get(FloatType::NewFloatTypeGet());
+        }
+
+        std::variant<float, int> result;
+        if (auto A = dynamic_cast<ConstIRInt *>(_A))
+        {
+            if (auto B = dynamic_cast<ConstIRInt *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+            else if (auto B = dynamic_cast<ConstIRFloat *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+            else if (auto B = dynamic_cast<ConstIRBoolean *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+        }
+        else if (auto A = dynamic_cast<ConstIRFloat *>(_A))
+        {
+            if (auto B = dynamic_cast<ConstIRInt *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+            else if (auto B = dynamic_cast<ConstIRFloat *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+            else if (auto B = dynamic_cast<ConstIRBoolean *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+        }
+        else if (auto A = dynamic_cast<ConstIRBoolean *>(_A))
+        {
+            if (auto B = dynamic_cast<ConstIRInt *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+            else if (auto B = dynamic_cast<ConstIRFloat *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+            else if (auto B = dynamic_cast<ConstIRBoolean *>(_B))
+                result = calc(A->GetVal(), op, B->GetVal());
+        }
+
+        if (isBinaryBool(op))
+            return ConstIRBoolean::GetNewConstant(std::get<int>(result));
+        else if (std::holds_alternative<int>(result))
+            return ConstIRInt::GetNewConstant(std::get<int>(result));
+        else
+            return ConstIRFloat::GetNewConstant(std::get<float>(result));
+    }
+    else
+    {
+        assert(bb != nullptr);
+        return bb->GenerateBinaryInst(_A, op, _B);
+    }
+}
+
+Operand BasicBlock::GenerateSI2FPInst(Operand _A)
+{
+    auto temp = new SI2FPInst(_A);
+    push_back(temp);
+    return Operand(temp->GetDef());
+}
+
+Operand BasicBlock::GenerateFP2SIInst(Operand _A)
+{
+    auto temp = new FP2SIInst(_A);
+    push_back(temp);
+    return Operand(temp->GetDef());
+}
+
+Operand BasicBlock::GenerateLoadInst(Operand data)
+{
+    auto tmp = new LoadInst(data);
+    push_back(tmp);
+    return tmp->GetDef();
+}
+
+void BasicBlock::GenerateStoreInst(Operand src, Operand des)
+{
+    assert(des->GetType()->GetTypeEnum() == IR_PTR);
+    auto tmp = static_cast<PointerType *>(des->GetType());
+
+    if (tmp->GetSubType()->GetTypeEnum() != src->GetTypeEnum())
+    {
+        src = (tmp->GetSubType()->GetTypeEnum() == IR_Value_INT) ? this->GenerateFP2SIInst(src) : this->GenerateSI2FPInst(src);
+    }
+
+    auto storeinst = std::make_unique<StoreInst>(src, des);
+    this->push_back(storeinst.get());
+    instructions.emplace_back(std::move(storeinst));
+}
+
+AllocaInst *BasicBlock::GenerateAlloca(Type *_tp, std::string name)
+{
+    auto tp = PointerType::NewPointerTypeGet(_tp);
+    auto alloca = new AllocaInst(tp);
+    Singleton<Module>().Register(name, alloca);
+    GetParent()->GetFront()->push_front(alloca);
+    return alloca;
+}
+
+void BasicBlock::GenerateCondInst(Operand _cond, BasicBlock *_true,
+                                  BasicBlock *_false)
+{
+    auto condinst = new CondInst(_cond, _true, _false);
+    push_back(condinst);
+}
+void BasicBlock::GenerateUnCondInst(BasicBlock *des)
+{
+    auto uncondinst = new UnCondInst(des);
+    push_back(uncondinst);
+}
+
+// 根据name生成 CallInst
+Operand BasicBlock::GenerateCallInst(std::string id, std::vector<Operand> args, int run_time)
+{
+    static const std::unordered_set<std::string> builtin_functions = {
+        "getint", "getfloat", "getch", "getarray", "getfarray", "putint",
+        "putch", "putarray", "putfloat", "putfarray", "starttime", "stoptime",
+        "putf", "llvm.memcpy.p0.p0.i32"};
+
+    if (builtin_functions.count(id))
+    {
+        if (id == "starttime" || id == "stoptime")
+        {
+            assert(args.empty());
+            args.push_back(ConstIRInt::GetNewConstant(run_time));
+        }
+
+        if (id == "putfloat")
+        {
+            if (args[0]->GetTypeEnum() == IR_Value_INT)
+            {
+                args[0] = GenerateSI2FPInst(args[0]);
+            }
+        }
+        else if (id == "putint" || id == "putch" || id == "putarray" || id == "putfarray")
+        {
+            if (args[0]->GetTypeEnum() == IR_Value_Float)
+            {
+                args[0] = GenerateFP2SIInst(args[0]);
+            }
+        }
+
+        auto call_inst = std::make_unique<CallInst>(BuiltinFunc::GetBuiltinFunc(id), args, "at" + std::to_string(run_time));
+        push_back(call_inst.get());
+        instructions.emplace_back(std::move(call_inst));
+        return instructions.back()->GetDef();
+    }
+
+    if (auto func = static_cast<Function *>(Singleton<Module>().GetValueByName(id)))
+    {
+        auto &params = func->GetParams();
+        assert(args.size() == params.size());
+
+        auto arg_iter = args.begin();
+        for (auto &param : params)
+        {
+            auto &arg = *arg_iter;
+            auto param_type = param->GetType();
+
+            if (param_type != arg->GetType())
+            {
+                auto arg_enum = arg->GetType()->GetTypeEnum();
+                auto param_enum = param_type->GetTypeEnum();
+                assert(arg_enum == IR_Value_INT || arg_enum == IR_Value_Float);
+                assert(param_enum == IR_Value_INT || param_enum == IR_Value_Float);
+
+                arg = (param_enum == IR_Value_Float) ? GenerateSI2FPInst(arg) : GenerateFP2SIInst(arg);
+            }
+            ++arg_iter;
+        }
+
+        auto call_inst = std::make_unique<CallInst>(func, args, "at" + std::to_string(run_time));
+        push_back(call_inst.get());
+        instructions.emplace_back(std::move(call_inst)); // 确保生命周期
+        return instructions.back()->GetDef();
+    }
+
+    std::cerr << "No Such Function!\n";
+    assert(0);
+    return nullptr;
+}
+
+void BasicBlock::GenerateRetInst()
+{
+    auto retinst = new RetInst();
+    push_back(retinst);
+}
+
+void BasicBlock::GenerateRetInst(Operand ret_val)
+{
+    if (GetParent()->GetTypeEnum() != ret_val->GetTypeEnum())
+    {
+        if (ret_val->GetTypeEnum() == IR_Value_INT)
+            ret_val = GenerateSI2FPInst(ret_val);
+        else
+            ret_val = GenerateFP2SIInst(ret_val);
+    }
+    auto retinst = new RetInst(ret_val);
+    push_back(retinst);
+}
+
+Operand BasicBlock::GenerateGepInst(Operand ptr)
+{
+    auto tmp = new GepInst(ptr);
+    push_back(tmp);
+    return tmp->GetDef();
+}
+
+Operand BasicBlock::GenerateZextInst(Operand ptr)
+{
+    auto tmp = new ZextInst(ptr);
+    push_back(tmp);
+    return tmp->GetDef();
+}
+
+BasicBlock *BasicBlock::GenerateNewBlock()
+{
+    BasicBlock *tmp = new BasicBlock();
+    GetParent()->push_back(tmp);
+    return tmp;
+}
+// push_back存疑
+BasicBlock *BasicBlock::GenerateNewBlock(std::string name)
+{
+    BasicBlock *tmp = new BasicBlock();
+    tmp->name += name;
+    GetParent()->push_back(tmp);
+    return tmp;
+}
+
+bool BasicBlock::IsEnd()
+{
+    if (auto data = dynamic_cast<UnCondInst *>(GetBack()))
+        return 1;
+    else if (auto data = dynamic_cast<CondInst *>(GetBack()))
+        return 1;
+    else if (auto data = dynamic_cast<RetInst *>(GetBack()))
+        return 1;
+    else
+        return 0;
+}
+
+// Function
+Function::Function(IR_DataType _type, const std::string &_id)
+    : Value(NewTypeFromIRDataType(_type)), id(_id)
+{
+    // 构造默认vector和mylist双开
+    push_back(new BasicBlock());
+}
+
+std::vector<Function::ParamPtr> &Function::GetParams()
+{
+    return params;
+}
+
+std::vector<Function::BBPtr> &Function::GetBBs()
+{
+    return BBs;
+}
+
+auto Function::begin()
+{
+    return BBs.begin();
+}
+
+auto Function::end()
+{
+    return BBs.end();
+}
+
+void Function::print()
+{
+    std::cout << "define ";
+    type->print();
+    std::cout << " @" << name << "(";
+    for (auto &i : params)
+    {
+        i->GetType()->print();
+        std::cout << " %" << i->GetName();
+        if (i.get() != params.back().get())
+            std::cout << ", ";
+    }
+    std::cout << "){\n";
+    for (auto &BB : (*this)) // 链表打印
+        BB->print();
+    std::cout << "}\n";
+}
+
+void Function::AddBBs(BasicBlock *BB)
+{
+    BBs.push_back(std::unique_ptr<BasicBlock>(BB));
+    size_BB++;
+}
+
+void Function::PushBothBB(BasicBlock *BB)
+{
+    AddBBs(BB);
+    push_back(BB);
+}
+
+void Function::InsertBBs(BasicBlock *BB, size_t pos)
+{
+    if (pos > BBs.size())
+    {
+        pos = BBs.size(); // 防越界
+    }
+    BBs.insert(BBs.begin() + pos, std::unique_ptr<BasicBlock>(BB));
+    size_BB++;
+}
+
+void Function::InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert)
+{
+}
+
+void Function::InsertBB(BasicBlock *curr, BasicBlock *insert)
+{
+}
+
+void Function::RemoveBBs(BasicBlock *BB)
+{
+    auto it = std::find_if(BBs.begin(), BBs.end(),
+                           [BB](const BBPtr &ptr)
+                           { return ptr.get() == BB; });
+    if (it != BBs.end())
+    {
+        BBs.erase(it);
+        size_BB--;
+    }
+}
+
+void Function::InitBBs()
+{
+    BBs.clear();
+    size_BB = 0;
+}
+
+void Function::PushParam(std::string name, Var *var)
+{
+    auto alloca = new AllocaInst(PointerType::NewPointerTypeGet(var->GetType()));
+    auto store = new StoreInst(var, alloca);
+    GetFront()->push_front(alloca);
+    GetFront()->push_back(store);
+    Singleton<Module>().Register(name, alloca);
+    params.emplace_back(var);
+}
+
+// 如果后面出错，可能问题在这儿
+std::vector<BasicBlock *> Function::GetRetBlock()
+{
+    std::vector<BasicBlock *> tmp;
+    for (auto &BB : *this)
+    {
+        auto *inst = BB->GetBack();
+        if (auto *retInst = dynamic_cast<RetInst *>(inst))
+        {
+            tmp.push_back(BB.get());
+        }
+    }
+    return tmp;
+}
+
+// Module
+void Module::push_func(FunctionPtr func)
+{
+    if (func)
+        functions.push_back(std::move(func));
+}
+
+Function *Module::GetMain()
+{
+    for (auto &func : functions)
+    {
+        if (func && func->GetName() == "main")
+        {
+            return func.get();
+        }
+    }
+    return nullptr;
+}
+
+void Module::PushVar(Var *ptr)
+{
+    assert(ptr->usage != Var::Param && "Wrong API Usage");
+    globalvaribleptr.emplace_back(ptr);
+}
+
+std::string Module::GetFuncNameEnum(std::string name)
+{
+    // 使用unordered_set提前存储所有函数名称，加速查找
+    std::unordered_set<std::string> existingNames;
+    for (const auto &func : functions)
+    {
+        existingNames.insert(func->GetName());
+    }
+
+    int i = 0;
+    while (true)
+    {
+        std::string newName = name + "_" + std::to_string(i);
+        if (existingNames.find(newName) == existingNames.end())
+        {
+            return newName;
+        }
+        i++;
+    }
+}
+
+Function &Module::GenerateFunction(IR_DataType _tp, std::string _id)
+{
+    auto tmp = new Function(_tp, _id);
+    Register(_id, tmp);
+    functions.push_back(FunctionPtr(tmp));
+    return *functions.back();
+}
+
+UndefValue *UndefValue::Get(Type *_ty)
+{
+    static std::map<Type *, UndefValue *> Undefs;
+    UndefValue *&UnVal = Undefs[_ty];
+    if (!UnVal)
+        UnVal = new UndefValue(_ty);
+    return UnVal;
 }

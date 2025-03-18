@@ -2,7 +2,8 @@
   "configurations": [
     {
       "name": "linux-gcc-x64",
-      "compilerPath": "E:/MinGW64/bin/gcc.exe",
+      // "compilerPath": "E:/MinGW64/bin/gcc.exe",
+      "compilerPath": "/usr/bin/g++",
       "includePath": [
         "${workspaceFolder}/**"
       ],

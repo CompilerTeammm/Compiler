@@ -1,81 +1,50 @@
+#pragma once
+#include "SymbolTable.hpp"
+#include "Singleton.hpp"
 #include "CoreClass.hpp"
-#include "Type.hpp"
-// #include <cassert>
-#include <sstream>
+#include <set>
+#include <unordered_set>
+#include <algorithm>
+#include <vector>
+class BasicBlock;
+class Function;
 
-// 这边的类都还暂未实现，先放，占位
+class InitVal;
+class InitVals;
 
-// 所有常量数据的基类
-class ConstantData : public Value
+class Initializer : public Value, public std::vector<Operand>
 {
 public:
-  ConstantData() = delete;
-  ConstantData(Type *_tp);
-
-  static ConstantData *getNullValue(Type *tp);
-
-  bool isConst() final;
-  bool isZero();
-
-  virtual ConstantData *clone(std::unordered_map<Operand, Operand> &mapping) override;
-};
-
-class ConstIRBoolean : public ConstantData
-{
-private:
-  bool val;
-  bool IsBoolean() const override { return true; }
-  ConstIRBoolean(bool _val);
-
-public:
-  static ConstIRBoolean *GetNewConstant(bool _val = false);
-  bool GetVal();
-};
-
-class ConstIRInt : public ConstantData
-{
-private:
-  int val;
-  ConstIRInt(int _val);
-
-public:
-  static ConstIRInt *GetNewConstant(int _val = 0);
-  int GetVal();
-};
-
-class ConstIRFloat : public ConstantData
-{
-private:
-  float val;
-  ConstIRFloat(float _val);
-
-public:
-  static ConstIRFloat *GetNewConstant(float _val = 0);
-  float GetVal();
-  double GetValAsDouble() const;
-};
-
-class ConstPtr : public ConstantData
-{
-  ConstPtr(Type *_tp) : ConstantData(_tp) {}
-
-public:
-  static ConstPtr *GetNewConstant(Type *_tp)
+  Initializer(Type *_tp);
+  void Var2Store(BasicBlock *block, const std::string &name, std::vector<int> &gep_data);
+  Operand GetInitVal(std::vector<int> &idx, int dep = 0);
+  void print()
   {
-    static ConstPtr *const_ptr = new ConstPtr(_tp);
-    return const_ptr;
+    if (size() == 0)
+    {
+      std::cout << "zeroinitializer";
+      return;
+    }
+    std::cout << " [";
+    int limi = dynamic_cast<ArrayType *>(type)->GetNum();
+    for (int i = 0; i < limi; i++)
+    {
+      dynamic_cast<ArrayType *>(type)->GetSubType()->print();
+      if (i < this->size())
+      {
+        std::cout << " ";
+        if (auto inits = dynamic_cast<Initializer *>((*this)[i]))
+          inits->print();
+        else
+          (*this)[i]->print();
+      }
+      else
+        std::cout << " zeroinitializer";
+      if (i != limi - 1)
+        std::cout << ", ";
+    }
+    std::cout << "]";
   }
-};
-
-class UndefValue : public ConstantData
-{
-  UndefValue(Type *Ty) : ConstantData(Ty) { name = "undef"; }
-
-public:
-  static UndefValue *Get(Type *Ty);
-
-  virtual UndefValue *clone(std::unordered_map<Operand, Operand> &) override;
-  void print();
 };
 
 class Var : public User
@@ -114,19 +83,46 @@ public:
   };
 
   virtual Value *clone(std::unordered_map<Operand, Operand> &) override;
-  void print();
+  void print()
+  {
+    Value::print();
+    if (usage == GlobalVar)
+      std::cout << " = global ";
+    else if (usage == Constant)
+      std::cout << " = constant ";
+    else /* if(usage==Param) */
+      return;
+    auto tp = dynamic_cast<PointerType *>(GetType());
+    assert(tp != nullptr && "Variable Must Be a Pointer Type to Inner Content!");
+    tp->GetSubType()->print();
+    std::cout << " ";
+    if (useruselist.size() != 0)
+    {
+      auto init = GetOperand(0);
+      if (auto array_init = dynamic_cast<Initializer *>(init))
+        array_init->print();
+      else
+        init->print();
+    }
+    else
+      std::cout << "zeroinitializer";
+    std::cout << '\n';
+  }
 };
 
-class BuiltinFunc : public Value
+class UndefValue : public ConstantData
 {
-  BuiltinFunc(Type *, std::string);
+  UndefValue(Type *Ty) : ConstantData(Ty) { name = "undef"; }
 
 public:
-  static bool CheckBuiltin(std::string);
-  static BuiltinFunc *GetBuiltinFunc(std::string);
-  static CallInst *BuiltinTransform(CallInst *);
-  static Instruction *GenerateCallInst(std::string, std::vector<Operand> args);
-  virtual BuiltinFunc *clone(std::unordered_map<Operand, Operand> &) override { return this; }
+  static UndefValue *Get(Type *Ty);
+
+  virtual UndefValue *clone(std::unordered_map<Operand, Operand> &) override;
+  void print()
+  {
+    dynamic_cast<Value *>(this)->print();
+    return;
+  }
 };
 
 // 所有Inst
@@ -138,7 +134,22 @@ public:
   LoadInst(Operand _src);
 
   LoadInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = load ";
+    type->print();
+    std::cout << ", ";
+    for (auto &i : useruselist)
+    {
+      i->GetValue()->GetType()->print();
+      std::cout << " ";
+      i->GetValue()->print();
+      if (i.get() != useruselist.back().get())
+        std::cout << ", ";
+    }
+    std::cout << '\n';
+  }
 };
 
 class StoreInst : public Instruction
@@ -152,7 +163,19 @@ public:
   virtual void test() {}
   Operand GetDef() final;
   StoreInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
-  void print() final;
+  void print() final
+  {
+    std::cout << "store ";
+    for (auto &i : useruselist)
+    {
+      i->GetValue()->GetType()->print();
+      std::cout << " ";
+      i->GetValue()->print();
+      if (i.get() != useruselist.back().get())
+        std::cout << ", ";
+    }
+    std::cout << '\n';
+  }
 };
 
 class AllocaInst : public Instruction
@@ -165,7 +188,13 @@ public:
 
   bool isUsed();
   AllocaInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = alloca ";
+    dynamic_cast<PointerType *>(type)->GetSubType()->print();
+    std::cout << "\n";
+  }
 };
 
 class CallInst : public Instruction
@@ -175,7 +204,26 @@ public:
   CallInst(Value *_func, std::vector<Operand> &_args, std::string label = "");
 
   CallInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
-  void print() final;
+  void print() final
+  {
+    if (type != VoidType::NewVoidTypeGet())
+    {
+      Value::print();
+      std::cout << " = ";
+    }
+    std::cout << "call ";
+    for (auto &i : useruselist)
+    {
+      i->GetValue()->GetType()->print();
+      std::cout << " ";
+      i->GetValue()->print();
+      if (i.get() == useruselist.front().get())
+        std::cout << "(";
+      else if (i.get() != useruselist.back().get())
+        std::cout << ", ";
+    }
+    std::cout << ")\n";
+  }
 };
 
 class RetInst : public Instruction
@@ -188,7 +236,20 @@ public:
   Operand GetDef() final;
 
   RetInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    std::cout << "ret ";
+    for (auto &i : useruselist)
+    {
+      i->GetValue()->GetType()->print();
+      std::cout << " ";
+      i->GetValue()->print();
+      std::cout << " ";
+    }
+    if (useruselist.empty())
+      std::cout << "void";
+    std::cout << '\n';
+  }
 };
 
 class CondInst : public Instruction
@@ -200,7 +261,26 @@ public:
   Operand GetDef() final;
 
   CondInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    std::cout << "br ";
+    bool flag = 0;
+    for (auto &i : useruselist)
+    {
+      if (flag == 0)
+      {
+        i->GetValue()->GetType()->print();
+        std::cout << " ";
+        flag = 1;
+      }
+      else
+        std::cout << "label ";
+      i->GetValue()->print();
+      if (i.get() != useruselist.back().get())
+        std::cout << ", ";
+    }
+    std::cout << '\n';
+  }
 };
 
 class UnCondInst : public Instruction
@@ -212,7 +292,17 @@ public:
   Operand GetDef() final;
 
   UnCondInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    std::cout << "br ";
+    for (auto &i : useruselist)
+    {
+      std::cout << "label ";
+      i->GetValue()->print();
+      std::cout << " ";
+    }
+    std::cout << '\n';
+  }
 };
 
 class BinaryInst : public Instruction
@@ -243,7 +333,149 @@ private:
 
 public:
   BinaryInst(Type *_tp) : Instruction(_tp, Op::BinaryUnknown) {};
-  BinaryInst(Operand _A, Operation _op, Operand _B, bool Atom = false);
+  BinaryInst(Operand _A, Operation __op, Operand _B, bool Atom = false);
+  BinaryInst *clone(std::unordered_map<Operand, Operand> &) override;
+  void print() final
+  {
+    Value::print();
+    IR_DataType tp = useruselist[0]->GetValue()->GetTypeEnum();
+    std::cout << " = ";
+    switch (op)
+    {
+    case BinaryInst::Op_Add:
+      if (!this->Atomic)
+      {
+        if (useruselist[0]->GetValue()->GetTypeEnum() == IR_Value_INT)
+          std::cout << "add ";
+        else
+          std::cout << "fadd ";
+      }
+      else
+      {
+        std::cout << "atomicadd ";
+      }
+      break;
+    case BinaryInst::Op_Sub:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "sub ";
+      else
+        std::cout << "fsub ";
+      break;
+    case BinaryInst::Op_Mul:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "mul ";
+      else
+        std::cout << "fmul ";
+      break;
+    case BinaryInst::Op_Div:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "sdiv ";
+      else
+        std::cout << "fdiv ";
+      break;
+    case BinaryInst::Op_Mod:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "srem ";
+      else
+        std::cout << "frem "; /// 应该不存在
+      break;
+    case BinaryInst::Op_And:
+      std::cout << "and ";
+      break;
+    case BinaryInst::Op_Or:
+      std::cout << "or ";
+      break;
+    case BinaryInst::Op_Xor:
+      std::cout << "xor ";
+      break;
+    case BinaryInst::Op_E:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "i";
+      else
+        std::cout << "f";
+      std::cout << "cmp ";
+      if (useruselist[0]->GetValue()->GetTypeEnum() == IR_Value_Float)
+        std::cout << "u";
+      std::cout << "eq ";
+      break;
+    case BinaryInst::Op_NE:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "i";
+      else
+        std::cout << "f";
+      std::cout << "cmp ";
+      if (useruselist[0]->GetValue()->GetTypeEnum() == IR_Value_Float)
+        std::cout << "u";
+      std::cout << "ne ";
+      break;
+    case BinaryInst::Op_G:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "i";
+      else
+        std::cout << "f";
+      std::cout << "cmp ";
+      if (useruselist[0]->GetValue()->GetTypeEnum() == IR_Value_Float)
+        std::cout << "ugt ";
+      else
+        std::cout << "sgt ";
+      break;
+    case BinaryInst::Op_GE:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "i";
+      else
+        std::cout << "f";
+      std::cout << "cmp ";
+      if (useruselist[0]->GetValue()->GetTypeEnum() == IR_Value_Float)
+        std::cout << "uge ";
+      else
+        std::cout << "sge ";
+      break;
+    case BinaryInst::Op_L:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "i";
+      else
+        std::cout << "f";
+      std::cout << "cmp ";
+      if (useruselist[0]->GetValue()->GetTypeEnum() == IR_Value_Float)
+        std::cout << "ult ";
+      else
+        std::cout << "slt ";
+      break;
+    case BinaryInst::Op_LE:
+      if (tp == IR_Value_INT || tp == IR_INT_64)
+        std::cout << "i";
+      else
+        std::cout << "f";
+      std::cout << "cmp ";
+      if (useruselist[0]->GetValue()->GetTypeEnum() == IR_Value_Float)
+        std::cout << "ule ";
+      else
+        std::cout << "sle ";
+      break;
+    default:
+      break;
+    }
+    if (this->Atomic)
+    {
+      useruselist[0]->GetValue()->GetType()->print();
+      std::cout << " ";
+      useruselist[0]->GetValue()->print();
+      std::cout << ", ";
+      useruselist[1]->GetValue()->GetType()->print();
+      std::cout << " ";
+      useruselist[1]->GetValue()->print();
+      std::cout << '\n';
+    }
+    else
+    {
+      useruselist[0]->GetValue()->GetType()->print();
+      std::cout << " ";
+      useruselist[0]->GetValue()->print();
+      std::cout << ", ";
+      useruselist[1]->GetValue()->print();
+      std::cout << '\n';
+    }
+  }
 };
 
 class ZextInst : public Instruction
@@ -253,7 +485,13 @@ public:
   ZextInst(Operand ptr);
 
   ZextInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = zext i1 ";
+    useruselist[0]->GetValue()->print();
+    std::cout << " to i32\n";
+  }
 };
 
 class SextInst : public Instruction
@@ -264,7 +502,13 @@ public:
   SextInst(Operand ptr);
 
   SextInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = sext i32 ";
+    useruselist[0]->GetValue()->print();
+    std::cout << " to i64\n";
+  }
 };
 
 class TruncInst : public Instruction
@@ -274,7 +518,13 @@ public:
   TruncInst(Operand ptr);
 
   TruncInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = trunc i64 ";
+    useruselist[0]->GetValue()->print();
+    std::cout << " to i32\n";
+  }
 };
 
 class MaxInst : public Instruction
@@ -284,7 +534,24 @@ public:
   MaxInst(Operand _A, Operand _B);
 
   MaxInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = call ";
+    this->type->print();
+    if (this->type->GetTypeEnum() == IR_Value_INT)
+      std::cout << " @max(";
+    else if (this->type->GetTypeEnum() == IR_Value_Float)
+      std::cout << " @fmax(";
+    useruselist[0]->GetValue()->GetType()->print();
+    std::cout << " ";
+    useruselist[0]->GetValue()->print();
+    std::cout << ", ";
+    useruselist[1]->GetValue()->GetType()->print();
+    std::cout << " ";
+    useruselist[1]->GetValue()->print();
+    std::cout << ")\n";
+  }
 };
 
 class MinInst : public Instruction
@@ -294,7 +561,24 @@ public:
   MinInst(Operand _A, Operand _B);
 
   MinInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = call ";
+    this->type->print();
+    if (this->type->GetTypeEnum() == IR_Value_INT)
+      std::cout << " @min(";
+    else if (this->type->GetTypeEnum() == IR_Value_Float)
+      std::cout << " @fmin(";
+    useruselist[0]->GetValue()->GetType()->print();
+    std::cout << " ";
+    useruselist[0]->GetValue()->print();
+    std::cout << ", ";
+    useruselist[1]->GetValue()->GetType()->print();
+    std::cout << " ";
+    useruselist[1]->GetValue()->print();
+    std::cout << ")\n";
+  }
 };
 
 class SelectInst : public Instruction
@@ -304,7 +588,23 @@ public:
   SelectInst(Operand _cond, Operand _true, Operand _false);
 
   SelectInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = select ";
+    useruselist[0]->GetValue()->GetType()->print();
+    std::cout << " ";
+    useruselist[0]->GetValue()->print();
+    std::cout << ", ";
+    useruselist[1]->GetValue()->GetType()->print();
+    std::cout << " ";
+    useruselist[1]->GetValue()->print();
+    std::cout << ", ";
+    useruselist[2]->GetValue()->GetType()->print();
+    std::cout << " ";
+    useruselist[2]->GetValue()->print();
+    std::cout << '\n';
+  }
 };
 
 class GepInst : public Instruction
@@ -319,7 +619,22 @@ public:
   std::vector<Operand> GetIndexs();
 
   GepInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = getelementptr inbounds ";
+    dynamic_cast<HasSubType *>(useruselist[0]->GetValue()->GetType())
+        ->GetSubType()
+        ->print();
+    for (int i = 0; i < useruselist.size(); i++)
+    {
+      std::cout << ", ";
+      useruselist[i]->GetValue()->GetType()->print();
+      std::cout << " ";
+      useruselist[i]->GetValue()->print();
+    }
+    std::cout << '\n';
+  }
 };
 
 // 类型转换指令
@@ -332,7 +647,21 @@ public:
     add_use(_A);
   }
   FP2SIInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = fptosi ";
+    for (auto &i : useruselist)
+    {
+      i->GetValue()->GetType()->print();
+      std::cout << " ";
+      i->GetValue()->print();
+      std::cout << " ";
+    }
+    std::cout << "to ";
+    type->print();
+    std::cout << "\n";
+  }
 };
 
 class SI2FPInst : public Instruction
@@ -344,7 +673,21 @@ public:
     add_use(_A);
   }
   SI2FPInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  void print() final
+  {
+    Value::print();
+    std::cout << " = sitofp ";
+    for (auto &i : useruselist)
+    {
+      i->GetValue()->GetType()->print();
+      std::cout << " ";
+      i->GetValue()->print();
+      std::cout << " ";
+    }
+    std::cout << "to ";
+    type->print();
+    std::cout << '\n';
+  }
 };
 
 Operand ToFloat(Operand op, BasicBlock *block);
@@ -362,6 +705,191 @@ public:
   PhiInst(Instruction *BeforeInst);
 
   static PhiInst *Create(Type *type, int Num, std::string name, BasicBlock *BB);
-  PhiInst *clone(std::unordered_map<Operand, Operand> &) override;
-  void print() final;
+  // 暂时使不报错
+  PhiInst *clone(std::unordered_map<Operand, Operand> &) override
+  {
+    return this;
+  }
+  void print() final
+  {
+  }
+};
+
+// BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构
+// 块内是是实现给vector的，双向链表直接继承mylist的，有操作在MyList文件里写
+// 使用的时候根据自己要实现的功能选择合适的数据结构
+class BasicBlock : public Value, public List<BasicBlock, Instruction>, public Node<Function, BasicBlock>
+{
+  // 原来是public
+public:
+  int index; // 基本块序号
+private:
+  int LoopDepth; // 嵌套深度
+  bool visited;  // 是否被访问过
+  // int index;      // 基本块序号
+  bool reachable; // 是否可达
+  int size_Inst = 0;
+  // BasicBlock包含Instruction
+  using InstPtr = std::unique_ptr<Instruction>;
+  // 当前基本块的指令
+  std::vector<InstPtr> instructions;
+  // 前驱&后续基本块列表
+  std::vector<BasicBlock *> PredBlocks = {};
+  std::vector<BasicBlock *> NextBlocks = {};
+
+public:
+  // 获取当前基本块的指令
+  std::vector<InstPtr> &GetInsts();
+
+  BasicBlock();          // 构造函数
+  virtual ~BasicBlock(); // 析构函数
+
+  virtual void init_Insts(); // 初始化指令
+
+  // 复制mylist
+  BasicBlock *clone(std::unordered_map<Operand, Operand> &mapping) override;
+
+  virtual void print();
+
+  // 获取后继基本块列表
+  std::vector<BasicBlock *> GetNextBlocks() const;
+
+  // 获取前驱基本块
+  const std::vector<BasicBlock *> &GetPredBlocks() const;
+
+  // 添加后继基本块
+  void AddNextBlock(BasicBlock *block);
+
+  // 添加前驱基本块
+  void AddPredBlock(BasicBlock *pre);
+
+  // 移除前驱基本块
+  void RemovePredBlock(BasicBlock *pre);
+
+  bool is_empty_Insts() const; // 判断指令是否为空
+
+  // 获取基本块的最后一条指令
+  Instruction *GetLastInsts() const;
+
+  // 替换后继块中的某个基本块
+  void ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
+
+  // 替换前驱块中的某个基本块
+  void ReplacePreBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
+
+  // 暂未实现，只有声明
+  Operand GenerateBinaryInst(Operand _A, BinaryInst::Operation op, Operand _B);
+  static Operand GenerateBinaryInst(BasicBlock *, Operand, BinaryInst::Operation, Operand);
+  Operand GenerateSI2FPInst(Operand _A);
+  Operand GenerateFP2SIInst(Operand _A);
+  Operand GenerateLoadInst(Operand);
+  void GenerateStoreInst(Operand, Operand);
+  AllocaInst *GenerateAlloca(Type *_tp, std::string name);
+  void GenerateCondInst(Operand, BasicBlock *, BasicBlock *);
+  void GenerateUnCondInst(BasicBlock *);
+  Operand GenerateCallInst(std::string, std::vector<Operand>, int);
+  void GenerateRetInst(Operand);
+  void GenerateRetInst();
+  Operand GenerateGepInst(Operand);
+  Operand GenerateZextInst(Operand);
+  BasicBlock *GenerateNewBlock();
+  BasicBlock *GenerateNewBlock(std::string);
+  bool IsEnd(); // 是否划分
+};
+
+class BuiltinFunc : public Value
+{
+  BuiltinFunc(Type *, std::string);
+
+public:
+  static bool CheckBuiltin(std::string);
+  static BuiltinFunc *GetBuiltinFunc(std::string);
+  // static CallInst *BuiltinTransform(CallInst *);
+  static Instruction *GenerateCallInst(std::string, std::vector<Operand> args);
+  virtual BuiltinFunc *clone(std::unordered_map<Operand, Operand> &) override { return this; }
+};
+
+// 既提供了vector线性管理BasicBlock，又实现了双向链表
+class Function : public Value, public List<Function, BasicBlock>
+{
+private:
+  using ParamPtr = std::unique_ptr<Value>;
+  using BBPtr = std::shared_ptr<BasicBlock>; // 改变了指针类型
+  std::vector<ParamPtr> params;
+  std::vector<BBPtr> BBs;
+  std::string id;
+  int size_BB = 0;
+
+public:
+  Function(IR_DataType _type, const std::string &_id);
+  ~Function() = default;
+  enum Tag
+  {
+    Normal,
+    UnrollBody,
+    LoopBody,
+    ParallelBody,
+    BuildIn,
+  };
+  Tag tag = Normal;
+  std::vector<ParamPtr> &GetParams();
+  std::vector<BBPtr> &GetBBs();
+  // std::vector<BasicBlock*> &GetBasicBlock();
+  inline Tag &GetTag() { return tag; }
+  std::vector<BasicBlock *> GetRetBlock();
+  auto begin();
+  auto end();
+  void print();
+  virtual Function *clone(std::unordered_map<Value *, Value *> &) override { return this; }
+
+  // 带BB的都是操作vector，List的相关函数在MyLsit
+  void AddBBs(BasicBlock *BB);
+  void PushBothBB(BasicBlock *BB);
+  void InsertBBs(BasicBlock *BB, size_t pos);
+  // 以下两个暂未实现
+  // dh: 这两个我需要你帮助维护 bbs:index这个属性
+  void InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert);
+  void InsertBB(BasicBlock *curr, BasicBlock *insert);
+
+  void RemoveBBs(BasicBlock *BB);
+  void InitBBs();
+  void PushParam(std::string, Var *);
+  void UpdateParam(Var *var) { params.emplace_back(var); }
+  int GetSize() { return size_BB; }
+};
+
+class Module : public SymbolTable
+{
+private:
+  using FunctionPtr = std::unique_ptr<Function>;
+  using GlobalVariblePtr = std::unique_ptr<Var>;
+  std::vector<FunctionPtr> functions;
+  std::vector<GlobalVariblePtr> globalvaribleptr;
+
+public:
+  Module() = default;
+  ~Module() = default;
+  // 中端pass
+  std::set<Function *> hasInlinedFunc;
+  std::set<Function *> inlinedFunc;
+  std::set<Function *> Side_Effect_Funcs;
+
+  std::vector<FunctionPtr> &GetFuncTion() { return functions; }
+  std::vector<std::unique_ptr<Var>> &GetGlobalVariable() { return globalvaribleptr; }
+  void push_func(FunctionPtr func);
+  void PushVar(Var *ptr);
+  Function *GetMain();
+  std::string GetFuncNameEnum(std::string = "");
+  Function &GenerateFunction(IR_DataType _tp, std::string _id);
+
+  // 死代码消除，只有声明，中端待定义
+  void EraseFunction(Function *func);
+  bool EraseDeadFunc();
+  void Test()
+  {
+    for (auto &i : globalvaribleptr)
+      i->print();
+    for (auto &i : functions)
+      i->print();
+  }
 };
