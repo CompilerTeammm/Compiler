@@ -2,7 +2,7 @@
 
 bool PhiElimination::run(Function *f)
 {
-  for (auto bb : *f) // 遍历*f指向的bb类型
+  for (auto bb : *f) // 锟斤拷锟斤拷*f指锟斤拷锟絙b锟斤拷锟斤拷
     runonBasicBlock(bb);
   ///@todo
   return true;
@@ -10,4 +10,6 @@ bool PhiElimination::run(Function *f)
 
 void PhiElimination::runonBasicBlock(BasicBlock *bb)
 {
+
+  
 }

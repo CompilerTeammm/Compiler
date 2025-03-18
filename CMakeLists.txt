@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.11)
+project(Compiler)
+#C++标准
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+# 指定编译类型（可选）
+set(CMAKE_BUILD_TYPE Debug)
+
+# 包含头文件目录
+include_directories(
+  include
+#   include/Backend
+#   include/IR/Analysis
+#   include/IR/Opt
+#   include/RISCVSupport
+  include/lib
+  include/lib/ast
+  yacc           # 包含parser.hpp所在目录
+)
+
+file(GLOB_RECURSE SOURCES
+  main.cpp
+#   IR/*.cpp
+#   backend/*.cpp
+  lib/*.cpp
+  yacc/lex.yy.cpp       # 包含lex生成的代码
+  yacc/parser.cpp       # 包含yacc生成的代码
+)
+
+add_executable(Compiler ${SOURCES})
