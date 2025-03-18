@@ -101,7 +101,50 @@ void dataSegment::GenerateGloblvarList(Module* moudle,RISCVLoweringContext& ctx)
     }
 }
 void dataSegment::GenerateTempvarList(RISCVLoweringContext& ctx){
+    return;//直接返回不执行？
+    for(auto& function:ctx.GetFunctions()){
+        for(auto block:*function){
+            for(mylist<RISCVBasicBlock,RISCVMIR>::iterator it=block->begin();it!=block->end();++it){
+                RISCVMIR* machineinst=*it;
+                if(machineinst->GetOperandSize()=0){
+                    continue;//过滤掉没有操作数的指令
+                }
+                //生成放在只读数据段内容，浮点常量
+                for(int i=0;i<machineinst->GetOperandSize();i++){
+                    if(IMM* used=dynamic_cast<Imm*>(machineinst->GetOperand(i))){
+                        if(auto constfloat=dynamic_cast<ConstIRFloat*>(used->Getdata())){
+                            tempvar* tempfloat=nullptr;
+                            for(int i=0;i<tempvar_list.size();i++){
+                                if(tempvar_list[i]->GetInit()==constfloat->GetVal()){
+                                    tempfloat=tempvar_list[i];
+                                    break;
+                                }
+                            }
+                            if(tempfloat==nullptr){
+                                tempfloat=new tempvar(num_lable,constfloat->GetVal());
+                                this->num_lable++;
+                                tempvar_list.push_back(tempfloat);
+                            }
+                            machineinst->SetOperand(i,tempfloat);//用tempfloat替换机器指令中的立即数
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+std::vector<tempvar*> dataSegment::get_tempvar_list(){
+    return tempvar_list;
+}
+void dataSegment::Change_LoadConstFloat(RISCVMIR* inst,tempvar*tempfloat,mylist<RISCVBasicBlock,RISCVMIR>::iterator it,Imm* used){
+    if(inst->GetOpcode()==RISCVMIR::call){
+        return;
+    }
+    std::string opcode(magic_enum::enum_name(inst->GetOpcode()));
+    RISCVBasicBlock* block=inst->GetParent();
+    std::unique_ptr<RISCVFrame>& frame=block->GetParent()->GetFrame();
     
+
 }
 //textSegment
 textSegment::textSegment(RISCVLoweringContext& ctx){
