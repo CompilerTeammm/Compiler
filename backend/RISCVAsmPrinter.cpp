@@ -144,7 +144,52 @@ void dataSegment::Change_LoadConstFloat(RISCVMIR* inst,tempvar*tempfloat,mylist<
     RISCVBasicBlock* block=inst->GetParent();
     std::unique_ptr<RISCVFrame>& frame=block->GetParent()->GetFrame();
     
+    std::string name=tempfloat->Getname();
+    VirRegister* lui_rd=new VirRegister(RISCVType::riscv_ptr);
+    LARegister* lui_rs==new LARegister(RISCVType::riscv_ptr,name);
+    VirRegister* flw_rd=new VirRegister(RISCVType::riscv_float32);
+    LARegister* flw_rs=new LARegister(RISCVType::riscv_ptr,name,lui_rd);
 
+    RISCVMIR* lui=new RISCVMIR(RISCVMIR::RISCVISA::_lui);
+    lui->SetDef(lui_rd);
+    lui->AddOperand(lui_rs);
+    frame->AddCantBeSpill(lui_rd);
+
+    RISCV* flw=new RISCVMIR(RISCVMIR::RISCVISA::_flw);
+    flw->SetDef(flw_rd);
+    flw->AddOperand(flw_rs);
+    it.insert_before(lui);
+    it.insert_before(flw);
+
+    for(int i=0;i<inst->GetOperandSize();i++){
+        while(inst->GetOperand(i)==used){
+            inst->SetOperand(i,flw_rd);
+        }
+    }
+}
+//print
+void dataSegment::PrintDataSegment_Globval(){
+    for(auto& gvar:globlvar_list){
+        gvar->PrintGloblvar();
+    }
+}
+void dataSegment::PrintDataSegment_Tempvar(){
+    for(auto& gvar:tempvar_list){
+        gvar->PrintTempvar();
+    }
+}
+
+void dataSegment::LegalizeGloablVar(RISCVLoweringContext& ctx){
+    std::map<globlvar*,VirRegister*> attached_normal;
+    std::map<globlvar*,VirRegister*> attached_mem;
+    RISCVFunction* cur_func=ctx.GetCurFunction();
+    for(auto block:*cur_func){
+        attached_normal.clean();
+        attached_mem.clean();
+        for(){
+            
+        }
+    }
 }
 //textSegment
 textSegment::textSegment(RISCVLoweringContext& ctx){
