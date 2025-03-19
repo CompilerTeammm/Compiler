@@ -8,7 +8,7 @@ class BackendDCE : public Liveness, BackEndPass<RISCVFunction>
 public:
   BackendDCE(RISCVFunction *func_, RISCVLoweringContext &_ctx) : Liveness(func_), ctx(_ctx), func(func_)
   {
-    func = ctx.GetCurFunction(); // 获取ctx当前的处理对象
+    func = ctx.GetCurFunction(); // 获取基本块中的操作码
   }
 
   bool RunImpl();
