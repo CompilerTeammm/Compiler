@@ -6,6 +6,7 @@
 #include "../include/Backend/PhiElimination.hpp"
 #include "../include/Backend/BackendDCE.hpp"
 #include "../include/Backend/RegAlloc.hpp"
+#include "../include/Backend/PostRACalleeSavedLegalizer.hpp"
 
 extern std::string asmoutput_path;
 RISCVAsmPrinter *asmprinter = nullptr;
@@ -63,7 +64,7 @@ bool RISCVFunctionLowering::run(Function *m)
   isel.run(m); // 映射
   ///@todo run函数
 
-  // phi函数消除
+  // 寄存器分配前：phi函数消除
   // 将SSA形式的IR转换成非SSA形式的IR
   PhiElimination phi(ctx);
   phi.run(m);
@@ -72,7 +73,7 @@ bool RISCVFunctionLowering::run(Function *m)
   asmprinter->SetTextSegment(new textSegment(ctx));
   asmprinter->GetData()->GenerateTempvarList(ctx);
 
-  // 死代码消除
+  // 寄存器分配前：基于活跃性分析的死代码消除
   bool modified = true;
   while (modified)
   {
@@ -81,22 +82,38 @@ bool RISCVFunctionLowering::run(Function *m)
     modified |= dcebefore.RunImpl();
   }
 
-  // 寄存器分配
+  // ！！！！！寄存器分配！！！！！
   RegAllocImpl regalloc(mfunc, ctx);
   regalloc.RunGCPass();
 
-  // std::cout << std::flush();
+  // std::cout << std::flush();考虑要不要
 
-  // 遍历基本块，进行死代码消除
+  // 寄存器分配后：基本块中操作码的死代码消除
   for (auto block : *(ctx.GetCurFunction()))
   {
     for (auto it = block->begin(); it != block->end();)
     {
       auto inst = *it;
       it++;
+      // MIR中的获取操作码的类型，与死代码进行比较
       if (inst->GetOpcode() == RISCVMIR::RISCVISA::MarkDead)
         delete inst;
     }
   }
+
+  // 寄存器分配后：活跃性变量分析的死代码消除
   modified = true;
+  while (modified)
+  {
+    modified = false;
+    BackendDCE dceafter(ctx.GetCurFunction(), ctx);
+    modified |= dceafter.RunImpl();
+  }
+
+  // 检查操作，保证寄存器分配后的寄存器合法
+  PostRACalleeSavedLegalizer callee_saved_legalizer;
+  callee_saved_legalizer.run(ctx.GetCurFunction()); // 参数说明：当前正在处理的基本块的操作码
+
+  // 生成一个函数调用所需要的完整栈帧
+  ctx.GetCurFunction()->GetFrame();
 }

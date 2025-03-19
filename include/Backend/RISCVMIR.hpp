@@ -208,6 +208,20 @@ public:
 
 class RISCVFunction
 {
+  using RISCVframe = std::unique_ptr<RISCVFrame>;
+  RISCVframe frame;
+
+public:
+  RISCVframe &GetFrame();
+};
+
+// 函数栈帧的创建
+class RISCVFrame
+{
+public:
+  void GenerateFrame();     // 分配内存
+  void GenerateFrameHead(); // SP 和 BP 指针 ，栈首
+  void GenerateFrameTail(); // 栈尾
 };
 
 class RISCVBasicBlock

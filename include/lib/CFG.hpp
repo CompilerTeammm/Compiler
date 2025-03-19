@@ -704,6 +704,7 @@ public:
   PhiInst(Type *_tp);
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
+  void addIncoming(Value* Incoming,BasicBlock* BB);
 
   static PhiInst *Create(Type *type, int Num, std::string name, BasicBlock *BB);
   // 暂时使不报错
