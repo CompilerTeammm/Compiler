@@ -1,4 +1,4 @@
-int a = 10;
+int a = 3;
 int main()
 {
   return 3;

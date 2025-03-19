@@ -1,4 +1,5 @@
 #include "../../include/Backend/RISCVMOperand.hpp"
+#include "../../include/Backend/RISCVFrameContext.hpp"
 
 class RISCVMIR : public list_node<RISCVBasicBlock, RISCVMIR>
 {
@@ -212,7 +213,8 @@ class RISCVFunction
   RISCVframe frame;
 
 public:
-  RISCVframe &GetFrame();
+  RISCVframe &GetFrame();                          // 获取栈帧
+  Register *GetUsedGlobalMapping(RISCVMOperand *); // 操作数->寄存器
 };
 
 // 函数栈帧的创建
@@ -222,6 +224,11 @@ public:
   void GenerateFrame();     // 分配内存
   void GenerateFrameHead(); // SP 和 BP 指针 ，栈首
   void GenerateFrameTail(); // 栈尾
+
+  std::vector<std::unique_ptr<RISCVFrameObject>> &GetFrameObjs();
+
+private:
+  std::vector<std::unique_ptr<RISCVFrameObject>> frameobjs;
 };
 
 class RISCVBasicBlock

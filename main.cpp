@@ -16,6 +16,7 @@
 #include "./include/lib/CoreClass.hpp"
 // #include "../include/ir/opt/New_passManager.hpp"
 #include "./yacc/parser.hpp"
+#include "./include/Backend/RISCVLowering.hpp"
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
@@ -56,6 +57,13 @@ int main(int argc, char **argv)
    // PM->DecodeArgs(argc, argv);
    // PM->RunOnTest();
    Singleton<Module>().Test();
+   fflush(stdout);
+   fclose(stdout);
+
+   // freopen(asmoutput_path.c_str(), "w", stdout);
+   RISCVModuleLowering RISCVAsm;
+   RISCVAsm.run(&Singleton<Module>());
+
    fflush(stdout);
    fclose(stdout);
    return 0;

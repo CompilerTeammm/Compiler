@@ -56,7 +56,7 @@ bool RISCVFunctionLowering::run(Function *m)
   auto mfunc = ctx.mapping(m)->as<RISCVFunction>(); // Value匹配RISCVMOperand
   ///@todo 实现RISCVLoweringContext中的mapping查找
   ///@todo RISCVMOperand中的逻辑，一个实例化？
-  ctx(mfunc); // 重载了
+  ctx(mfunc); //
 
   // 执行指令选择操作
   // IR中的add映射为RISCV的ADD
@@ -73,6 +73,7 @@ bool RISCVFunctionLowering::run(Function *m)
   asmprinter->SetTextSegment(new textSegment(ctx));
   asmprinter->GetData()->GenerateTempvarList(ctx);
 
+  /*
   // 寄存器分配前：基于活跃性分析的死代码消除
   bool modified = true;
   while (modified)
@@ -81,6 +82,7 @@ bool RISCVFunctionLowering::run(Function *m)
     BackendDCE dcebefore(mfunc, ctx); // liveness 活跃性变量分析
     modified |= dcebefore.RunImpl();
   }
+  */
 
   // ！！！！！寄存器分配！！！！！
   RegAllocImpl regalloc(mfunc, ctx);
@@ -88,6 +90,7 @@ bool RISCVFunctionLowering::run(Function *m)
 
   // std::cout << std::flush();考虑要不要
 
+  /*
   // 寄存器分配后：基本块中操作码的死代码消除
   for (auto block : *(ctx.GetCurFunction()))
   {
@@ -109,11 +112,27 @@ bool RISCVFunctionLowering::run(Function *m)
     BackendDCE dceafter(ctx.GetCurFunction(), ctx);
     modified |= dceafter.RunImpl();
   }
+  */
 
+  /*
   // 检查操作，保证寄存器分配后的寄存器合法
   PostRACalleeSavedLegalizer callee_saved_legalizer;
   callee_saved_legalizer.run(ctx.GetCurFunction()); // 参数说明：当前正在处理的基本块的操作码
+  /// @todo run函数算法逻辑
+  */
 
+  /*
   // 生成一个函数调用所需要的完整栈帧
-  ctx.GetCurFunction()->GetFrame();
+  auto &frame = ctx.GetCurFunction()->GetFrame();
+  ///@todo RISCVFrame函数栈帧所需类型
+  frame->GenerateFrame();
+  frame->GenerateFrameHead();
+  frame->GenerateFrameTail();
+  */
+
+  // 优化
+  // ...
+  // 优化
+
+  return false;
 }
