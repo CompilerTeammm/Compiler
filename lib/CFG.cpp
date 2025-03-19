@@ -112,7 +112,10 @@ Var::Var(UsageTag tag, Type *_tp, std::string _id)
       usage(tag)
 {
     if (usage == Param)
+    {
+        name = _id;
         return;
+    }
     if (usage == GlobalVar)
     {
         name = ".G." + _id;
@@ -1103,7 +1106,7 @@ bool BasicBlock::IsEnd()
 
 // Function
 Function::Function(IR_DataType _type, const std::string &_id)
-    : Value(NewTypeFromIRDataType(_type)), id(_id)
+    : Value(NewTypeFromIRDataType(_type), _id)
 {
     // 构造默认vector和mylist双开
     push_back(new BasicBlock());
@@ -1142,7 +1145,7 @@ void Function::print()
             std::cout << ", ";
     }
     std::cout << "){\n";
-    for (auto &BB : (*this)) // 链表打印
+    for (auto BB : (*this)) // 链表打印
         BB->print();
     std::cout << "}\n";
 }

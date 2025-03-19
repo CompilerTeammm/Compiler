@@ -372,6 +372,7 @@ void CompUnit::codegen()
 {
   for (auto &i : DataList)
   {
+    std::cout << "n";
     i->codegen();
   }
 }
@@ -572,7 +573,7 @@ void FuncDef::codegen()
       assert(0);
     }
   };
-
+  // std::cout << name << "hhhhhh";
   auto &func = Singleton<Module>().GenerateFunction(get_type(tp), name);
   Singleton<Module>().layer_increase();
 
