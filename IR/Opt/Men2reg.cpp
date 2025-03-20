@@ -550,15 +550,25 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
     for(int i = 0,e=Allocas.size(); i!=e;i++)
     {
         Instruction* A =Allocas[i];
-
+        // They must be in unreachable basic blocks.
+        // Just delete the user now
         if(A->is_empty())
-            A->ReplaceAllUseWith(UndefValue::Get(A->GetType())),
             delete A;
     }
 
-    bool IsEliminate = true;
+    bool IsEliminated = true;
+    while(IsEliminated){
+        IsEliminated = false;
+        
+        // Iterating over NewPhiNodes is deterministic, so it is safe to simplify and RAUW
+        for(auto e : NewPhiNodes)
+        {
+            PhiInst* PInst = e.second;
+            BasicBlock* bb;
+        }
+    }
 
-
+    
     NewPhiNodes.clear();
 }
 

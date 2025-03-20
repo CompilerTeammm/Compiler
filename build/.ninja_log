@@ -1,9 +1,9 @@
 # ninja log v5
-2	482	1742289919154808632	CMakeFiles/Compiler.dir/lib/Type.cpp.o	ed5137e6028448ac
-2	1165	1742289919839736831	CMakeFiles/Compiler.dir/yacc/lex.yy.cpp.o	e15712c641311fb1
-2	1184	1742289919849809305	CMakeFiles/Compiler.dir/main.cpp.o	2f6b5e718af10cc
-1	1190	1742289919859881780	CMakeFiles/Compiler.dir/lib/CoreClass.cpp.o	cb7b49762f253ed1
-2	1556	1742289920222490824	CMakeFiles/Compiler.dir/yacc/parser.cpp.o	4ab1329d47113942
-1	1909	1742289920585099871	CMakeFiles/Compiler.dir/lib/CFG.cpp.o	f5a858ea77d39a7b
-1	1921	1742289920595172345	CMakeFiles/Compiler.dir/lib/AstNode.cpp.o	a7cecd5aee5a6f9
-1921	2250	1742289920917491497	Compiler	fa075d20223981a6
+2	480	1742454098589706047	CMakeFiles/Compiler.dir/lib/Type.cpp.o	ed5137e6028448ac
+2	1202	1742454099313872421	CMakeFiles/Compiler.dir/lib/CoreClass.cpp.o	cb7b49762f253ed1
+3	1236	1742454099341372410	CMakeFiles/Compiler.dir/yacc/lex.yy.cpp.o	e15712c641311fb1
+2	1250	1742454099359705736	CMakeFiles/Compiler.dir/main.cpp.o	2f6b5e718af10cc
+3	1655	1742454099763038904	CMakeFiles/Compiler.dir/yacc/parser.cpp.o	4ab1329d47113942
+1	1986	1742454100093038771	CMakeFiles/Compiler.dir/lib/AstNode.cpp.o	a7cecd5aee5a6f9
+1	1989	1742454100093038771	CMakeFiles/Compiler.dir/lib/CFG.cpp.o	f5a858ea77d39a7b
+1989	2314	1742454100423038636	Compiler	fa075d20223981a6
