@@ -89,6 +89,7 @@ public:
                     RenamePassData::ValVector& IncomingVals,
                     std::vector<RenamePassData>& WorkList);
 
+    void SimplifyPhi(int& isEliminate, std::vector<PhiInst*> &Erase);
 
 protected:
     Function *_func;
