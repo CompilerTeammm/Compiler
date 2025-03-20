@@ -561,14 +561,51 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
         IsEliminated = false;
         
         // Iterating over NewPhiNodes is deterministic, so it is safe to simplify and RAUW
-        for(auto e : NewPhiNodes)
+        // If the phiInst merges one value and/or undefs,get the value
+
+        
+    }
+
+    // this is to deal some phiInst which unreachable
+    for(auto I = NewPhiNodes.begin(), 
+             E = NewPhiNodes.end();  I != E; ++I){
+        
+        PhiInst* SomePHI = I->second;
+        BasicBlock* BB = SomePHI->GetParent();
+        if(BB->GetFront() != SomePHI)
+            continue;
+        
+        // 这个函数要在phiInst里面实现
+        int  BBnum = _tree->getNode(BB)->predNodes.size(); 
+        if(SomePHI->getNumIncomingValues() == BBnum )
+            continue;
+        
+        std::vector<BasicBlock*> Preds;
+        for(auto e : _tree->getNode(BB)->predNodes)
         {
-            PhiInst* PInst = e.second;
-            BasicBlock* bb;
+            Preds.push_back(e->curBlock);
+        }
+        // 方便二分查找
+        std::sort(Preds.begin(),Preds.end());
+
+        for(int i = 0, e = SomePHI->getNumIncomingValues(); i !=e; i++)
+        {
+            auto it = std::lower_bound(Preds.begin(), Preds.end(),
+                             SomePHI->getIncomingBlock(i));
+            Preds.erase(it);
+        }
+
+        int NumBadPreds = SomePHI->getNumIncomingValues();
+        auto BBI = BB->begin();
+        while ((SomePHI = dynamic_cast<PhiInst*>(*BBI)) &&
+               SomePHI->getNumIncomingValues() == NumBadPreds)
+        {
+            Value *UndefVal = UndefValue::Get(SomePHI->GetType());
+            for (unsigned pred = 0, e = Preds.size(); pred != e; ++pred)
+                SomePHI->addIncoming(UndefVal, Preds[pred]);
         }
     }
 
-    
     NewPhiNodes.clear();
 }
 

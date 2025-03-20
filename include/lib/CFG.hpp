@@ -715,6 +715,10 @@ public:
   void print() final
   {
   }
+
+  ////dh
+  int getNumIncomingValues();
+  BasicBlock* getIncomingBlock(int num);
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构

@@ -3,5 +3,5 @@
 .vscode/launch.json
 dh_test
 testcase
-build/*
+build/
 build
