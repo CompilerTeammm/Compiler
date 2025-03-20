@@ -372,7 +372,7 @@ void CompUnit::codegen()
 {
   for (auto &i : DataList)
   {
-    std::cout << "n";
+    // std::cout << "n";
     i->codegen();
   }
 }
