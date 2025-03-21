@@ -52,6 +52,7 @@ int main(int argc, char **argv)
    yyin = fopen(argv[1], "r");
    yy::parser parse;
    parse();
+   // std::cout << "m";
    Singleton<CompUnit *>()->codegen();
    // auto PM = std::make_unique<_PassManager>();
    // PM->DecodeArgs(argc, argv);

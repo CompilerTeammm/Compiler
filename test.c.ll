@@ -357,5 +357,17 @@ attributes #5 = { nofree nounwind }
 attributes #6 = { nounwind }
 attributes #7 = { cold }
 @.G.a = global i32 10
-define i32 @.2(){
+@.G.arrays = global [2 x i32]  [i32 1, i32 2]
+define i32 @main(i32 %d, i32 %n){
+.2:
+  %.12 = alloca i32
+  %.9 = alloca i32
+  %.7 = alloca i32
+  %.4 = alloca i32
+  store i32 %d, i32* %.4
+  store i32 %n, i32* %.7
+  %.13 = load i32, i32* %.4
+  %.14 = load i32, i32* %.9
+  %.15 = add i32 %.13, %.14
+  ret i32 0 
 }

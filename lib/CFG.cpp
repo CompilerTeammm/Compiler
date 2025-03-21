@@ -112,7 +112,10 @@ Var::Var(UsageTag tag, Type *_tp, std::string _id)
       usage(tag)
 {
     if (usage == Param)
+    {
+        name = _id;
         return;
+    }
     if (usage == GlobalVar)
     {
         name = ".G." + _id;
@@ -675,10 +678,10 @@ SI2FPInst *SI2FPInst::clone(std::unordered_map<Operand, Operand> &mapping)
 }
 
 // BB
-std::vector<BasicBlock::InstPtr> &BasicBlock::GetInsts()
-{
-    return instructions;
-}
+// std::vector<BasicBlock::InstPtr> &BasicBlock::GetInsts()
+// {
+//     return instructions;
+// }
 
 BasicBlock::BasicBlock()
     : Value(VoidType::NewVoidTypeGet()), LoopDepth(0), visited(false), index(0), reachable(false)
@@ -687,12 +690,12 @@ BasicBlock::BasicBlock()
 
 BasicBlock::~BasicBlock() = default;
 
-void BasicBlock::init_Insts()
-{
-    instructions.clear();
-    NextBlocks.clear();
-    PredBlocks.clear();
-}
+// void BasicBlock::init_Insts()
+// {
+//     instructions.clear();
+//     NextBlocks.clear();
+//     PredBlocks.clear();
+// }
 
 BasicBlock *BasicBlock::clone(std::unordered_map<Operand, Operand> &mapping)
 {
@@ -707,11 +710,11 @@ BasicBlock *BasicBlock::clone(std::unordered_map<Operand, Operand> &mapping)
 
 void BasicBlock::print()
 {
-    std::cout << "BasicBlock " << GetName() << " (Index: " << index << ", LoopDepth: " << LoopDepth << "):\n";
-    for (const auto &inst : instructions)
+    std::cout << GetName() << ":\n";
+    for (auto i : (*this))
     {
         std::cout << "  ";
-        inst->print();
+        i->print();
     }
 }
 
@@ -742,15 +745,15 @@ void BasicBlock::RemovePredBlock(BasicBlock *pre)
         PredBlocks.end());
 }
 
-bool BasicBlock::is_empty_Insts() const
-{
-    return instructions.empty();
-}
+// bool BasicBlock::is_empty_Insts() const
+// {
+//     return instructions.empty();
+// }
 
-Instruction *BasicBlock::GetLastInsts() const
-{
-    return is_empty_Insts() ? nullptr : instructions.back().get();
-}
+// Instruction *BasicBlock::GetLastInsts() const
+// {
+//     return is_empty_Insts() ? nullptr : instructions.back().get();
+// }
 
 void BasicBlock::ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
 {
@@ -946,7 +949,8 @@ void BasicBlock::GenerateStoreInst(Operand src, Operand des)
 
     auto storeinst = std::make_unique<StoreInst>(src, des);
     this->push_back(storeinst.get());
-    instructions.emplace_back(std::move(storeinst));
+    // 要同时开启才开
+    //  instructions.emplace_back(std::move(storeinst));
 }
 
 AllocaInst *BasicBlock::GenerateAlloca(Type *_tp, std::string name)
@@ -971,74 +975,97 @@ void BasicBlock::GenerateUnCondInst(BasicBlock *des)
 }
 
 // 根据name生成 CallInst
-Operand BasicBlock::GenerateCallInst(std::string id, std::vector<Operand> args, int run_time)
+// 再改
+Operand BasicBlock::GenerateCallInst(std::string id, std::vector<Operand> args,
+                                     int run_time)
 {
-    static const std::unordered_set<std::string> builtin_functions = {
-        "getint", "getfloat", "getch", "getarray", "getfarray", "putint",
-        "putch", "putarray", "putfloat", "putfarray", "starttime", "stoptime",
-        "putf", "llvm.memcpy.p0.p0.i32"};
+    auto check_builtin = [](std::string _id)
+    {
+        if (_id == "getint")
+            return true;
+        if (_id == "getfloat")
+            return true;
+        if (_id == "getch")
+            return true;
+        if (_id == "getarray")
+            return true;
+        if (_id == "getfarray")
+            return true;
+        if (_id == "putint")
+            return true;
+        if (_id == "putch")
+            return true;
+        if (_id == "putarray")
+            return true;
+        if (_id == "putfloat")
+            return true;
+        if (_id == "putfarray")
+            return true;
+        if (_id == "starttime")
+            return true;
+        if (_id == "stoptime")
+            return true;
+        if (_id == "putf")
+            return true;
+        if (_id == "llvm.memcpy.p0.p0.i32")
+            return true;
+        return false;
+    };
 
-    if (builtin_functions.count(id))
+    if (check_builtin(id))
     {
         if (id == "starttime" || id == "stoptime")
         {
-            assert(args.empty());
+            assert(args.size() == 0);
             args.push_back(ConstIRInt::GetNewConstant(run_time));
         }
 
+        if (id == "putint" || id == "putch" || id == "putarray" ||
+            id == "putfarray")
+        {
+            if (args[0]->GetTypeEnum() == IR_Value_Float)
+                args[0] = GenerateFP2SIInst(args[0]);
+        }
         if (id == "putfloat")
         {
             if (args[0]->GetTypeEnum() == IR_Value_INT)
-            {
                 args[0] = GenerateSI2FPInst(args[0]);
-            }
         }
-        else if (id == "putint" || id == "putch" || id == "putarray" || id == "putfarray")
-        {
-            if (args[0]->GetTypeEnum() == IR_Value_Float)
-            {
-                args[0] = GenerateFP2SIInst(args[0]);
-            }
-        }
-
-        auto call_inst = std::make_unique<CallInst>(BuiltinFunc::GetBuiltinFunc(id), args, "at" + std::to_string(run_time));
-        push_back(call_inst.get());
-        instructions.emplace_back(std::move(call_inst));
-        return instructions.back()->GetDef();
+        auto tmp = new CallInst(BuiltinFunc::GetBuiltinFunc(id), args,
+                                "at" + std::to_string(run_time));
+        push_back(tmp);
+        return tmp->GetDef();
     }
-
-    if (auto func = static_cast<Function *>(Singleton<Module>().GetValueByName(id)))
+    if (auto func =
+            dynamic_cast<Function *>(Singleton<Module>().GetValueByName(id)))
     {
         auto &params = func->GetParams();
         assert(args.size() == params.size());
-
-        auto arg_iter = args.begin();
-        for (auto &param : params)
+        auto i = args.begin();
+        for (auto j = params.begin(); j != params.end(); j++, i++)
         {
-            auto &arg = *arg_iter;
-            auto param_type = param->GetType();
-
-            if (param_type != arg->GetType())
+            auto &ii = *i;
+            auto jj = j->get();
+            if (jj->GetType() != ii->GetType())
             {
-                auto arg_enum = arg->GetType()->GetTypeEnum();
-                auto param_enum = param_type->GetTypeEnum();
-                assert(arg_enum == IR_Value_INT || arg_enum == IR_Value_Float);
-                assert(param_enum == IR_Value_INT || param_enum == IR_Value_Float);
-
-                arg = (param_enum == IR_Value_Float) ? GenerateSI2FPInst(arg) : GenerateFP2SIInst(arg);
+                auto a = ii->GetType()->GetTypeEnum(), b = jj->GetType()->GetTypeEnum();
+                assert(a == IR_Value_INT || a == IR_Value_Float);
+                assert(b == IR_Value_INT || b == IR_Value_Float);
+                if (b == IR_Value_Float)
+                    ii = GenerateSI2FPInst(ii);
+                else
+                    ii = GenerateFP2SIInst(ii);
             }
-            ++arg_iter;
         }
-
-        auto call_inst = std::make_unique<CallInst>(func, args, "at" + std::to_string(run_time));
-        push_back(call_inst.get());
-        instructions.emplace_back(std::move(call_inst)); // 确保生命周期
-        return instructions.back()->GetDef();
+        auto inst = new CallInst(func, args, "at" + std::to_string(run_time));
+        push_back(inst);
+        return inst->GetDef();
     }
-
-    std::cerr << "No Such Function!\n";
-    assert(0);
-    return nullptr;
+    else
+    {
+        std::cerr << "No Such Function!\n";
+        assert(0);
+    }
 }
 
 void BasicBlock::GenerateRetInst()
@@ -1103,7 +1130,7 @@ bool BasicBlock::IsEnd()
 
 // Function
 Function::Function(IR_DataType _type, const std::string &_id)
-    : Value(NewTypeFromIRDataType(_type)), id(_id)
+    : Value(NewTypeFromIRDataType(_type), _id)
 {
     // 构造默认vector和mylist双开
     push_back(new BasicBlock());
@@ -1119,16 +1146,6 @@ std::vector<Function::BBPtr> &Function::GetBBs()
     return BBs;
 }
 
-auto Function::begin()
-{
-    return BBs.begin();
-}
-
-auto Function::end()
-{
-    return BBs.end();
-}
-
 void Function::print()
 {
     std::cout << "define ";
@@ -1142,7 +1159,7 @@ void Function::print()
             std::cout << ", ";
     }
     std::cout << "){\n";
-    for (auto &BB : (*this)) // 链表打印
+    for (auto BB : (*this)) // 链表打印
         BB->print();
     std::cout << "}\n";
 }
@@ -1175,6 +1192,9 @@ void Function::InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert)
 
 void Function::InsertBB(BasicBlock *curr, BasicBlock *insert)
 {
+    insert->GenerateUnCondInst(curr);
+    insert->size_Inst = this->size_BB++;
+    this->PushBothBB(insert);
 }
 
 void Function::RemoveBBs(BasicBlock *BB)
@@ -1209,12 +1229,13 @@ void Function::PushParam(std::string name, Var *var)
 std::vector<BasicBlock *> Function::GetRetBlock()
 {
     std::vector<BasicBlock *> tmp;
-    for (auto &BB : *this)
+    for (const auto bb : *this)
     {
-        auto *inst = BB->GetBack();
-        if (auto *retInst = dynamic_cast<RetInst *>(inst))
+        auto inst = bb->GetBack();
+        if (dynamic_cast<RetInst *>(inst))
         {
-            tmp.push_back(BB.get());
+            tmp.push_back(bb);
+            continue;
         }
     }
     return tmp;

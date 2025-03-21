@@ -399,7 +399,7 @@ private:
 
 public:
   InitVal() = default;
-  explicit InitVal(BaseAST *_data);
+  InitVal(BaseAST *_data);
   Operand GetFirst(BasicBlock *block);
   Operand GetOperand(Type *_tp, BasicBlock *block);
   void print(int x)

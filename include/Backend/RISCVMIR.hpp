@@ -1,5 +1,6 @@
 #include "../../include/Backend/RISCVMOperand.hpp"
 #include "../../include/Backend/RISCVFrameContext.hpp"
+#include "../../include/lib/MyList.hpp"
 
 class RISCVMIR : public list_node<RISCVBasicBlock, RISCVMIR>
 {
@@ -205,6 +206,8 @@ public:
   {
     return opcode;
   };
+
+  RISCVMOperand *&GetDef(); // 转成MIR
 };
 
 class RISCVFunction
@@ -215,6 +218,9 @@ class RISCVFunction
 public:
   RISCVframe &GetFrame();                          // 获取栈帧
   Register *GetUsedGlobalMapping(RISCVMOperand *); // 操作数->寄存器
+
+  std::unordered_map<RISCVMOperand *, VirRegister *> usedGlobals; // 操作码和虚拟寄存器的映射
+  RISCVMIR *CreateSpecialUsageMIR(RISCVMOperand *);
 };
 
 // 函数栈帧的创建
@@ -233,4 +239,6 @@ private:
 
 class RISCVBasicBlock
 {
+public:
+  static RISCVBasicBlock *CreateRISCVBasicBlock();
 };

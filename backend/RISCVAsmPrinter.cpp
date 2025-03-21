@@ -150,12 +150,12 @@ void dataSegment::Change_LoadConstFloat(RISCVMIR* inst,tempvar*tempfloat,mylist<
     VirRegister* flw_rd=new VirRegister(RISCVType::riscv_float32);
     LARegister* flw_rs=new LARegister(RISCVType::riscv_ptr,name,lui_rd);
 
-    RISCVMIR* lui=new RISCVMIR(RISCVMIR::RISCVISA::_lui);
+    RISCVMIR* lui=new RISCVMIR(RISCVMIR::RISCVRISCVMIR::RISCVISA::_lui);
     lui->SetDef(lui_rd);
     lui->AddOperand(lui_rs);
     frame->AddCantBeSpill(lui_rd);
 
-    RISCV* flw=new RISCVMIR(RISCVMIR::RISCVISA::_flw);
+    RISCV* flw=new RISCVMIR(RISCVMIR::RISCVRISCVMIR::RISCVISA::_flw);
     flw->SetDef(flw_rd);
     flw->AddOperand(flw_rs);
     it.insert_before(lui);
@@ -178,24 +178,24 @@ void dataSegment::PrintDataSegment_Tempvar(){
         gvar->PrintTempvar();
     }
 }
-
-void dataSegment::LegalizeGloablVar(RISCVLoweringContext& ctx){
-    std::map<globlvar*,VirRegister*> attached_normal;
-    std::map<globlvar*,VirRegister*> attached_mem;
-    RISCVFunction* cur_func=ctx.GetCurFunction();
-    for(auto block:*cur_func){
-        attached_normal.clean();
-        attached_mem.clean();
-        for(mylist<RISCVBasicBlock,RISCVMIR>::iterator it=block->begin();it!=block->end();++it) {
+//将全局变量转换为 RISC-V 兼容的地址访问方式（lui + ld/sd 或 lui + addi）。
+void dataSegment::LegalizeGloablVar(RISCVLoweringContext& ctx) {
+    std::map<globlvar*, VirRegister*> attached_normal;
+    std::map<globlvar*, VirRegister*> attached_mem;
+    RISCVFunction* cur_func = ctx.GetCurFunction();
+    for(auto block: *cur_func) {
+        attached_normal.clear();
+        attached_mem.clear();
+        for(List<RISCVBasicBlock,RISCVMIR>::iterator it=block->begin();it!=block->end();++it) {
             auto inst = *it;
             for(int i=0; i<inst->GetOperandSize(); i++) {
                 if(globlvar* gvar = dynamic_cast<globlvar*>(inst->GetOperand(i))) {
                     std::unique_ptr<RISCVFrame>& frame = cur_func->GetFrame();
-                    ISA opcode = inst->GetOpcode();
-                    if(opcode == ISA::call) {continue;}
+                    RISCVMIR::RISCVISA opcode = inst->GetOpcode();
+                    if(opcode == RISCVMIR::RISCVISA::call) {continue;}
                     // lui .1, %hi(name)
                     // ld/sd .2, %lo(name)(.1)
-                    if((opcode>ISA::BeginMem&&opcode<ISA::EndMem) || (opcode>ISA::BeginFloatMem&&opcode<ISA::EndFloatMem)) {
+                    if((opcode>RISCVMIR::RISCVISA::BeginMem&&opcode<RISCVMIR::RISCVISA::EndMem) || (opcode>RISCVMIR::RISCVISA::BeginFloatMem&&opcode<RISCVMIR::RISCVISA::EndFloatMem)) {
                         if(attached_mem.find(gvar)!=attached_mem.end()) {
                             LARegister* lo_lareg = new LARegister(RISCVType::riscv_ptr, gvar->GetName(),dynamic_cast<VirRegister*>(attached_mem[gvar]));
                             inst->SetOperand(i, lo_lareg);
@@ -246,7 +246,7 @@ void dataSegment::LegalizeGloablVar(RISCVLoweringContext& ctx){
         }
     }
 }
-//globlvar
+//globlvar 
 globlvar::globlvar(Variable* data):RISCVGlobalObject(data->GetType(),data->GetName()){
     IR_DataType tp=(dynamic_cast<PointerType*>(data->GetType()))->GetSubType()->GetTypeEnum();
     if(tp==IR_DataType::IR_Value_INT||tp==IR_DataType::IR_Value_Float){
@@ -312,12 +312,119 @@ globlvar::globlvar(Variable* data):RISCVGlobalObject(data->GetType(),data->GetNa
             } 
         }
         else {
-            // undefined arr;
             size = (dynamic_cast<PointerType*>(data->GetType()))->GetSubType()->get_size();
-            // sec = "bss";
         }
     }
     else align = -1;//Error
+}
+//递归处理 Initializer* 结构，填充 init_vector。
+void globlvar::generate_array_init(Initializer* arry_init,Type* basetype){
+    int init_size=arry_init->size();
+    int limi=dynamic_cast<ArrayType*>(arry_init->GetType())->GetNum();
+    if(init_size==0){
+        auto zero_num=arry_init->GetType()->GetSize()/basetype->GetSize();
+        for(auto i=0;i<zero_num;i++){
+            if(basetype->GetTypeEnum()==IR_Value_INT){
+                init_vector.push_back(static_cast<int>(0));
+            }else{
+                init_vector.push_back(static_cast<float>(0));
+            }
+        }
+    }else{
+        for(int i=0;i<limi;i++){
+            if(i<init_size) {
+                if(auto inits=dynamic_cast<Initializer*>((*arry_init)[i]))
+                    generate_array_init(inits, basetype);
+                else {
+                        if(basetype->GetTypeEnum() == IR_Value_INT) {
+                            std::string num = (*arry_init)[i]->GetName();
+                            int init = std::stoi(num);
+                            init_vector.push_back(init);
+                        }
+                        else if (basetype->GetTypeEnum() == IR_Value_Float) {
+                            ConstIRFloat* temp = dynamic_cast<ConstIRFloat*>((*arry_init)[i]);
+                            float init = temp->GetVal();
+                            init_vector.push_back(init);
+                        }                    
+                }
+            }
+            else {
+                Type* temptp = dynamic_cast<ArrayType*>(arry_init->GetType())->GetSubType();
+                size_t zeronum = temptp->GetSize() / basetype->GetSize();
+                    for(int i=0; i<zeronum; i++) {
+                    if (basetype->GetTypeEnum() == IR_Value_INT) {
+                        init_vector.push_back(static_cast<int>(0));
+                    }
+                    else if (basetype->GetTypeEnum() == IR_Value_Float) {
+                        init_vector.push_back(static_cast<float>(0));   
+                    }
+                }
+            }
+        }
+    }
+}
+void globlvar::PrintGloblvar(){
+    if(init_vector.empty()){
+        std::cout << "    .globl  " << this->GetName() << std::endl;
+        PrintSegmentType(BSS, oldtype);
+        std::cout << "    .align  " << align << std::endl;
+        std::cout << "    .type  " << this->GetName() << ", @" << ty << std::endl;
+        std::cout << "    .size  " << this->GetName() << ", " << size << std::endl;
+        std::cout << this->GetName() << ":" << std::endl;
+        std::cout << "    .zero  " << size << std::endl;
+    }else{
+        std::cout << "    .globl  " << this->GetName() << std::endl;
+        PrintSegmentType(DATA, oldtype);
+        std::cout << "    .align  " << align << std::endl;
+        std::cout << "    .type  " << this->GetName() << ", @" << ty << std::endl;
+        std::cout << "    .size  " << this->GetName() << ", " << size << std::endl;
+        std::cout << this->GetName() << ":" << std::endl;
+        int zero_count=0;
+        for(auto& init:init_vector){
+            bool is_zero = std::visit([](auto&& value){return value==0;}, init);
+            if(is_zero) {
+                zero_count+=4;
+            }
+            else {
+                if(zero_count!=0) {
+                    std::cout << "    .zero  " << zero_count << std::endl;
+                    zero_count = 0;
+                }
+    
+                if(std::holds_alternative<int>(init)) {
+                    std::cout << "    .word  " << std::get<int>(init) << std::endl;
+                }
+                else {
+                    //float type
+                    FloatBits bits;
+                    bits.floatValue = std::get<float>(init); 
+                    std::string binaryString = std::bitset<32>(bits.intBits).to_string();
+                    int decNum = binaryToDecimal(binaryString);
+                    std::cout << "    .word  " << decNum << std::endl;
+                }
+            }
+            if (&init == &init_vector.back() && is_zero) {
+                std::cout << "    .zero  " << zero_count << std::endl;
+            }
+        }
+    }
+}
+//tempvar
+tempvar::tempvar(int num_lable,float init):RISCVTempFloatObject("file"),num_lable(num_lable),align(2),init(init){
+    this->GetName()=".LC"+ std::to_string(num_lable);
+}
+std::string tempvar::Getname(){
+    return this->GetName();
+}
+void tempvar::PrintTempvar(){
+    PrintSegmentType(RODATA, oldtype);
+    std::cout << "    .align  " << align << std::endl;
+    std::cout << this->GetName() << ":" << std::endl;
+    FloatBits bits;
+    bits.floatValue = init;
+    std::string binaryString = std::bitset<32>(bits.intBits).to_string();
+    int decNum = binaryToDecimal(binaryString);
+    std::cout << "    .word  " << decNum << std::endl;
 }
 //textSegment
 textSegment::textSegment(RISCVLoweringContext& ctx){

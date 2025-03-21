@@ -704,7 +704,7 @@ public:
   PhiInst(Type *_tp);
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
-  void addIncoming(Value* Incoming,BasicBlock* BB);
+  void addIncoming(Value *Incoming, BasicBlock *BB);
 
   static PhiInst *Create(Type *type, int Num, std::string name, BasicBlock *BB);
   // 暂时使不报错
@@ -715,6 +715,10 @@ public:
   void print() final
   {
   }
+
+  ////dh
+  int getNumIncomingValues();
+  BasicBlock* getIncomingBlock(int num);
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构
@@ -724,17 +728,16 @@ class BasicBlock : public Value, public List<BasicBlock, Instruction>, public No
 {
   // 原来是public
 public:
-  int index; // 基本块序号
-private:
-  int LoopDepth; // 嵌套深度
-  bool visited;  // 是否被访问过
+  int index;         // 基本块序号
+  int LoopDepth = 0; // 嵌套深度
+  bool visited;      // 是否被访问过
   // int index;      // 基本块序号
   bool reachable; // 是否可达
   int size_Inst = 0;
   // BasicBlock包含Instruction
   using InstPtr = std::unique_ptr<Instruction>;
   // 当前基本块的指令
-  std::vector<InstPtr> instructions;
+  // std::vector<InstPtr> instructions = {};
   // 前驱&后续基本块列表
   std::vector<BasicBlock *> PredBlocks = {};
   std::vector<BasicBlock *> NextBlocks = {};
@@ -746,7 +749,7 @@ public:
   BasicBlock();          // 构造函数
   virtual ~BasicBlock(); // 析构函数
 
-  virtual void init_Insts(); // 初始化指令
+  // virtual void init_Insts(); // 初始化指令
 
   // 复制mylist
   BasicBlock *clone(std::unordered_map<Operand, Operand> &mapping) override;
@@ -839,8 +842,6 @@ public:
   // std::vector<BasicBlock*> &GetBasicBlock();
   inline Tag &GetTag() { return tag; }
   std::vector<BasicBlock *> GetRetBlock();
-  auto begin();
-  auto end();
   void print();
   virtual Function *clone(std::unordered_map<Value *, Value *> &) override { return this; }
 
