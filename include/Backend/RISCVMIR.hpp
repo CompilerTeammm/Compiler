@@ -201,6 +201,7 @@ public:
     EndPipeline
 
   } opcode;
+  RISCVMIR(RISCVISA _isa) : opcode(_isa) {};
 
   inline RISCVISA &GetOpcode()
   {

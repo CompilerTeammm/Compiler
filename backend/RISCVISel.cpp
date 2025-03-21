@@ -1,6 +1,7 @@
 #include "../include/Backend/RISCVISel.hpp"
 #include "../include/Backend/RISCVContext.hpp"
 #include "../include/Backend/RISCVAsmPrinter.hpp"
+#include "../include/Backend/RISCVMIR.hpp"
 
 // ≥ı ºªØ RISCVLoweringContext ∫Õ RISCVAsmPrinter
 RISCVISel::RISCVISel(RISCVLoweringContext &_ctx, RISCVAsmPrinter *&asmprinter) : ctx(_ctx), asmprinter(asmprinter) : ctx(_ctx), asmprinter(asmprinter) {};
@@ -9,7 +10,7 @@ bool RISCVISel::run(Funciton *m)
 {
 }
 
-void InstLowering(User *inst)
+void RISCVISel::InstLowering(Instruction *inst)
 {
   if (auto store = dynamic_cast<LoadInst *>(inst))
     InstLowering(store);
@@ -47,4 +48,40 @@ void InstLowering(User *inst)
     InstLowering(phi);
   else
     assert(0 && "Invalid Inst Type");
+}
+
+void RISCVISel::InstLowering(LoadInst *inst)
+{
+  if (inst->GetType() == IntType::NewIntTypeGet())
+  {
+    ctx(Builder(RISCVMIR::_lw, inst));
+  }
+  else if (inst->GetType() == FloatType::NewFloatTypeGet())
+  {
+    ctx(Builder(RISCVMIR::_flw, inst));
+  }
+  else if (PointerType *ptrtype = dynamic_cast<PointerType *>(inst->GetType()))
+  {
+    ctx(Builder(RISCVMIR::_ld, inst));
+  }
+  else
+    assert(0 && "invalid load type");
+}
+
+void RISCVISel::InstLowering(AllocaInst *inst)
+{
+  ///@todo
+}
+
+void RISCVISel::InstLowering(CallInst *inst)
+{
+  ///@todo
+}
+
+void RISCVISel::InstLowering(RetInst *inst)
+{
+  if (inst->GetUserUseList().empty() || inst->GetOperand(0)->inUndefval())
+  {
+    auto minst = new RISCVMIR(RISCVMIR::ret);
+  }
 }

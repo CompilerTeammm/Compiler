@@ -7,6 +7,11 @@ class RISCVISel : public BackEndPass<Function>
   RISCVLoweringContext &ctx;
   RISCVAsmPrinter *&asmprinter;
 
+  RISCVMIR *Builder(RISCVMIR::RISCVISA, Instruction *);
+  RISCVMIR *Builder_withoutDef(RISCVMIR::RISCVISA, Instruction *);
+  RISCVMIR *Builder(RISCVMIR::RISCVISA, std::initializer_list<RISCVMOperand *>);
+  RISCVMIR *Builder_withoutDef(RISCVMIR::RISCVISA _isa, std::initializer_list<RISCVMOperand *> list);
+
   /*
   //后续研究
   void LowerCallInstParallel(CallInst *); // 并行调用场景
@@ -15,7 +20,7 @@ class RISCVISel : public BackEndPass<Function>
   */
 
   // lowering系列，CFG中
-  void InstLowering(User *);
+  void InstLowering(Instruction *);
   void InstLowering(LoadInst *);
   void InstLowering(AllocaInst *);
   void InstLowering(CallInst *);
