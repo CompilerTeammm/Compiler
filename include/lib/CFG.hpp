@@ -693,32 +693,39 @@ public:
 Operand ToFloat(Operand op, BasicBlock *block);
 Operand ToInt(Operand op, BasicBlock *block);
 
-/// dh
-// 前端给框架？中端写自己要用的？
-/// 函数的实现还没有写
+/// dh 来实现这个
 class PhiInst : public Instruction
 {
-public:
-  int oprandNum;
+private:
+  int oprandNum;  //记录操作数的数目
+  std::vector<Value*> Incomings;  
+  std::map<int,std::pair<Value*,BasicBlock*>> PhiRecord;  //phi [val1,BB1] [val2,BB2]; phi语句类似如此 我要记录这个
+  std::vector<BasicBlock*> IncomingBlocks;
+  std::map<Use*,int> UseRecord;
 
+public:
   PhiInst(Type *_tp);
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
-  void addIncoming(Value *Incoming, BasicBlock *BB);
-
-  static PhiInst *Create(Type *type, int Num, std::string name, BasicBlock *BB);
   // 暂时使不报错
   PhiInst *clone(std::unordered_map<Operand, Operand> &) override
   {
     return this;
   }
   void print() final
-  {
-  }
+  { }
 
-  ////dh
-  int getNumIncomingValues();
+  static PhiInst *Create(Instruction* BeforeInst,BasicBlock* currentBB, std::string Name="");
+  static PhiInst *Create(Instruction* BeforeInst,BasicBlock* currentBB, Type* type, std::string Name="");
+  static PhiInst *Create(Type* type);
+
+  // 增加前驱 to phiInst 的值
+  void addIncoming(Value *Incoming, BasicBlock *PreBB);
+  int getNumIncomingValues()  { return oprandNum; } //
   BasicBlock* getIncomingBlock(int num);
+  Value* getIncomingValue(int num);
+  std::vector<Value*>& RecordIncomingValsA_Blocks();
+  bool IsReplaced();
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构
@@ -817,9 +824,10 @@ public:
 // 既提供了vector线性管理BasicBlock，又实现了双向链表
 class Function : public Value, public List<Function, BasicBlock>
 {
-private:
+public:
   using ParamPtr = std::unique_ptr<Value>;
   using BBPtr = std::shared_ptr<BasicBlock>; // 改变了指针类型
+private:
   std::vector<ParamPtr> params;
   std::vector<BBPtr> BBs;
   std::string id;

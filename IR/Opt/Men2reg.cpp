@@ -69,14 +69,15 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
 bool BlockInfo::isInterestingInstruction(List<BasicBlock, Instruction>::iterator Inst)
 {
     return (dynamic_cast<LoadInst *>(*Inst) &&
-            dynamic_cast<AllocaInst *>((*Inst)->Getuselist()[0]->usee) ||
+            dynamic_cast<AllocaInst *>((*Inst)->GetUserUseList()[0]->usee) ||
         dynamic_cast<StoreInst *>(*Inst) &&
-            dynamic_cast<AllocaInst *>((*Inst)->Getuselist()[1]->usee));
+            dynamic_cast<AllocaInst *>((*Inst)->GetUserUseList()[1]->usee));
 }
 
 // There are blocks which lead to uses,void inserting PHI nodes int the block we don t lead to uses
-void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& DefBlock,
-                        std::set<BasicBlock*>& LiveInBlocks,AllocaInfo& info)
+
+void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst *AI, std::set<BasicBlock *> &DefBlock,
+                         std::set<BasicBlock *> &LiveInBlocks, AllocaInfo &info)
 {
     // we must iterate through the predecessors of blocks where the def is live
     // %a = alloca i32; (store i32 10,i32* %a;) %val = load i32,i32* %a 
@@ -134,7 +135,6 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst* AI,std::set<BasicBlock*>& D
         }
         
     }
-
 }
 
 // 确定load 和 store 指令的先后顺序
@@ -349,6 +349,7 @@ void PromoteMem2Reg::RenamePass(BasicBlock *BB, BasicBlock *Pred,
                     {
                         // 这个逻辑我感觉有大问题吧？？？？
                         int AllocaNum = PhiToAllocaMap[PhiInt];
+                        // add value
                         PhiInt->addIncoming(IncomingVals[AllocaNum],Pred);
                         IncomingVals[AllocaNum] = PhiInt;
                         ++Inst;
@@ -556,16 +557,28 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
             delete A;
     }
 
+    // I think the deleted phi will affect the value,so we need while
     bool IsEliminated = true;
     while(IsEliminated){
         IsEliminated = false;
         
         // Iterating over NewPhiNodes is deterministic, so it is safe to simplify and RAUW
         // If the phiInst merges one value and/or undefs,get the value
-
-        
+        for(auto I = NewPhiNodes.begin(),E = NewPhiNodes.end(); I !=E ; I++)
+        {
+            PhiInst* PInst = I->second;
+            if(PInst->IsReplaced())
+            {
+                Value* value = PInst->GetOperand(0);
+                PInst->ReplaceAllUseWith(value);
+                NewPhiNodes.erase(I);
+                IsEliminated = true;
+            }
+        }   
     }
 
+    // ++i  or  i++
+    // c u     u c
     // this is to deal some phiInst which unreachable
     for(auto I = NewPhiNodes.begin(), 
              E = NewPhiNodes.end();  I != E; ++I){
