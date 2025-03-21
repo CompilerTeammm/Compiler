@@ -2,7 +2,6 @@
 
 SegmentType __oldtype =TEXT;
 SegmentType* oldtype =&__oldtype;
-//真change了吗?
 SegmentType ChangeSegmentType(SegmentType newtype){
     return newtype;
 }
@@ -136,20 +135,26 @@ void dataSegment::GenerateTempvarList(RISCVLoweringContext& ctx){
 std::vector<tempvar*> dataSegment::get_tempvar_list(){
     return tempvar_list;
 }
+//在 RISC-V 架构中，浮点数不能直接通过立即数方式加载到寄存器，而是需要先加载地址，再从内存加载数据。
+//将一个 tempvar* 类型的浮点立即数（tempfloat）转换为从数据段加载的形式，并插入 lui 和 flw 指令，使原本使用该立即数的指令改为从内存加载。
+//inst 应该是当前操作的RISCVMIR指令 tempfloat为存储浮点立即数的临时变量
+//it 当前基本块的指令迭代器，用于在当前位置插入lui flw指令
+//used 原来inst指令中用于存储该浮点立即数的Imm立即数
 void dataSegment::Change_LoadConstFloat(RISCVMIR* inst,tempvar*tempfloat,mylist<RISCVBasicBlock,RISCVMIR>::iterator it,Imm* used){
     if(inst->GetOpcode()==RISCVMIR::call){
-        return;
+        return;//call指令可能涉及到跨函数调用， 
     }
+    //
     std::string opcode(magic_enum::enum_name(inst->GetOpcode()));
     RISCVBasicBlock* block=inst->GetParent();
     std::unique_ptr<RISCVFrame>& frame=block->GetParent()->GetFrame();
-    
+    //创建操作数
     std::string name=tempfloat->Getname();
     VirRegister* lui_rd=new VirRegister(RISCVType::riscv_ptr);
-    LARegister* lui_rs==new LARegister(RISCVType::riscv_ptr,name);
+    LARegister* lui_rs=new LARegister(RISCVType::riscv_ptr,name);
     VirRegister* flw_rd=new VirRegister(RISCVType::riscv_float32);
     LARegister* flw_rs=new LARegister(RISCVType::riscv_ptr,name,lui_rd);
-
+    //构造lui和flw指令
     RISCVMIR* lui=new RISCVMIR(RISCVMIR::RISCVRISCVMIR::RISCVISA::_lui);
     lui->SetDef(lui_rd);
     lui->AddOperand(lui_rs);
@@ -160,7 +165,7 @@ void dataSegment::Change_LoadConstFloat(RISCVMIR* inst,tempvar*tempfloat,mylist<
     flw->AddOperand(flw_rs);
     it.insert_before(lui);
     it.insert_before(flw);
-
+//替换inst的立即数操作数，将used替换为flw_rd
     for(int i=0;i<inst->GetOperandSize();i++){
         while(inst->GetOperand(i)==used){
             inst->SetOperand(i,flw_rd);
@@ -180,18 +185,19 @@ void dataSegment::PrintDataSegment_Tempvar(){
 }
 //将全局变量转换为 RISC-V 兼容的地址访问方式（lui + ld/sd 或 lui + addi）。
 void dataSegment::LegalizeGloablVar(RISCVLoweringContext& ctx) {
-    std::map<globlvar*, VirRegister*> attached_normal;
-    std::map<globlvar*, VirRegister*> attached_mem;
-    RISCVFunction* cur_func = ctx.GetCurFunction();
+    std::map<globlvar*, VirRegister*> attached_normal;//已处理的普通全局变量
+    std::map<globlvar*, VirRegister*> attached_mem;//已处理的内存相关全局变量
+    RISCVFunction* cur_func = ctx.GetCurFunction();//当前处理的RISCV函数
     for(auto block: *cur_func) {
         attached_normal.clear();
         attached_mem.clear();
         for(List<RISCVBasicBlock,RISCVMIR>::iterator it=block->begin();it!=block->end();++it) {
-            auto inst = *it;
+            auto inst = *it;//获取当前指令mir
             for(int i=0; i<inst->GetOperandSize(); i++) {
                 if(globlvar* gvar = dynamic_cast<globlvar*>(inst->GetOperand(i))) {
                     std::unique_ptr<RISCVFrame>& frame = cur_func->GetFrame();
                     RISCVMIR::RISCVISA opcode = inst->GetOpcode();
+                    //call指令，直接跳过不转换
                     if(opcode == RISCVMIR::RISCVISA::call) {continue;}
                     // lui .1, %hi(name)
                     // ld/sd .2, %lo(name)(.1)
@@ -249,6 +255,8 @@ void dataSegment::LegalizeGloablVar(RISCVLoweringContext& ctx) {
 //globlvar 
 globlvar::globlvar(Variable* data):RISCVGlobalObject(data->GetType(),data->GetName()){
     IR_DataType tp=(dynamic_cast<PointerType*>(data->GetType()))->GetSubType()->GetTypeEnum();
+   //处理指针类型变量👆
+   //初始化👇（int float）
     if(tp==IR_DataType::IR_Value_INT||tp==IR_DataType::IR_Value_Float){
         align=2;
         size=4;
@@ -264,7 +272,7 @@ globlvar::globlvar(Variable* data):RISCVGlobalObject(data->GetType(),data->GetNa
                 init_vector.push_back(init);
             }
         }
-    }
+    }//(数组)
     else if (tp == InnerDataType::IR_ARRAY) {
         align = 3;
         Type* basetype = dynamic_cast<HasSubType*>(data->GetType())->get_baseType();
@@ -272,15 +280,15 @@ globlvar::globlvar(Variable* data):RISCVGlobalObject(data->GetType(),data->GetNa
             size = arry_init->GetType()->get_size();
             int init_size = arry_init->size();
             if (init_size == 0) {
-                // sec = "bss";
+                // sec = "bss";（未初始化）
             }
             else {
-                // sec = "data";
+                // sec = "data";（已初始化）
                 int limi = dynamic_cast<ArrayType*>(arry_init->GetType())->GetNumEle();
                 for(int i=0;i<limi;i++){
                     if(i < init_size){
                         if(auto inits=dynamic_cast<Initializer*>((*arry_init)[i])) {
-                            //递归
+                            //递归处理子数组
                             generate_array_init(inits, basetype);  
                         }
                         else {//Leaf 
@@ -296,7 +304,7 @@ globlvar::globlvar(Variable* data):RISCVGlobalObject(data->GetType(),data->GetNa
                             }
                         }
                     }
-                    else {
+                    else {//处理数组的默认初始化，补充0
                         Type* temptp = dynamic_cast<ArrayType*>(arry_init->GetType())->GetSubType();
                         size_t zeronum = temptp->get_size() / basetype->get_size();
                         for(int i=0; i<zeronum; i++) {
@@ -311,7 +319,7 @@ globlvar::globlvar(Variable* data):RISCVGlobalObject(data->GetType(),data->GetNa
                 }
             } 
         }
-        else {
+        else {//处理无初始化的指针
             size = (dynamic_cast<PointerType*>(data->GetType()))->GetSubType()->get_size();
         }
     }
