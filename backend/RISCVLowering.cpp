@@ -50,13 +50,9 @@ bool RISCVFunctionLowering::run(Function *m)
   BuildInFunctionTransform buildin;
   buildin.run(m);
 
-  ///@todo 实现run函数，IR中内置类型函数转换
-
   // IR 映射到 RISCV对象
   auto mfunc = ctx.mapping(m)->as<RISCVFunction>(); // Value匹配RISCVMOperand
-  ///@todo 实现RISCVLoweringContext中的mapping查找
-  ///@todo RISCVMOperand中的逻辑，一个实例化？
-  ctx(mfunc); //
+  ctx(mfunc);
 
   // 执行指令选择操作
   // IR中的add映射为RISCV的ADD
