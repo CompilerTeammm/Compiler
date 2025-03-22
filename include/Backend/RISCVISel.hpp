@@ -20,12 +20,15 @@ class RISCVISel : public BackEndPass<Function>
   */
 
   // lowering系列，CFG中
-  void InstLowering(Instruction *);
-  void InstLowering(LoadInst *);
+  void InstLowering(Instruction *); // √
+  void InstLowering(LoadInst *);    // 加载指令
+
+  /// @todo
   void InstLowering(AllocaInst *);
   void InstLowering(CallInst *);
-  void InstLowering(RetInst *);
-  void InstLowering(CondInst *);
+
+  void InstLowering(RetInst *);  // 返回指令
+  void InstLowering(CondInst *); // 条件指令
   void InstLowering(UnCondInst *);
   void InstLowering(BinaryInst *);
   void InstLowering(ZextInst *);

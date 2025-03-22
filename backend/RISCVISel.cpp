@@ -53,14 +53,17 @@ void RISCVISel::InstLowering(Instruction *inst)
 
 void RISCVISel::InstLowering(LoadInst *inst)
 {
+  // int
   if (inst->GetType() == IntType::NewIntTypeGet())
   {
     ctx(Builder(RISCVMIR::_lw, inst));
   }
+  // float
   else if (inst->GetType() == FloatType::NewFloatTypeGet())
   {
     ctx(Builder(RISCVMIR::_flw, inst));
   }
+  // ??
   else if (PointerType *ptrtype = dynamic_cast<PointerType *>(inst->GetType()))
   {
     ctx(Builder(RISCVMIR::_ld, inst));
@@ -102,6 +105,7 @@ void RISCVISel::InstLowering(RetInst *inst)
     minst->AddOperand(PhyRegister::GetPhyReg(PhyRegister::PhtReg::a0));
     ctx(minst);
   }
+  // ????????????float??
   else if (inst->GetOperand(0) && inst->GetOperand(0)->GetType() == FloatType::NewFloatTypeGet())
   {
     ctx();
@@ -113,4 +117,96 @@ void RISCVISel::InstLowering(RetInst *inst)
     ctx(minst);
   }
   else assert(0 && "Invalid return type");
+}
+
+void RISCVISel::InstLowering(CondInst *)
+{
+  // bool??
+  if (auto cond = inst->GetOperand(0)->as<ConstIRBoolean>)
+  {
+    bool condition = cond->GetVal();
+    if (condition)
+    {
+      ctx();
+    }
+    else
+    {
+      ctx();
+    }
+    return;
+  }
+  // ????
+  else if (auto cond = inst->GetOperand(0)->as<BinaryInst>)
+  {
+    assert(cond->GetDef()->GetType() == BoolType::NewBoolTypeGet() && "Invalid Condition Type");
+
+    bool onlyUser = cond->GetUserListSize() == 1;
+
+    // ??????????float??
+    if (onlyUser && cond->GetOperand(0)->GetType() != FloatType::NewFloatTypeGet())
+    {
+      auto opcode = cond->getoperation();
+      // lambda??
+      auto cond_opcodes = [&](RISCVMIR::RISCVISA opcode)
+      {
+        ctx();
+        ctx();
+      } swtch(opcode)
+      {
+      case BinaryInst::Op_L:
+      {
+        // ??
+        cond_opcodes(RISCVMIR::_blt);
+        break;
+      }
+      case BinaryInst::Op_LE:
+      {
+        // ????
+        cond_opcodes(RISCVMIR::_ble);
+        break;
+      }
+      case BinaryInst::Op_G:
+      {
+        // ??
+        cond_opcodes(RISCVMIR::bgt);
+        break;
+      }
+      case BinaryInst::Op_GE:
+      {
+        // ????
+        cond_opcodes(RISCVMIR::_bge);
+        break;
+      }
+      case BinaryInst::Op_E:
+      {
+        // ??
+        cond_opcodes(RISCVMIR::_beq);
+        break;
+      }
+      case BinaryInst::Op_NE:
+      {
+        // ???
+        cond_opcodes(RISCVMIR::_bne);
+        break;
+      }
+      case BinaryInst::Op_And:
+      case BinaryInst::Op_Or:
+      case BinaryInst::Op_Xor:
+      {
+        // ????
+        ctx();
+        ctx();
+        break;
+      }
+      default:
+        break;
+      }
+      return;
+    }
+  }
+  else
+  {
+    ctx();
+    ctx();
+  }
 }
