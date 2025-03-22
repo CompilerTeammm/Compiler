@@ -1,6 +1,6 @@
 #pragma once
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
-#include "../../include/IR/Opt/Men2reg.hpp"
+#include "../../include/IR/Opt/Mem2reg.hpp"
 #include <memory>
 #include <set>
 #include"IDF.hpp"

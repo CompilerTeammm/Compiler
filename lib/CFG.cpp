@@ -657,15 +657,19 @@ std::vector<Value*>& PhiInst:: RecordIncomingValsA_Blocks()
 
 bool PhiInst:: IsReplaced()
 {
+    Value* tmp = Incomings[0];
     bool ret = true;
     for(auto e : Incomings)
     {
-        Value* tmp = e;
-        // 这里逻辑需要处理一下
-        if(tmp->GetType())
+        // 他们用的都是同一个值,内存值相同
+        if(tmp == e)
+            continue;
+        else
             ret = false;
+            
         if(!ret)
             break;
+        tmp = e;
     }
 
     return ret;

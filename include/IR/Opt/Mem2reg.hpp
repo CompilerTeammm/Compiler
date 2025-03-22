@@ -15,8 +15,6 @@
 class PromoteMem2Reg;
 class Mem2reg : public _PassBase<Mem2reg ,Function>, public PromoteMem2Reg
 {
-// 这里这个有问题，待前端解决了，我们处理
-using InstPtr = std::unique_ptr<Instruction>;
 public:
     Mem2reg(Function* function, DominantTree* tree)
             :PromoteMem2Reg(function,tree)
@@ -26,7 +24,7 @@ public:
         {
             // static_cast 派生类强转为基类
             // auto insts = BasicBlocks[i]->GetInsts();
-            std::vector<InstPtr> insts = BasicBlocks[i] ->GetInsts();
+            auto insts = BasicBlocks[i] ->GetInsts();
             for(int i = 0; i <insts.size();i++)
             {
                 auto& inst_ptr = insts[i];
