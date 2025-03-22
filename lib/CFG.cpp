@@ -549,6 +549,8 @@ Operand ToInt(Operand op, BasicBlock *block)
     }
 }
 
+/// @brief  PhiInst 
+/// 最奖励的一节
 PhiInst::PhiInst(Type *_tp) : oprandNum(0), Instruction(_tp, Op::Phi) {}
 
 PhiInst::PhiInst(Instruction *BeforeInst, Type *_tp) : oprandNum(0), Instruction(_tp, Op::Phi) {}
@@ -565,6 +567,111 @@ PhiInst::PhiInst(Instruction *BeforeInst) : oprandNum(0)
 // void PhiInst::print()
 // {
 // }
+
+PhiInst* PhiInst::Create(Type* type)
+{
+    assert(type);
+    PhiInst* tmp = new PhiInst(type);
+    tmp->id = Op::Phi;
+    return tmp;
+}
+
+PhiInst*PhiInst::Create(Instruction* BeforeInst,BasicBlock* currentBB, 
+                        std::string Name)
+{
+    //// beforeInst 与 phiInst ？？？
+    PhiInst* tmp = new PhiInst {BeforeInst} ;
+    // for(auto I = currentBB->begin(), 
+    //          E = currentBB->end(); I != E ; ++I){
+    //     if(*I == BeforeInst)
+    //         I.InsertBefore(tmp);
+    //     else
+    //         assert("I create all the phi is the first Inst in BB");
+    // }
+
+    auto I = currentBB->begin();
+    if (*I == BeforeInst)
+        I.InsertBefore(tmp);
+    else
+        assert("I create all the phi is the first Inst in BB");
+
+    if(!Name.empty())
+        tmp->SetName(Name);
+    tmp->id = Op::Phi;
+    return tmp;
+}
+
+PhiInst* PhiInst::Create(Instruction* BeforeInst,
+                         BasicBlock* currentBB, Type* type, 
+                         std::string Name)
+{
+    PhiInst* tmp = new PhiInst(BeforeInst,type);
+    auto I = currentBB->begin();
+    if (*I == BeforeInst)
+        I.InsertBefore(tmp);
+    else
+        assert("I create all the phi is the first Inst in BB");
+
+    if (!Name.empty())
+        tmp->SetName(Name);
+    tmp->id = Op::Phi;
+    return tmp;
+}
+
+
+void PhiInst::addIncoming(Value *IncomingVal, BasicBlock *PreBB)
+{
+    // build the bond bettwen user and value
+    add_use(IncomingVal);
+    auto& use = useruselist.back();
+    //记录了关系
+    PhiRecord[oprandNum] = std::make_pair(IncomingVal,PreBB);
+    UseRecord[use.get()] = oprandNum;
+    oprandNum++;
+}
+
+BasicBlock* PhiInst::getIncomingBlock(int num)
+{
+    auto& [v,bb] = PhiRecord[num];
+    return bb;
+}
+
+Value*PhiInst:: getIncomingValue(int num)
+{
+    auto& [v,bb] = PhiRecord[num];
+    return v;
+}
+
+std::vector<Value*>& PhiInst:: RecordIncomingValsA_Blocks()
+{
+    Incomings.clear();
+    IncomingBlocks.clear();
+
+    for(const auto& [_1, value]:PhiRecord)
+    {
+        Incomings.push_back(value.first);
+        IncomingBlocks.push_back(value.second);
+    }
+    return Incomings;
+}
+
+bool PhiInst:: IsReplaced()
+{
+    bool ret = true;
+    for(auto e : Incomings)
+    {
+        Value* tmp = e;
+        // 这里逻辑需要处理一下
+        if(tmp->GetType())
+            ret = false;
+        if(!ret)
+            break;
+    }
+
+    return ret;
+}
+
+//////// end
 
 ConstantData *ConstantData::clone(std::unordered_map<Operand, Operand> &mapping)
 {
