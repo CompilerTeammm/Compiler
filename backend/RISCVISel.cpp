@@ -2,6 +2,7 @@
 #include "../include/Backend/RISCVContext.hpp"
 #include "../include/Backend/RISCVAsmPrinter.hpp"
 #include "../include/Backend/RISCVMIR.hpp"
+#include "../include/Backend/RISCVLowering.hpp"
 
 // ³õÊ¼»¯ RISCVLoweringContext ºÍ RISCVAsmPrinter
 RISCVISel::RISCVISel(RISCVLoweringContext &_ctx, RISCVAsmPrinter *&asmprinter) : ctx(_ctx), asmprinter(asmprinter) : ctx(_ctx), asmprinter(asmprinter) {};
@@ -80,8 +81,36 @@ void RISCVISel::InstLowering(CallInst *inst)
 
 void RISCVISel::InstLowering(RetInst *inst)
 {
+  // ?????????????????????--->??
   if (inst->GetUserUseList().empty() || inst->GetOperand(0)->inUndefval())
   {
     auto minst = new RISCVMIR(RISCVMIR::ret);
+    ctx(minst); // ??????
   }
+  // ????????????int??
+  else if (inst->GetOperand(0) && inst->GetOperand(0)->GetType() == IntType::NewIntTypeGet())
+  {
+    if (inst->GetOperand(0)->isConst())
+    {
+      ctx();
+    }
+    else
+    {
+      ctx();
+    }
+    auto minst = new RISCVMIR(RISCVMIR::ret);
+    minst->AddOperand(PhyRegister::GetPhyReg(PhyRegister::PhtReg::a0));
+    ctx(minst);
+  }
+  else if (inst->GetOperand(0) && inst->GetOperand(0)->GetType() == FloatType::NewFloatTypeGet())
+  {
+    ctx();
+  }
+  else
+  {
+    auto minst = new RISCVMIR(RISCVMIR::ret);
+    minst->AddOperand(PhyRegister::GetPhyReg(PhyRegister::PhtReg::fa0));
+    ctx(minst);
+  }
+  else assert(0 && "Invalid return type");
 }
