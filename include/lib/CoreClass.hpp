@@ -170,7 +170,7 @@ public:
   void ReplaceAllUseWith(Value *value); // dh RAUW
   void SetVersion(int new_version);
   int GetVersion() const;
-
+  bool IsUndefVal();
   // 克隆，以Value*形式返回
   virtual Value *clone(std::unordered_map<Value *, Value *> &mapping);
 

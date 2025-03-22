@@ -184,6 +184,14 @@ void Value::print()
 
 void Value::add_use(Use *_use) { valuselist.push_front(_use); }
 
+bool Value::IsUndefVal()
+{
+  if (dynamic_cast<UndefValue *>(this))
+    return true;
+  else
+    return false;
+}
+
 bool Value::isConstZero()
 {
   if (auto num = dynamic_cast<ConstIRBoolean *>(this))
