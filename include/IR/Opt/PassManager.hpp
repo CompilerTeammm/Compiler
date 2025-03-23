@@ -8,7 +8,7 @@
 #include"Singleton.hpp"
 #include "Mem2reg.hpp"
 #include "MemoryToRegister.hpp"
-
+#include "DCE.hpp"
 
 // 我这里是参考了他们的用队列来储存我自己的优化Passes的名字，依次出队列进行遍历
 enum PassName
@@ -63,7 +63,8 @@ void PassManager::RunOnTest()
         default:
             // 测试的阶段 针对于 Function 的优化
             for(int i = 0; i < _mod->GetFuncTion().size(); i++)
-            {
+            {   
+                _func = _mod->GetFuncTion()[i].get();
                 switch (name)
                 {
                 case mem2reg_pass:
@@ -75,7 +76,12 @@ void PassManager::RunOnTest()
                         RunImpl<Mem2reg,Function*>(_func);
                     }
                 }
-                    break;
+                    
+                case dce_pass:
+                {
+                    
+                    RunImpl<DCE,Function*>(_func);
+                }
                 
                 default:
                     break;
