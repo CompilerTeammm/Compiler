@@ -371,6 +371,64 @@ void globlvar::generate_array_init(Initializer* arry_init,Type* basetype){
         }
     }
 }
+// can be:void globlvar::PrintGloblvar() {
+//     std::string varName = this->GetName(); // 预先获取变量名，避免重复调用
+
+//     // 处理未初始化的全局变量（放入 .bss 段）
+//     if (init_vector.empty()) {
+//         std::cout << "    .globl  " << varName << std::endl;
+//         PrintSegmentType(BSS, oldtype);
+//         std::cout << "    .align  " << align << std::endl;
+//         std::cout << "    .type  " << varName << ", @" << ty << std::endl;
+//         std::cout << "    .size  " << varName << ", " << size << std::endl;
+//         std::cout << varName << ":" << std::endl;
+//         std::cout << "    .zero  " << size << std::endl;
+//         return;
+//     }
+
+//     // 处理已初始化的全局变量（放入 .data 段）
+//     std::cout << "    .globl  " << varName << std::endl;
+//     PrintSegmentType(DATA, oldtype);
+//     std::cout << "    .align  " << align << std::endl;
+//     std::cout << "    .type  " << varName << ", @" << ty << std::endl;
+//     std::cout << "    .size  " << varName << ", " << size << std::endl;
+//     std::cout << varName << ":" << std::endl;
+
+//     int zero_count = 0;
+    
+//     for (size_t i = 0; i < init_vector.size(); i++) {
+//         auto& init = init_vector[i];
+
+//         // 判断是否为 0
+//         bool is_zero = std::visit([](auto&& value) { return value == 0; }, init);
+
+//         if (is_zero) {
+//             zero_count += 4;
+//         } else {
+//             // 如果之前有连续 0，则输出 .zero
+//             if (zero_count > 0) {
+//                 std::cout << "    .zero  " << zero_count << std::endl;
+//                 zero_count = 0;
+//             }
+
+//             // 处理整数类型
+//             if (std::holds_alternative<int>(init)) {
+//                 std::cout << "    .word  " << std::get<int>(init) << std::endl;
+//             }
+//             // 处理浮点数类型
+//             else {
+//                 uint32_t floatBits = *reinterpret_cast<uint32_t*>(&std::get<float>(init));
+//                 std::cout << "    .word  " << floatBits << std::endl;
+//             }
+//         }
+//     }
+
+//     // 如果最后还有零，则补充 .zero 指令
+//     if (zero_count > 0) {
+//         std::cout << "    .zero  " << zero_count << std::endl;
+//     }
+// }
+
 void globlvar::PrintGloblvar(){
     if(init_vector.empty()){
         std::cout << "    .globl  " << this->GetName() << std::endl;
@@ -424,6 +482,14 @@ tempvar::tempvar(int num_lable,float init):RISCVTempFloatObject("file"),num_labl
 std::string tempvar::Getname(){
     return this->GetName();
 }
+// can be:void tempvar::PrintTempvar() {
+//     PrintSegmentType(RODATA, oldtype);
+//     std::cout << "    .align  " << align << std::endl;
+//     std::cout << this->GetName() << ":" << std::endl;
+//     uint32_t floatBits = *reinterpret_cast<uint32_t*>(&init);
+//     std::cout << "    .word  " << floatBits << std::endl;
+// }
+
 void tempvar::PrintTempvar(){
     PrintSegmentType(RODATA, oldtype);
     std::cout << "    .align  " << align << std::endl;
@@ -452,7 +518,7 @@ void textSegment::PrintTextSegment(){
 }
 //functionSegment
 functionSegment::functionSegment(RISCVFunction* function):func(function){
-    align=1;
+    align=1;//bushi4?
     name=function->GetName();//MIR
 }
 void functionSegment::PrintFuncSegment(){
