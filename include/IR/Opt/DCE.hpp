@@ -13,8 +13,13 @@ public:
         : _AM(AM), _func(func) {}
     
     bool eliminateDeadCode(Function* func);
+                
+    bool isInstructionTriviallyDead(Instruction* I);
 
-    bool IsDCEInstruction();
+    bool IsDCEInstruction(Instruction *I,
+                          std::vector<Instruction *> &WorkList);
+
+    bool hasSideEffect(Instruction* inst);
 private:
     Function* _func;
     AnalysisManager* _AM;

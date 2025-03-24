@@ -181,7 +181,7 @@ public:
 
 class User : public Value
 {
-private:
+public:
   using UsePtr = std::unique_ptr<Use>;
   using UseList = std::vector<UsePtr>;
 
