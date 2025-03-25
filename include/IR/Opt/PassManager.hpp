@@ -10,7 +10,8 @@
 #include "MemoryToRegister.hpp"
 #include "DCE.hpp"
 
-// 我这里是参考了他们的用队列来储存我自己的优化Passes的名字，依次出队列进行遍历
+class Mem2reg;
+//我这里是参考了他们的用队列来储存我自己的优化Passes的名字，依次出队列进行遍历
 enum PassName
 {
     mem2reg_pass,
@@ -18,7 +19,8 @@ enum PassName
     dce_pass,
 };
 
-// 仅仅是叫Manager 用来管理Passes
+
+// PassManager 用来管理Passes
 class PassManager
 {   
 private:
@@ -38,55 +40,20 @@ public:
     void RunOnTest();
 
     // 这个我希望可以作为我设计的核心函数，MyPass 代表我的passes ， 而 MyType 我这里将 Function 和 Module泛型化了
-    template<typename MyPass,typename MyType>
-    bool RunImpl(MyType mytype)
-    {
-        DominantTree* tree;
-        auto pass = std::make_unique<MyPass> (mytype,tree);
-        return pass->run();
-    }
+    // template<typename MyPass,typename MyType>
+    // bool RunImpl(MyType mytype)
+    // {
+        
+    // }
 };
 
-// 遍历可以执行的优化
-void PassManager::RunOnTest()
+void PassManager:: RunOnTest()
 {
-    while(!Passque.empty())
-    {   //针对于module 的优化
-        auto name = Passque.front();
-        Passque.pop();
-        switch (name)
-        {
-        case dce_pass:{
-
-        }
-            break;
-        default:
-            // 测试的阶段 针对于 Function 的优化
-            for(int i = 0; i < _mod->GetFuncTion().size(); i++)
-            {   
-                _func = _mod->GetFuncTion()[i].get();
-                switch (name)
-                {
-                case mem2reg_pass:
-                {
-                    auto& funcVector = _mod->GetFuncTion();
-                    for(auto& e : funcVector)
-                    {
-                        _func = e.get();
-                        RunImpl<Mem2reg,Function*>(_func);
-                    }
-                }
-                    
-                case dce_pass:
-                {
-                    
-                    RunImpl<DCE,Function*>(_func);
-                }
-                
-                default:
-                    break;
-                }
-            }
-        }
+    auto& funcVec = _mod->GetFuncTion();
+    for(auto& function : funcVec)
+    {
+        auto fun = function.get();
+        DominantTree tree(fun);
+        Mem2reg(fun,&tree).run();
     }
 }

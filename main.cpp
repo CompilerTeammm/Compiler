@@ -12,15 +12,17 @@
 //    passManager->addPass(mem2reg);
 //    passManager->RunImpl<Mem2Reg, Function>(func);
 // }
-
 #include "./include/lib/CoreClass.hpp"
 // #include "../include/ir/opt/New_passManager.hpp"
 #include "./yacc/parser.hpp"
+// #include "IR/Opt/PassManager.hpp"
 // #include "./include/Backend/RISCVLowering.hpp"
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
 #include <memory>
+#include "PassManager.hpp"
+#include "include/IR/Opt/PassManager.hpp"
 
 extern FILE *yyin;
 extern int optind, opterr, optopt;
@@ -58,14 +60,21 @@ int main(int argc, char **argv)
    // PM->DecodeArgs(argc, argv);
    // PM->RunOnTest();
    Singleton<Module>().Test();
+
+   // 中端
+   Singleton<PassManager>().RunOnTest();
+
+
    fflush(stdout);
    fclose(stdout);
 
+
+// 后端
    // freopen(asmoutput_path.c_str(), "w", stdout);
    // RISCVModuleLowering RISCVAsm;
    // RISCVAsm.run(&Singleton<Module>());
 
-   fflush(stdout);
-   fclose(stdout);
+   // fflush(stdout);
+   // fclose(stdout);
    return 0;
 }

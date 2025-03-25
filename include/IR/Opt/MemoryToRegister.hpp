@@ -1,10 +1,11 @@
+#pragma once
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
 #include "../Analysis/Dominant.hpp"
 #include "Passbase.hpp"
 #include <map>
 #include<vector>
-#pragma once
+
 
 // 寻找定义和使用 alloc 的基本块
 class AllocaInfo 

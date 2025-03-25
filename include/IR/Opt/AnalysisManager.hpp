@@ -2,5 +2,5 @@
 
 class AnalysisManager:public _AnalysisBase<AnalysisManager,Function>
 {
-
+    
 };

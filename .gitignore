@@ -1,5 +1,6 @@
 # 忽略特定的 JSON 配置文件
 .vscode/task.json
+.vscode/tasks.json
 .vscode/launch.json
 dh_test
 testcase

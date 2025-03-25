@@ -1,16 +1,19 @@
 #include "../../include/IR/Opt/DCE.hpp"
 #include<vector>
 
+// 有副作用
 bool DCE::hasSideEffect(Instruction* inst)
 {
+    
+
     return false;
 }
 
 bool DCE::isInstructionTriviallyDead(Instruction* Inst)
 {
-    if(Inst->is_empty() || Inst->IsTerminateInst())
+    if(!Inst->is_empty() || Inst->IsTerminateInst())
         return false;
-    
+
     if(hasSideEffect(Inst))
         return false;
     

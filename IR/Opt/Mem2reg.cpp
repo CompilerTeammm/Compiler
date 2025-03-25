@@ -1,4 +1,3 @@
-#pragma once
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
 #include "../../include/IR/Opt/Mem2reg.hpp"
 #include <memory>
@@ -523,7 +522,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
     }
 
     if(Allocas.empty())
-        return;
+        return true;
 
     //Rename
     BkInfo.clear();
@@ -538,7 +537,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
     
     //隐式类型的转换  
     // WorkList最开始就是把 entry放进去
-    RenamePassWorkList.emplace_back(_func->begin(),nullptr,std::move(Values));
+    RenamePassWorkList.emplace_back(*(_func->begin()),nullptr,std::move(Values));
     do{
         auto tmp = std::move(RenamePassWorkList.back());
         RenamePassWorkList.pop_back();

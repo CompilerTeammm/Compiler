@@ -8,7 +8,10 @@ template<typename MyPass,typename MyType>
 class _PassBase
 {
 public:
-    virtual void run() = 0;
+    void run() {
+        static_cast<MyPass*>(this)->runImpl();  // CRTP核心模式
+    } 
+
 };
 
 // 数据
