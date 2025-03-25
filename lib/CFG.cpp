@@ -113,7 +113,7 @@ Var::Var(UsageTag tag, Type *_tp, std::string _id)
 {
     if (usage == Param)
     {
-        name = _id;
+        // name = _id;
         return;
     }
     if (usage == GlobalVar)
@@ -549,7 +549,7 @@ Operand ToInt(Operand op, BasicBlock *block)
     }
 }
 
-/// @brief  PhiInst 
+/// @brief  PhiInst
 /// 最奖励的一节
 PhiInst::PhiInst(Type *_tp) : oprandNum(0), Instruction(_tp, Op::Phi) {}
 
@@ -568,20 +568,20 @@ PhiInst::PhiInst(Instruction *BeforeInst) : oprandNum(0)
 // {
 // }
 
-PhiInst* PhiInst::Create(Type* type)
+PhiInst *PhiInst::Create(Type *type)
 {
     assert(type);
-    PhiInst* tmp = new PhiInst(type);
+    PhiInst *tmp = new PhiInst(type);
     tmp->id = Op::Phi;
     return tmp;
 }
 
-PhiInst*PhiInst::Create(Instruction* BeforeInst,BasicBlock* currentBB, 
-                        std::string Name)
+PhiInst *PhiInst::Create(Instruction *BeforeInst, BasicBlock *currentBB,
+                         std::string Name)
 {
     //// beforeInst 与 phiInst ？？？
-    PhiInst* tmp = new PhiInst {BeforeInst} ;
-    // for(auto I = currentBB->begin(), 
+    PhiInst *tmp = new PhiInst{BeforeInst};
+    // for(auto I = currentBB->begin(),
     //          E = currentBB->end(); I != E ; ++I){
     //     if(*I == BeforeInst)
     //         I.InsertBefore(tmp);
@@ -595,17 +595,17 @@ PhiInst*PhiInst::Create(Instruction* BeforeInst,BasicBlock* currentBB,
     else
         assert("I create all the phi is the first Inst in BB");
 
-    if(!Name.empty())
+    if (!Name.empty())
         tmp->SetName(Name);
     tmp->id = Op::Phi;
     return tmp;
 }
 
-PhiInst* PhiInst::Create(Instruction* BeforeInst,
-                         BasicBlock* currentBB, Type* type, 
+PhiInst *PhiInst::Create(Instruction *BeforeInst,
+                         BasicBlock *currentBB, Type *type,
                          std::string Name)
 {
-    PhiInst* tmp = new PhiInst(BeforeInst,type);
+    PhiInst *tmp = new PhiInst(BeforeInst, type);
     auto I = currentBB->begin();
     if (*I == BeforeInst)
         I.InsertBefore(tmp);
@@ -618,36 +618,35 @@ PhiInst* PhiInst::Create(Instruction* BeforeInst,
     return tmp;
 }
 
-
 void PhiInst::addIncoming(Value *IncomingVal, BasicBlock *PreBB)
 {
     // build the bond bettwen user and value
     add_use(IncomingVal);
-    auto& use = useruselist.back();
-    //记录了关系
-    PhiRecord[oprandNum] = std::make_pair(IncomingVal,PreBB);
+    auto &use = useruselist.back();
+    // 记录了关系
+    PhiRecord[oprandNum] = std::make_pair(IncomingVal, PreBB);
     UseRecord[use.get()] = oprandNum;
     oprandNum++;
 }
 
-BasicBlock* PhiInst::getIncomingBlock(int num)
+BasicBlock *PhiInst::getIncomingBlock(int num)
 {
-    auto& [v,bb] = PhiRecord[num];
+    auto &[v, bb] = PhiRecord[num];
     return bb;
 }
 
-Value*PhiInst:: getIncomingValue(int num)
+Value *PhiInst::getIncomingValue(int num)
 {
-    auto& [v,bb] = PhiRecord[num];
+    auto &[v, bb] = PhiRecord[num];
     return v;
 }
 
-std::vector<Value*>& PhiInst:: RecordIncomingValsA_Blocks()
+std::vector<Value *> &PhiInst::RecordIncomingValsA_Blocks()
 {
     Incomings.clear();
     IncomingBlocks.clear();
 
-    for(const auto& [_1, value]:PhiRecord)
+    for (const auto &[_1, value] : PhiRecord)
     {
         Incomings.push_back(value.first);
         IncomingBlocks.push_back(value.second);
@@ -655,19 +654,19 @@ std::vector<Value*>& PhiInst:: RecordIncomingValsA_Blocks()
     return Incomings;
 }
 
-bool PhiInst:: IsReplaced()
+bool PhiInst::IsReplaced()
 {
-    Value* tmp = Incomings[0];
+    Value *tmp = Incomings[0];
     bool ret = true;
-    for(auto e : Incomings)
+    for (auto e : Incomings)
     {
         // 他们用的都是同一个值,内存值相同
-        if(tmp == e)
+        if (tmp == e)
             continue;
         else
             ret = false;
-            
-        if(!ret)
+
+        if (!ret)
             break;
         tmp = e;
     }
@@ -1058,8 +1057,8 @@ void BasicBlock::GenerateStoreInst(Operand src, Operand des)
         src = (tmp->GetSubType()->GetTypeEnum() == IR_Value_INT) ? this->GenerateFP2SIInst(src) : this->GenerateSI2FPInst(src);
     }
 
-    auto storeinst = std::make_unique<StoreInst>(src, des);
-    this->push_back(storeinst.get());
+    auto storeinst = new StoreInst(src, des);
+    this->push_back(storeinst);
     // 要同时开启才开
     //  instructions.emplace_back(std::move(storeinst));
 }
