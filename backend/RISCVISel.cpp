@@ -8,6 +8,20 @@ RISCVISel::RISCVISel(RISCVLoweringContext &_ctx, RISCVAsmPrinter *&asmprinter) :
 
 bool RISCVISel::run(Funciton *m)
 {
+  // there are parameters in the function
+  if (m->GetParams().size() != 0)
+  {
+    RISCVBasicBlock *entry = RISCVBasicBlock::CreateRISCVBasicBlock();
+    RISCVLoweringContext &ctx = this->ctx;
+    ctx(entry);
+
+    LowerFormalArguments(m, ctx);
+    ///@todo
+    ctx.mapping(m->front())->as<RISCVBasicBlock>();
+    RISCVMIR *uncondinst = new RISCVMIR(RISCVMIR::RISCVISA::_j);
+    uncondinst->AddOperand(ctx.mapping(m->front())->as<RISCVBasicBlock>());
+    entry->push_back(uncondinst);
+  }
 }
 
 void RISCVISel::InstLowering(Instruction *inst)
@@ -119,7 +133,7 @@ void RISCVISel::InstLowering(RetInst *inst)
   else assert(0 && "Invalid return type");
 }
 
-void RISCVISel::InstLowering(CondInst *)
+void RISCVISel::InstLowering(CondInst *inst)
 {
   // const bool     eg:if(true)
   if (auto cond = inst->GetOperand(0)->as<ConstIRBoolean>)
@@ -212,7 +226,7 @@ void RISCVISel::InstLowering(CondInst *)
   }
 }
 
-void RISCVISel::InstLowering(UnCondInst *)
+void RISCVISel::InstLowering(UnCondInst *inst)
 {
   ctx();
 }
@@ -558,4 +572,43 @@ void RISCVISel::InstLowering(SelectInst *)
 
 void RISCVISel::InstLowering(GepInst *inst)
 {
+  int UserPtrs = inst->GetUserUseList().size(); // operands
+  auto hassubtype = dynamic_cast<HasSubType *>(inst->GerOperand(0)->GetType());
+  size_t offset = 0;
+
+  for (int i = 1; i < UserPtrs; i++)
+  {
+    assert(hassubtype != nullptr && "hassubtype is null");
+
+    size_t size = hassubtype->GetSubType()->get_size();
+    auto curoperand = inst->GetOperand(i);
+
+    if (curoperand->isConst())
+    {
+      if (auto nextcuroperand = dynamic_cast<ConstIRInt *>(curoperand))
+        offset += size * (size_t)nextcuroperand->GetVal();
+      else
+        assert("the second isnot const");
+    }
+    //
+    else
+    {
+    }
+  }
+  if ()
+}
+
+void RISCVISel::InstLowering(FP2SIInst *inst)
+{
+  ctx();
+}
+
+void RISCVISel::InstLowering(SI2FPInst *inst)
+{
+  ctx();
+}
+
+void RISCVISel::InstLowering(PhiInst *inst)
+{
+  return;
 }
