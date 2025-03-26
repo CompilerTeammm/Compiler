@@ -529,3 +529,33 @@ void RISCVISel::InstLowering(MaxInst *max)
   else
     assert(0 && "Invalid type");
 }
+
+void RISCVISel::InstLowering(MinInst *)
+{
+  assert(!(min->GetOperand(0)->isConst() && min->GetOperand(1)->isConst()));
+  if (min->GetType() == IntType::NewIntTypeGet())
+  {
+    if (ConstIRInt *constint = dynamic_cast<ConstIRInt *>(min->GetOperand(1)))
+    {
+      auto minst = new RISCVMIR(RISCVMIR::_min);
+      minst->SetDef(ctx.mapping(min->GetDef()));
+      minst->AddOperand(ctx.mapping(min->GetOperand(0)));
+      minst->AddOperand(ctx.GetCurFunction()->GetUsedGlobalMapping(Imm::GetImm(constint)));
+      ctx(minst);
+    }
+    else
+      ctx();
+  }
+  else if (min->GetType() == FloatType::NewFloatTypeGet())
+    ctx();
+  else
+    assert(0 && "Invalid type");
+}
+
+void RISCVISel::InstLowering(SelectInst *)
+{
+}
+
+void RISCVISel::InstLowering(GepInst *inst)
+{
+}
