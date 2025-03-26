@@ -31,9 +31,9 @@ class RISCVISel : public BackEndPass<Function>
   void InstLowering(CondInst *);   //
   void InstLowering(UnCondInst *); //
   void InstLowering(BinaryInst *); //
-  void InstLowering(ZextInst *);
-  void InstLowering(SextInst *);
-  void InstLowering(TruncInst *);
+  void InstLowering(ZextInst *);   //
+  void InstLowering(SextInst *);   //
+  void InstLowering(TruncInst *);  //
   void InstLowering(MaxInst *);
   void InstLowering(MinInst *);
   void InstLowering(SelectInst *);

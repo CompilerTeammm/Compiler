@@ -217,7 +217,7 @@ void RISCVISel::InstLowering(UnCondInst *)
   ctx();
 }
 
-void RISCVISel::InstLowering(BinaryInst *)
+void RISCVISel::InstLowering(BinaryInst *inst)
 {
   // Both operands cannot be constants
   assert(!(inst->GetOperand(0)->isConst()) && (inst->GetOperand(1)->isConst()));
@@ -488,6 +488,44 @@ void RISCVISel::InstLowering(BinaryInst *)
   }
 }
 
-void RISCVISel::InstLowering(ZextInst *)
+void RISCVISel::InstLowering(ZextInst *zext)
 {
+  auto mreg = ctx.mapping(zext->GetOperand(0));
+  ctx.insert_val2mop(zext, mreg);
+}
+
+void RISCVISel::InstLowering(SextInst *sext)
+{
+  auto mreg = ctx.mapping(sext->GetOperand(0));
+  ctx.insert_val2mop(sext, mreg);
+}
+
+void RISCVISel::InstLowering(TruncInst *trunc)
+{
+  ctx();
+}
+
+void RISCVISel::InstLowering(MaxInst *max)
+{
+  assert(!(max->GetOperand(0)->isConst() && max->GetOperand(1)->isConst()));
+
+  if (max->GetType() == IntType::NewIntTypeGet())
+  {
+    if (ConstIRInt *constint = dynamic_cast<ConstIRInt *>(max->GetOperand(1)))
+    {
+      auto minst = new RISCVMIR(RISCVMIR::_max);
+      minst->SetDef(ctx.mapping(max->GetDef()));
+      minst->AddOperand(ctx.mapping(max->GetOperand(0)));
+      minst->AddOperand(ctx.GetCurFunction()->GetUsedGlobalMapping(Imm::GetImm(constint)));
+      ctx(minst);
+    }
+    else
+    {
+      ctx();
+    }
+  }
+  else if (max->GetType() == FloatType::NewFloatTypeGet())
+    ctx();
+  else
+    assert(0 && "Invalid type");
 }
