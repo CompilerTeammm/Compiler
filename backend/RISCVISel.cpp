@@ -8,6 +8,20 @@ RISCVISel::RISCVISel(RISCVLoweringContext &_ctx, RISCVAsmPrinter *&asmprinter) :
 
 bool RISCVISel::run(Funciton *m)
 {
+  // there are parameters in the function
+  if (m->GetParams().size() != 0)
+  {
+    RISCVBasicBlock *entry = RISCVBasicBlock::CreateRISCVBasicBlock();
+    RISCVLoweringContext &ctx = this->ctx;
+    ctx(entry);
+
+    LowerFormalArguments(m, ctx);
+    ///@todo
+    ctx.mapping(m->front())->as<RISCVBasicBlock>();
+    RISCVMIR *uncondinst = new RISCVMIR(RISCVMIR::RISCVISA::_j);
+    uncondinst->AddOperand(ctx.mapping(m->front())->as<RISCVBasicBlock>());
+    entry->push_back(uncondinst);
+  }
 }
 
 void RISCVISel::InstLowering(Instruction *inst)
@@ -592,4 +606,9 @@ void RISCVISel::InstLowering(FP2SIInst *inst)
 void RISCVISel::InstLowering(SI2FPInst *inst)
 {
   ctx();
+}
+
+void RISCVISel::InstLowering(PhiInst *inst)
+{
+  return;
 }
