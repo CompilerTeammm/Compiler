@@ -13,24 +13,24 @@ class RISCVISel : public BackEndPass<Function>
   RISCVMIR *Builder_withoutDef(RISCVMIR::RISCVISA _isa, std::initializer_list<RISCVMOperand *> list);
 
   /*
-  //后续研究
-  void LowerCallInstParallel(CallInst *); // 并行调用场景
-  void LowerCallInstCacheLookUp(CallInst *); // 缓存查找
-  void LowerCallInstCacheLookUp4(CallInst *); // 4 路缓存查找
+  // Future work
+  void LowerCallInstParallel(CallInst *); // Parallel call scenario
+  void LowerCallInstCacheLookUp(CallInst *); // Cache lookup
+  void LowerCallInstCacheLookUp4(CallInst *); // 4-way cache lookup
   */
 
-  // lowering系列，CFG中
-  void InstLowering(Instruction *); // √
-  void InstLowering(LoadInst *);    // 加载指令
+  // In the lowering phase within the Control Flow Graph(CFG)
+  void InstLowering(Instruction *); //
+  void InstLowering(LoadInst *);    //
 
   /// @todo
-  void InstLowering(AllocaInst *);
-  void InstLowering(CallInst *);
+  void InstLowering(AllocaInst *); //
+  void InstLowering(CallInst *);   //
 
-  void InstLowering(RetInst *);  // 返回指令
-  void InstLowering(CondInst *); // 条件指令
-  void InstLowering(UnCondInst *);
-  void InstLowering(BinaryInst *);
+  void InstLowering(RetInst *);    //
+  void InstLowering(CondInst *);   //
+  void InstLowering(UnCondInst *); //
+  void InstLowering(BinaryInst *); //
   void InstLowering(ZextInst *);
   void InstLowering(SextInst *);
   void InstLowering(TruncInst *);

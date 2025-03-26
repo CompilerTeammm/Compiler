@@ -10,27 +10,27 @@ std::vector<std::unique_ptr<RISCVFrameObject>> &RISCVFrame::GetFrameObjs()
   return frameobjs;
 }
 
-// 处理 立即数 和 全局变量
+// Processing immediate values and global variables
 Register *RISCVFunction::GetUsedGlobalMapping(RISCVMOperand *val)
 {
-  // 处理立即数
+  // Immediate value processing
   if (auto imm = val->as<Imm>())
   {
     if (auto immi32 = imm->GetData()->as<ConstIRInt>())
     {
       if (immi32->GetVal() == 0)
       {
-        return PhyRegister::GetPhyReg(PhyRegister::zero);
+        return PhyRegister::GetPhyReg(PhyRegister::zero); // Assign virtual registers
       }
     }
   }
-  // 如果不是立即数类型，那就查找全局变量
-  // usedGlobals是操作码和虚拟寄存器的映射
-  if (usedGlobals.find(val) == usedGlobals.end()) // 查找 moperand和虚拟寄存器 的键值对。
+
+  // Find global variables
+  if (usedGlobals.find(val) == usedGlobals.end())
   {
-    auto mir = CreateSpecialUsageMIR(val); // 直接创建MIR
-    usedGlobals[val] = mir->GetDef()->as<VirRegister>;
-    auto entryblock = GetFront();
+    auto mir = CreateSpecialUsageMIR(val);
+    usedGlobals[val] = mir->GetDef()->as<VirRegister>; // Allocates the virtual register map table
+    auto entryblock = GetFront();                      // Insert the register into the mapping base block
     entryblock->push_front(mir);
   }
   return usedGlobals[val];
