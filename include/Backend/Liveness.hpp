@@ -52,3 +52,45 @@ class Liveness{
   bool Count(Register *op);
   Liveness(RISCVFunction *f):m_func(f),BlockLivein{},BlockLiveout{},InstLive{},reglist(RegisterList::GetPhyRegList()){}
 };
+class LiveInterval:public Liveness{
+  RISCVFunction *func;//记录当前正在分析的RISCV目标函数
+
+  public:
+  //代表一个变量的活跃区间
+  struct RegLiveInterval{
+    int start;
+    int end;
+    bool operator<(const RegLiveInterval &other) const{
+      return start < other.start;//重载运算符
+    }
+  };
+  using Interval=RegLiveInterval;
+  std::unordered_map<RISCVMIR*,int> instNum;//记录inst的编号用于计算活跃区间
+  std::unordered_map<RISCVBasicBlock*,Liveness*> BlockInfo;//记录block内部的liveness分析结果
+  std::map<RISCVBasicBlock*,std::unordered_map<MOperand,std::vector<Interval>>> RegLiveness;//记录reg在block中的活跃区间
+  std::unordered_map<MOperand,Interval> GlobalLiveRange;//记录reg在整个函数范围内的活跃区间
+
+  private:
+  void init();//初始化LiveInterval数据结构
+  void computeLiveIntervals();//计算活跃区间
+  bool verify(std::unordered_map<MOperand,std::vector<Interval>> Liveinterval);//检查计算出的LiveInterval是否正确
+
+  public:
+  LiveInterval(RISCVFunction *f):func(f),Liveness(f){}
+  std::unordered_map<MOperand,std::vector<Interval>> &GetRegLiveInterval(RISCVBasicBlock *block){
+    return RegLiveness[block];
+  }
+  void RunOnFunc_();//执行完整的活跃区间分析
+  void PrintAnalysis();
+  //判断op1 op2活跃先后
+  bool IsOp1LiveBeforeOp2(MOperand op1,MOperand op2){
+    return (GlobalLiveRange[op1].start < GlobalLiveRange[op2].start);
+  }
+  bool IsOp1LiveAfterOp2(MOperand op1,MOperand op2){
+    return (GlobalLiveRange[op1].end > GlobalLiveRange[op2].end);
+  }
+  //判断op1 op2 是否有活跃区间重叠（干涉）
+  bool IsHasInterference(MOperand op1,MOperand op2){
+    return !(GlobalLiveRange[op1].end < GlobalLiveRange[op2].start || GlobalLiveRange[op1].start > GlobalLiveRange[op2].end);
+  }
+}

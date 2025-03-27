@@ -34,13 +34,13 @@ class RISCVISel : public BackEndPass<Function>
   void InstLowering(ZextInst *);   //
   void InstLowering(SextInst *);   //
   void InstLowering(TruncInst *);  //
-  void InstLowering(MaxInst *);
-  void InstLowering(MinInst *);
-  void InstLowering(SelectInst *);
-  void InstLowering(GepInst *);
-  void InstLowering(FP2SIInst *);
-  void InstLowering(SI2FPInst *);
-  void InstLowering(PhiInst *);
+  void InstLowering(MaxInst *);    //
+  void InstLowering(MinInst *);    //
+  void InstLowering(SelectInst *); //
+  void InstLowering(GepInst *);    //
+  void InstLowering(FP2SIInst *);  //
+  void InstLowering(SI2FPInst *);  //
+  void InstLowering(PhiInst *);    //
 
 public:
   RISCVISel(RISCVLoweringContext &, RISCVAsmPrinter *&);
