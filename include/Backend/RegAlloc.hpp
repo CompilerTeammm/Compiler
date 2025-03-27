@@ -20,6 +20,7 @@
 #include <vector>
 
 class GraphColor;
+//寄存器分配实现类
 class RegAllocImpl {
   RISCVLoweringContext &ctx;
 
@@ -32,9 +33,9 @@ public:
 
 protected:
   std::vector<PhyRegister *> float_available;
-  std::vector<PhyRegister *> int_available;
+  std::vector<PhyRegister *> int_available;//存储可用的物理寄存器
   RISCVFunction *m_func;
-  GraphColor *gc;
+  GraphColor *gc;//指向graphcolor
   int availble;
 };
 using MOperand = Register *;
@@ -53,8 +54,8 @@ private:
   void MakeWorklist();
   // 返回vector为0则不是move相关
   std::unordered_set<RISCVMIR *> MoveRelated(MOperand v);
-  void CalcmoveList(RISCVBasicBlock *block);
-  void CalcIG(RISCVMIR *inst);
+  void CalcmoveList(RISCVBasicBlock *block);//计算每个基本块中move指令
+  void CalcIG(RISCVMIR *inst);//计算冲突图
   void New_CalcIG(MOperand u, MOperand v);
   void CalInstLive(RISCVBasicBlock *block);
   void CaculateLiveness();
