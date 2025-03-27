@@ -22,6 +22,21 @@ bool RISCVISel::run(Funciton *m)
     uncondinst->AddOperand(ctx.mapping(m->front())->as<RISCVBasicBlock>());
     entry->push_back(uncondinst);
   }
+
+  /// IR->Opt
+  auto AM = _AnalysisManager();
+  auto mdom = AM.get<dominance>(m);
+
+  for (auto i : mdom->DFG_Dom())
+  {
+    auto bb = i->thisBlock;
+    ctx(ctx->mapping(bb)->as<RISCVBasicBlock>());
+
+    for (auto inst : *bb)
+      InstLowering(inst);
+  }
+
+  // other
 }
 
 void RISCVISel::InstLowering(Instruction *inst)
@@ -611,4 +626,46 @@ void RISCVISel::InstLowering(SI2FPInst *inst)
 void RISCVISel::InstLowering(PhiInst *inst)
 {
   return;
+}
+
+RISCVMIR *Builder(RISCVMIR::RISCVISA _isa, Instruction *inst)
+{
+  auto minst = new RISCVMIR(_isa);
+  minst->SetDef(ctx.mapping(inst));
+  for (int i = 0; i < inst->GetUserUseList.size(); i++)
+  {
+    minst->AddOperand(ctx.mapping(inst->GetOperand(i)));
+  }
+  return minst;
+}
+
+RISCVMIR *RISCVISel::Builder_withoutDef(RISCVMIR::RISCVISA _isa, Instruction *inst)
+{
+  auto minst = new RISCVMIR(_isa);
+  for (int i = 0; i < inst->Getuselist().size(); i++)
+    minst->AddOperand(ctx.mapping(inst->GetOperand(i)));
+  return minst;
+}
+
+RISCVMIR *Builder(RISCVMIR::RISCVISA, std::initializer_list<RISCVMOperand *>)
+{
+  auto minst = new RISCVMIR(_isa);
+  minst->SetDef(list.begin()[0]);
+  for (auto it = list.begin() + 1; it != list.end(); ++it)
+  {
+    RISCVMOperand *i = *it;
+    minst->AddOperand(i);
+  }
+  return minst;
+}
+
+RISCVMIR *RISCVISel::Builder_withoutDef(RISCVMIR::RISCVISA _isa, std::initializer_list<RISCVMOperand *> list)
+{
+  auto minst = new RISCVMIR(_isa);
+  for (auto it = list.begin(); it != list.end(); ++it)
+  {
+    RISCVMOperand *i = *it;
+    minst->AddOperand(i);
+  }
+  return minst;
 }
