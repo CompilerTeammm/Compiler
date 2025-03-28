@@ -865,6 +865,13 @@ void BasicBlock::RemovePredBlock(BasicBlock *pre)
 //     return is_empty_Insts() ? nullptr : instructions.back().get();
 // }
 
+// dh 
+Instruction* BasicBlock:: GetLastInsts() const
+{
+    return this->GetBack();
+}
+
+
 void BasicBlock::ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
 {
     for (auto &block : NextBlocks)

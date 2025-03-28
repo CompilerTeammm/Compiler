@@ -6,28 +6,48 @@
 #include "../../lib/CFG.hpp"
 #include "Mem2reg.hpp"
 
+// 所有变量的alloca这一套都在入口的基本块处
+// 原来的实现存在问题，修改成 entryBB
 
 class Mem2reg;
+// Mem2reg::Mem2reg(Function *function, DominantTree *_tree)
+//     : func(function), tree(_tree)
+// {
+//     std::vector<Function::BBPtr> BasicBlocks = function->GetBBs();
+//     for (int i = 0; i < BasicBlocks.size(); i++)
+//     {
+//         // static_cast 派生类强转为基类
+//         // auto insts = BasicBlocks[i]->GetInsts();
+//         auto insts = BasicBlocks[i]->GetInsts();
+//         for (int i = 0; i < insts.size(); i++)
+//         {
+//             auto &inst_ptr = insts[i];
+//             Instruction *raw_ptr = inst_ptr.get();
+//             AllocaInst *allca = dynamic_cast<AllocaInst *>(raw_ptr);
+//             if (allca)
+//             {
+//                 if (isAllocaPromotable(allca))
+//                 {
+//                     allocas.push_back(allca);
+//                 }
+//             }
+//         }
+//     }
+// }
+
 Mem2reg::Mem2reg(Function *function, DominantTree *_tree)
     : func(function), tree(_tree)
 {
-    std::vector<Function::BBPtr> BasicBlocks = function->GetBBs();
-    for (int i = 0; i < BasicBlocks.size(); i++)
+    allocas.clear();
+    auto EntryBB = func->GetFront();
+
+    for(Instruction* e : *EntryBB)
     {
-        // static_cast 派生类强转为基类
-        // auto insts = BasicBlocks[i]->GetInsts();
-        auto insts = BasicBlocks[i]->GetInsts();
-        for (int i = 0; i < insts.size(); i++)
+        if(AllocaInst* AI = dynamic_cast<AllocaInst*> (e))
         {
-            auto &inst_ptr = insts[i];
-            Instruction *raw_ptr = inst_ptr.get();
-            AllocaInst *allca = dynamic_cast<AllocaInst *>(raw_ptr);
-            if (allca)
+            if(isAllocaPromotable(AI))
             {
-                if (isAllocaPromotable(allca))
-                {
-                    allocas.push_back(allca);
-                }
+                allocas.push_back(AI);
             }
         }
     }
