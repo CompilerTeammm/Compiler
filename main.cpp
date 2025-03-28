@@ -21,8 +21,8 @@
 #include <getopt.h>
 #include <iostream>
 #include <memory>
-#include "PassManager.hpp"
-#include "include/IR/Opt/PassManager.hpp"
+// #include "PassManager.hpp"
+// #include "include/IR/Opt/PassManager.hpp"
 
 extern FILE *yyin;
 extern int optind, opterr, optopt;
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
    Singleton<Module>().Test();
 
    // 中端
-   Singleton<PassManager>().RunOnTest();
+   // Singleton<PassManager>().RunOnTest();
 
 
    fflush(stdout);

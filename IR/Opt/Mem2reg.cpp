@@ -1,5 +1,6 @@
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
 #include "../../include/IR/Opt/Mem2reg.hpp"
+#include "Passbase.hpp"
 #include <memory>
 #include <set>
 #include"IDF.hpp"
@@ -619,19 +620,6 @@ bool PromoteMem2Reg::promoteMemoryToRegister(DominantTree* tree,Function *func,s
     }
 
     NewPhiNodes.clear();
-}
-
-void Mem2reg::run()
-{
-    if(Allocas.empty())
-    {
-        std::cout << "Allocas is empty" << std::endl;
-        return;
-    }
-    // 通过构造临时对象去执行优化
-    bool value =PromoteMem2Reg::promoteMemoryToRegister(_tree,_func,Allocas);
-    if(!value)
-        std::cout << "promoteMemoryToRegister failed "<<std::endl; 
 }
 
 // could be Promoteable?  M-> R alloca 指令

@@ -3,7 +3,9 @@
 .vscode/tasks.json
 .vscode/launch.json
 dh_test
+testcases
 testcase
 work/
 build/
 build
+errors.log

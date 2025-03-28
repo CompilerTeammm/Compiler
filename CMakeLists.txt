@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.11)
 project(Compiler)
+
+set(CMAKE_MESSAGE_LOG_LEVEL ERROR) 
+
 #C++标准
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -10,8 +13,8 @@ set(CMAKE_BUILD_TYPE Debug)
 include_directories(
   include
 #   include/Backend
-#   include/IR/Analysis
-#   include/IR/Opt
+  include/IR/Analysis
+  include/IR/Opt/
 #   include/RISCVSupport
   include/lib
   include/lib/ast
@@ -20,11 +23,18 @@ include_directories(
 
 file(GLOB_RECURSE SOURCES
   main.cpp
+  IR/Analysis/*.cpp
+  IR/Opt/Mem2reg.cpp
 #   IR/*.cpp
 #   backend/*.cpp
   lib/*.cpp
   yacc/lex.yy.cpp       # 包含lex生成的代码
   yacc/parser.cpp       # 包含yacc生成的代码
+)
+
+list(REMOVE_ITEM ALL_HEADERS
+    include/IR/Opt/DCE.hpp
+    include/IR/Opt/AnalysisManager.hpp
 )
 
 add_executable(Compiler ${SOURCES})

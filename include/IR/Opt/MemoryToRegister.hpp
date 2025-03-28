@@ -92,6 +92,7 @@ public:
 
     void SimplifyPhi(int& isEliminate, std::vector<PhiInst*> &Erase);
 
+    virtual ~PromoteMem2Reg()= default;
 protected:
     Function *_func;
     DominantTree * _tree;
