@@ -1,8 +1,4 @@
 #pragma once
-#include "CoreClass.hpp"
-#include "CFG.hpp"
-#include "PassManager.hpp"
-
 
 template<typename MyPass,typename MyType>
 class _PassBase

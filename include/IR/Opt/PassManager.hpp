@@ -1,8 +1,8 @@
 #pragma once
+#include"Passbase.hpp"
 #include "Mem2reg.hpp"
 #include "MemoryToRegister.hpp"
 #include<queue>
-#include"Passbase.hpp"
 #include "CoreClass.hpp"
 #include "CFG.hpp"
 #include <memory>

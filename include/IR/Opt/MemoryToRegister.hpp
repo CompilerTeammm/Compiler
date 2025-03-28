@@ -54,7 +54,7 @@ public:
     RenamePassData()
     : BB(nullptr),PredBB(nullptr),Values()  {}
 
-    RenamePassData(BasicBlock*B,BasicBlock*P , ValVector& V)
+    RenamePassData(BasicBlock*B,BasicBlock*P , ValVector V)
                 :BB(B),PredBB(P),Values(V) {}
 
     BasicBlock* BB;
@@ -66,11 +66,13 @@ class PromoteMem2Reg
 {
 public:
   // 遍历基本块中的指令，将指令进行一个消除 alloca/ store / load指令
-    PromoteMem2Reg(Function* function, DominantTree* tree) 
-                  :_func(function), _tree(tree) {}
-    static bool isAllocaPromotable(AllocaInst* AI);
+    PromoteMem2Reg(Function* function, DominantTree* tree,
+                        std::vector<AllocaInst *>& allocas) 
+                  :_func(function), _tree(tree),
+                  Allocas(allocas){}
+    // static bool isAllocaPromotable(AllocaInst* AI);
 
-    bool promoteMemoryToRegister(DominantTree* tree,Function *func,std::vector<AllocaInst *>& Allocas);
+    bool promoteMemoryToRegister();
 
     void RemoveFromAList(int& AllocaNum);
 
@@ -93,7 +95,7 @@ public:
     void SimplifyPhi(int& isEliminate, std::vector<PhiInst*> &Erase);
 
     virtual ~PromoteMem2Reg()= default;
-protected:
+private:
     Function *_func;
     DominantTree * _tree;
     std::vector<AllocaInst *> Allocas;
@@ -103,7 +105,7 @@ protected:
     std::map<std::pair<int,int>,PhiInst*> NewPhiNodes;
 
     // BBs in Function number in order
-    std::map<std::shared_ptr<BasicBlock>,int> BBNumbers;
+    std::map<BasicBlock*,int> BBNumbers;
 
     std::map<PhiInst*,int> PhiToAllocaMap;
     // 记录Phi和alloca的对应的关系
