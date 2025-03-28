@@ -32,3 +32,24 @@ void BlockInfo::RunOnFunction(){
         }
     }
 }
+//计算后继
+void BlockInfo::CalCulateSucc(RISCVBasicBlock *block){
+    for(auto inst=block->rbegin();inst!=block->rend();){
+        OpType Opcode=(*inst)->GetOpcode();
+        if(Opcode==OpType::_j){
+            RISCVBasicBlock *succ=dynamic_cast<RISCVBasicBlock*>((*inst)->GetOperand(0));
+            SuccBlocks[block].push_front(succ);
+            --inst;
+            continue;
+    }else if(Opcode == OpType::_beq || Opcode == OpType::_bne || Opcode == OpType::_blt || Opcode == OpType::_bge ||Opcode == OpType::_bltu || Opcode == OpType::_bgeu || Opcode == OpType::_bgt || Opcode == OpType::_ble){
+        RISCVBasicBlock *succ=dynamic_cast<RISCVBasicBlock*>((*inst)->GetOperand(2));
+        SuccBlocks[block].push_front(succ);
+        --inst;
+        continue;
+    }
+    else{
+        return;
+    }
+    }
+}
+void BlockInfo
