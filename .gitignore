@@ -9,3 +9,6 @@ work/
 build/
 build
 errors.log
+## 暂时，用于前端调试
+main.cpp
+Compiler
