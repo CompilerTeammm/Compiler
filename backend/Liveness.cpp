@@ -52,4 +52,97 @@ void BlockInfo::CalCulateSucc(RISCVBasicBlock *block){
     }
     }
 }
-void BlockInfo
+void BlockInfo::GetBlockLiveout(RISCVBasicBlock *block){
+    for(RISCVBasicBlock *succ:SuccBlocks[block]){
+        BlockLiveout[block].insert(BlockLivein[succ].begin(),BlockLivein[succ].end());
+        //某个基本块的LiveOut集合是所有后继基本块的LiveIn集合的并集。
+    }
+}
+void BlockInfo::GetBlockLivein(RISCVBasicBlock *block){
+    for(auto inst =block->rbegin();inst!=block->rend();--inst){
+        OpType Opcode=(*inst)->GetOpcode();
+//处理def(定义变量)        
+// 获取该指令定义的寄存器（GetDef()）。
+// 如果该寄存器 reg 存在：
+// 从 LiveIn[block] 集合中删除 reg（因为它在这里被重新定义）。
+// 分类处理：
+
+// 虚拟寄存器（VirRegister）：
+// 加入 initial 集合，表示它是需要分配颜色的寄存器。
+
+// 物理寄存器（PhyRegister）：
+// 加入 Precolored 集合，表示它是 预着色寄存器（已经分配固定颜色的寄存器）。
+// 直接给 color[phy] = phy，意味着它的颜色固定。
+        if(auto def=(*inst)->GetDef()){
+            if(auto reg=def->ignoreLA()){
+                BlockLivein[block].erase(reg);
+                if(dynamic_cast<VirRegister*>(reg)){
+                    initial.insert(reg);
+                }else if(auto phy=dynamic_cast<PhyRegister*>(reg)){
+                    Precolored.insert(phy);
+                    color[phy]=phy;
+                }
+            }
+        }
+//处理use(使用变量)
+// 获取两个操作数 val1 和 val2，并加入 LiveIn。
+// 分类处理：
+// 虚拟寄存器：加入 initial，表示需要分配颜色。
+
+// 物理寄存器：加入 Precolored，并固定颜色。       
+        if(Opcode==OpType::_j){
+            continue;
+        }else if(Opcode == OpType::_beq || Opcode == OpType::_bne || Opcode == OpType::_blt || Opcode == OpType::_bge ||Opcode == OpType::_bltu || Opcode == OpType::_bgeu || Opcode == OpType::_bgt ||Opcode == OpType ::_ble){
+            if(auto val1=(*inst)->GetOperand(0)->ignoreLA()){
+                BlockLivein[block].insert(val1);
+                if(dynamic_cast<VirRegister*>(val1)){
+                    initial.insert(val1);
+                }else if(auto phy=dynamic_cast<PhyRegister*>(val1)){
+                    Precolored.insert(phy);
+                    color[phy]=phy;
+                }
+            }
+            if(auto val2 = (*inst)->GetOperand(1)->ignoreLA()){
+                BlockLivein[block].insert(val2);
+                if(dynamic_cast<VirRegister*>(val2)){
+                    initial.insert(val2);
+                }else if(auto phy =dynamic_cast<PhyRegister*>(val2)){
+                    Precolored.insert(phy);
+                    color[phy]=phy;
+                }
+            }
+        }else if(Opcode==OpType::ret){
+//处理ret(返回指令)
+//如果 ret 指令有返回值（a0 或 fa0），那么该寄存器应该加入 LiveIn，并标记为 预着色寄存器。
+            if((*inst)->GetOperandSize() != 0){
+                auto phy = (*inst)->GetOperand(0)->as<PhyRegister>();
+                assert(phy!=nullptr&&(phy->Getregenum() == PhyRegister::a0 || phy->Getregenum() == PhyRegister::fa0));
+                BlockLivein[block].insert(phy);
+                color[phy]=phy;
+                Precolored.insert(phy);
+            }
+        }else{
+            //处理call(函数调用)
+            if(Opcode==OpType::call){
+                for(auto reg : reglist.GetReglistCaller()){
+                    Precolored.insert(reg);
+                    color[reg]=reg;
+                }
+            }
+            //处理普通指令的use
+            for(int i=0;i < (*inst)->GetOperandSize(); i++){
+                if((*inst)->GetOperand(i)){
+                    if(auto reg=(*inst)->GetOperand(i)->ignoreLA()){
+                        BlockLivein[block].insert(reg);
+                        if(dynamic_cast<VirRegister*>(reg)){
+                            initial.insert(reg);
+                        }else if(auto phy=dynamic_cast<PhyRegister*>(reg)){
+                            Precolored.insert(phy);
+                            color[phy]=phy;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
