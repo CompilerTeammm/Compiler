@@ -356,18 +356,221 @@ attributes #4 = { nofree norecurse nounwind uwtable writeonly "correctly-rounded
 attributes #5 = { nofree nounwind }
 attributes #6 = { nounwind }
 attributes #7 = { cold }
-@.G.a = global i32 10
-@.G.arrays = global [2 x i32]  [i32 1, i32 2]
-define i32 @main(i32 %d, i32 %n){
-.2:
-  %.12 = alloca i32
-  %.9 = alloca i32
-  %.7 = alloca i32
-  %.4 = alloca i32
-  store i32 %d, i32* %.4
-  store i32 %n, i32* %.7
-  %.13 = load i32, i32* %.4
-  %.14 = load i32, i32* %.9
-  %.15 = add i32 %.13, %.14
+@.G.M = global i32 zeroinitializer
+@.G.L = global i32 zeroinitializer
+@.G.N = global i32 zeroinitializer
+define i32 @add(f32* %.4, f32* %.7, f32* %.10, f32* %.13, f32* %.16, f32* %.19, f32* %.22, f32* %.25, f32* %.28){
+.3:
+  %.31 = alloca i32
+  %.29 = alloca f32*
+  %.26 = alloca f32*
+  %.23 = alloca f32*
+  %.20 = alloca f32*
+  %.17 = alloca f32*
+  %.14 = alloca f32*
+  %.11 = alloca f32*
+  %.8 = alloca f32*
+  %.5 = alloca f32*
+  store f32* %.4, f32** %.5
+  store f32* %.7, f32** %.8
+  store f32* %.10, f32** %.11
+  store f32* %.13, f32** %.14
+  store f32* %.16, f32** %.17
+  store f32* %.19, f32** %.20
+  store f32* %.22, f32** %.23
+  store f32* %.25, f32** %.26
+  store f32* %.28, f32** %.29
+  store i32 0, i32* %.31
+  br label %.34wc9 
+.34wc9:
+  %.38 = load i32, i32* %.31
+  %.39 = load i32, i32* @.G.M
+  %.40 = icmp slt i32 %.38, %.39
+  br il %.40, label %.35wloop.9.15, label %.36wn9
+.35wloop.9.15:
+  %.42 = load i32, i32* %.31
+  %.43 = load f32*, f32** %.5
+  %.44 = getelementptr inbounds f32, f32* %.43, i32 %.42
+  %.45 = load f32, f32* %.44
+  %.46 = load i32, i32* %.31
+  %.47 = load f32*, f32** %.14
+  %.48 = getelementptr inbounds f32, f32* %.47, i32 %.46
+  %.49 = load f32, f32* %.48
+  %.50 = fadd f32 %.45, %.49
+  %.51 = load i32, i32* %.31
+  %.52 = load f32*, f32** %.23
+  %.53 = getelementptr inbounds f32, f32* %.52, i32 %.51
+  store f32 %.50, f32* %.53
+  %.55 = load i32, i32* %.31
+  %.56 = load f32*, f32** %.8
+  %.57 = getelementptr inbounds f32, f32* %.56, i32 %.55
+  %.58 = load f32, f32* %.57
+  %.59 = load i32, i32* %.31
+  %.60 = load f32*, f32** %.17
+  %.61 = getelementptr inbounds f32, f32* %.60, i32 %.59
+  %.62 = load f32, f32* %.61
+  %.63 = fadd f32 %.58, %.62
+  %.64 = load i32, i32* %.31
+  %.65 = load f32*, f32** %.26
+  %.66 = getelementptr inbounds f32, f32* %.65, i32 %.64
+  store f32 %.63, f32* %.66
+  %.68 = load i32, i32* %.31
+  %.69 = load f32*, f32** %.11
+  %.70 = getelementptr inbounds f32, f32* %.69, i32 %.68
+  %.71 = load f32, f32* %.70
+  %.72 = load i32, i32* %.31
+  %.73 = load f32*, f32** %.20
+  %.74 = getelementptr inbounds f32, f32* %.73, i32 %.72
+  %.75 = load f32, f32* %.74
+  %.76 = fadd f32 %.71, %.75
+  %.77 = load i32, i32* %.31
+  %.78 = load f32*, f32** %.29
+  %.79 = getelementptr inbounds f32, f32* %.78, i32 %.77
+  store f32 %.76, f32* %.79
+  %.81 = load i32, i32* %.31
+  %.83 = add i32 %.81, 1
+  store i32 %.83, i32* %.31
+  br label %.34wc9 
+.36wn9:
+  ret i32 0 
+}
+define i32 @main(){
+.87:
+  %.157 = alloca i32
+  %.102 = alloca i32
+  %.101 = alloca [3 x f32]
+  %.100 = alloca [3 x f32]
+  %.99 = alloca [6 x f32]
+  %.97 = alloca [3 x f32]
+  %.96 = alloca [3 x f32]
+  %.95 = alloca [3 x f32]
+  %.94 = alloca [3 x f32]
+  %.93 = alloca [3 x f32]
+  %.92 = alloca [3 x f32]
+  store i32 3, i32* @.G.N
+  store i32 3, i32* @.G.M
+  store i32 3, i32* @.G.L
+  store i32 0, i32* %.102
+  br label %.104wc28 
+.104wc28:
+  %.108 = load i32, i32* %.102
+  %.109 = load i32, i32* @.G.M
+  %.110 = icmp slt i32 %.108, %.109
+  br il %.110, label %.105wloop.28.37, label %.106wn28
+.105wloop.28.37:
+  %.112 = load i32, i32* %.102
+  %.113 = load i32, i32* %.102
+  %.114 = getelementptr inbounds [3 x f32], [3 x f32]* %.92, i32 0, i32 %.113
+  %.115 = sitofp i32 %.112 to f32
+  store f32 %.115, f32* %.114
+  %.117 = load i32, i32* %.102
+  %.118 = load i32, i32* %.102
+  %.119 = getelementptr inbounds [3 x f32], [3 x f32]* %.93, i32 0, i32 %.118
+  %.120 = sitofp i32 %.117 to f32
+  store f32 %.120, f32* %.119
+  %.122 = load i32, i32* %.102
+  %.123 = load i32, i32* %.102
+  %.124 = getelementptr inbounds [3 x f32], [3 x f32]* %.94, i32 0, i32 %.123
+  %.125 = sitofp i32 %.122 to f32
+  store f32 %.125, f32* %.124
+  %.127 = load i32, i32* %.102
+  %.128 = load i32, i32* %.102
+  %.129 = getelementptr inbounds [3 x f32], [3 x f32]* %.95, i32 0, i32 %.128
+  %.130 = sitofp i32 %.127 to f32
+  store f32 %.130, f32* %.129
+  %.132 = load i32, i32* %.102
+  %.133 = load i32, i32* %.102
+  %.134 = getelementptr inbounds [3 x f32], [3 x f32]* %.96, i32 0, i32 %.133
+  %.135 = sitofp i32 %.132 to f32
+  store f32 %.135, f32* %.134
+  %.137 = load i32, i32* %.102
+  %.138 = load i32, i32* %.102
+  %.139 = getelementptr inbounds [3 x f32], [3 x f32]* %.97, i32 0, i32 %.138
+  %.140 = sitofp i32 %.137 to f32
+  store f32 %.140, f32* %.139
+  %.142 = load i32, i32* %.102
+  %.143 = add i32 %.142, 1
+  store i32 %.143, i32* %.102
+  br label %.104wc28 
+.106wn28:
+  %.146 = getelementptr inbounds [3 x f32], [3 x f32]* %.92, i32 0, i32 0
+  %.147 = getelementptr inbounds [3 x f32], [3 x f32]* %.93, i32 0, i32 0
+  %.148 = getelementptr inbounds [3 x f32], [3 x f32]* %.94, i32 0, i32 0
+  %.149 = getelementptr inbounds [3 x f32], [3 x f32]* %.95, i32 0, i32 0
+  %.150 = getelementptr inbounds [3 x f32], [3 x f32]* %.96, i32 0, i32 0
+  %.151 = getelementptr inbounds [3 x f32], [3 x f32]* %.97, i32 0, i32 0
+  %.152 = getelementptr inbounds [6 x f32], [6 x f32]* %.99, i32 0, i32 0
+  %.153 = getelementptr inbounds [3 x f32], [3 x f32]* %.100, i32 0, i32 0
+  %.154 = getelementptr inbounds [3 x f32], [3 x f32]* %.101, i32 0, i32 0
+  %.155at38 = call i32 @add(f32* %.146, f32* %.147, f32* %.148, f32* %.149, f32* %.150, f32* %.151, f32* %.152, f32* %.153, f32* %.154)
+  store i32 %.155at38, i32* %.102
+  br label %.158wc40 
+.158wc40:
+  %.162 = load i32, i32* %.102
+  %.163 = load i32, i32* @.G.N
+  %.164 = icmp slt i32 %.162, %.163
+  br il %.164, label %.159wloop.40.45, label %.160wn40
+.159wloop.40.45:
+  %.166 = load i32, i32* %.102
+  %.167 = getelementptr inbounds [6 x f32], [6 x f32]* %.99, i32 0, i32 %.166
+  %.168 = load f32, f32* %.167
+  %.169 = fptosi f32 %.168 to i32
+  store i32 %.169, i32* %.157
+  %.171 = load i32, i32* %.157
+  call void %putint(i32 %.171)
+  %.174 = load i32, i32* %.102
+  %.175 = add i32 %.174, 1
+  store i32 %.175, i32* %.102
+  br label %.158wc40 
+.160wn40:
+  store i32 10, i32* %.157
+  %.180 = load i32, i32* %.157
+  call void %putch(i32 %.180)
+  store i32 0, i32* %.102
+  br label %.184wc49 
+.184wc49:
+  %.188 = load i32, i32* %.102
+  %.189 = load i32, i32* @.G.N
+  %.190 = icmp slt i32 %.188, %.189
+  br il %.190, label %.185wloop.49.54, label %.186wn49
+.185wloop.49.54:
+  %.192 = load i32, i32* %.102
+  %.193 = getelementptr inbounds [3 x f32], [3 x f32]* %.100, i32 0, i32 %.192
+  %.194 = load f32, f32* %.193
+  %.195 = fptosi f32 %.194 to i32
+  store i32 %.195, i32* %.157
+  %.197 = load i32, i32* %.157
+  call void %putint(i32 %.197)
+  %.199 = load i32, i32* %.102
+  %.200 = add i32 %.199, 1
+  store i32 %.200, i32* %.102
+  br label %.184wc49 
+.186wn49:
+  store i32 10, i32* %.157
+  %.204 = load i32, i32* %.157
+  call void %putch(i32 %.204)
+  store i32 0, i32* %.102
+  br label %.207wc58 
+.207wc58:
+  %.211 = load i32, i32* %.102
+  %.212 = load i32, i32* @.G.N
+  %.213 = icmp slt i32 %.211, %.212
+  br il %.213, label %.208wloop.58.63, label %.209wn58
+.208wloop.58.63:
+  %.215 = load i32, i32* %.102
+  %.216 = getelementptr inbounds [3 x f32], [3 x f32]* %.101, i32 0, i32 %.215
+  %.217 = load f32, f32* %.216
+  %.218 = fptosi f32 %.217 to i32
+  store i32 %.218, i32* %.157
+  %.220 = load i32, i32* %.157
+  call void %putint(i32 %.220)
+  %.222 = load i32, i32* %.102
+  %.223 = add i32 %.222, 1
+  store i32 %.223, i32* %.102
+  br label %.207wc58 
+.209wn58:
+  store i32 10, i32* %.157
+  %.227 = load i32, i32* %.157
+  call void %putch(i32 %.227)
   ret i32 0 
 }

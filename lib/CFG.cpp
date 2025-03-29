@@ -26,28 +26,59 @@ T *normal_clone(T *from, std::unordered_map<Operand, Operand> &mapping)
 
 Initializer::Initializer(Type *_tp) : Value(_tp) {}
 
-void Initializer::Var2Store(BasicBlock *block, const std::string &name, std::vector<int> &gep_data)
-{
-    auto module = Singleton<Module>().GetValueByName(name);
-    auto base_gep = dynamic_cast<GepInst *>(block->GenerateGepInst(module));
+// void Initializer::Var2Store(BasicBlock *block, const std::string &name, std::vector<int> &gep_data)
+// {
+//     auto module = Singleton<Module>().GetValueByName(name);
+//     auto base_gep = dynamic_cast<GepInst *>(block->GenerateGepInst(module));
 
-    for (size_t i = 0; i < this->size(); i++)
+//     for (size_t i = 0; i < this->size(); i++)
+//     {
+//         auto &handle = (*this)[i];
+//         gep_data.push_back(i);
+//         if (auto inits = dynamic_cast<Initializer *>(handle))
+//         {
+//             inits->Var2Store(block, name, gep_data);
+//         }
+//         else
+//         {
+//             if (!handle->isConst())
+//             {
+//                 auto gep = base_gep;
+//                 for (int j : gep_data)
+//                     gep->add_use(ConstIRInt::GetNewConstant(j));
+
+//                 block->GenerateStoreInst(handle, gep);
+//                 if (handle->GetType()->GetTypeEnum() == IR_Value_INT)
+//                     handle = ConstIRInt::GetNewConstant();
+//                 else
+//                     handle = ConstIRFloat::GetNewConstant();
+//             }
+//         }
+//         gep_data.pop_back();
+//     }
+// }
+// nme
+void Initializer::Var2Store(BasicBlock *bb, const std::string &name,
+                            std::vector<int> &gep_data)
+{
+    for (int i = 0; i < this->size(); i++)
     {
         auto &handle = (*this)[i];
         gep_data.push_back(i);
         if (auto inits = dynamic_cast<Initializer *>(handle))
         {
-            inits->Var2Store(block, name, gep_data);
+            inits->Var2Store(bb, name, gep_data);
         }
         else
         {
             if (!handle->isConst())
             {
-                auto gep = base_gep;
-                for (int j : gep_data)
+                auto gep = dynamic_cast<GepInst *>(
+                    bb->GenerateGepInst(Singleton<Module>().GetValueByName(name)));
+                gep->add_use(ConstIRInt::GetNewConstant());
+                for (auto &j : gep_data)
                     gep->add_use(ConstIRInt::GetNewConstant(j));
-
-                block->GenerateStoreInst(handle, gep);
+                bb->GenerateStoreInst(handle, gep);
                 if (handle->GetType()->GetTypeEnum() == IR_Value_INT)
                     handle = ConstIRInt::GetNewConstant();
                 else
@@ -166,7 +197,7 @@ bool BuiltinFunc::CheckBuiltin(std::string id)
     return false;
 }
 
-// const std::string &_id
+// const std::string &_id//me
 BuiltinFunc *BuiltinFunc::GetBuiltinFunc(std::string _id)
 {
     static std::unordered_map<std::string, BuiltinFunc *> mp;
@@ -191,6 +222,8 @@ BuiltinFunc *BuiltinFunc::GetBuiltinFunc(std::string _id)
         {"buildin_FenceArgLoaded", VoidType::NewVoidTypeGet()},
         {"buildin_AtomicF32add", VoidType::NewVoidTypeGet()},
         {"CacheLookUp", VoidType::NewVoidTypeGet()},
+        {"CacheLookUp64", VoidType::NewVoidTypeGet()},
+
     };
 
     auto it = type_map.find(_id);
@@ -207,6 +240,62 @@ BuiltinFunc *BuiltinFunc::GetBuiltinFunc(std::string _id)
     }
     return iter->second;
 }
+
+// BuiltinFunc *BuiltinFunc::GetBuiltinFunc(std::string _id)
+// {
+//     static std::map<std::string, BuiltinFunc *> mp;
+//     auto get_type = [&_id]() -> Type *
+//     {
+//         if (_id == "getint")
+//             return IntType::NewIntTypeGet();
+//         if (_id == "getfloat")
+//             return FloatType::NewFloatTypeGet();
+//         if (_id == "getch")
+//             return IntType::NewIntTypeGet();
+//         if (_id == "getarray")
+//             return IntType::NewIntTypeGet();
+//         if (_id == "getfarray")
+//             return IntType::NewIntTypeGet();
+//         if (_id == "putint")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "putch")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "putarray")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "putfloat")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "putfarray")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "starttime")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "stoptime")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "putf")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "llvm.memcpy.p0.p0.i32")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "memcpy@plt")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "buildin_NotifyWorkerLE")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "buildin_NotifyWorkerLT")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "buildin_FenceArgLoaded")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "buildin_AtomicF32add")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "CacheLookUp")
+//             return VoidType::NewVoidTypeGet();
+//         if (_id == "CacheLookUp4")
+//             return VoidType::NewVoidTypeGet();
+//         assert(0);
+//     };
+//     if (mp.find(_id) == mp.end())
+//     {
+//         mp[_id] = new BuiltinFunc(get_type(), _id);
+//     }
+//     return mp[_id];
+// }
 
 // CallInst *BuiltinFunc::BuiltinTransform(CallInst *callinst)
 // {
@@ -301,7 +390,10 @@ Operand StoreInst::GetDef()
 }
 
 AllocaInst::AllocaInst(Type *_tp)
-    : Instruction(_tp, Op::Alloca) {}
+    : Instruction(_tp)
+{
+    id = Op::Alloca;
+}
 
 bool AllocaInst::isUsed()
 {
@@ -865,12 +957,11 @@ void BasicBlock::RemovePredBlock(BasicBlock *pre)
 //     return is_empty_Insts() ? nullptr : instructions.back().get();
 // }
 
-// dh 
-Instruction* BasicBlock:: GetLastInsts() const
+// dh
+Instruction *BasicBlock::GetLastInsts() const
 {
     return this->GetBack();
 }
-
 
 void BasicBlock::ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
 {
@@ -1056,8 +1147,13 @@ Operand BasicBlock::GenerateLoadInst(Operand data)
 
 void BasicBlock::GenerateStoreInst(Operand src, Operand des)
 {
+    if (des->GetType()->GetTypeEnum() != IR_PTR)
+    {
+        std::cerr << "Error: des is not IR_PTR, actual type: "
+                  << des->GetType()->GetTypeEnum() << std::endl;
+    }
     assert(des->GetType()->GetTypeEnum() == IR_PTR);
-    auto tmp = static_cast<PointerType *>(des->GetType());
+    auto tmp = dynamic_cast<PointerType *>(des->GetType());
 
     if (tmp->GetSubType()->GetTypeEnum() != src->GetTypeEnum())
     {
@@ -1096,40 +1192,7 @@ void BasicBlock::GenerateUnCondInst(BasicBlock *des)
 Operand BasicBlock::GenerateCallInst(std::string id, std::vector<Operand> args,
                                      int run_time)
 {
-    auto check_builtin = [](std::string _id)
-    {
-        if (_id == "getint")
-            return true;
-        if (_id == "getfloat")
-            return true;
-        if (_id == "getch")
-            return true;
-        if (_id == "getarray")
-            return true;
-        if (_id == "getfarray")
-            return true;
-        if (_id == "putint")
-            return true;
-        if (_id == "putch")
-            return true;
-        if (_id == "putarray")
-            return true;
-        if (_id == "putfloat")
-            return true;
-        if (_id == "putfarray")
-            return true;
-        if (_id == "starttime")
-            return true;
-        if (_id == "stoptime")
-            return true;
-        if (_id == "putf")
-            return true;
-        if (_id == "llvm.memcpy.p0.p0.i32")
-            return true;
-        return false;
-    };
-
-    if (check_builtin(id))
+    if (BuiltinFunc::CheckBuiltin(id))
     {
         if (id == "starttime" || id == "stoptime")
         {

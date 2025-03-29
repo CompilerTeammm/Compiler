@@ -67,6 +67,62 @@ void AstToType(AST_Type type)
 BaseDef::BaseDef(std::string _name, Exps *_ad, InitVal *_initval)
     : name(_name), array_descriptor(_ad), initval(_initval) {}
 
+// BasicBlock *BaseDef::GetInst(GetInstState state)
+// {
+//   if (array_descriptor != nullptr)
+//   {
+//     auto tmp = array_descriptor->GenerateArrayTypeDescriptor();
+//     auto alloca = state.cur_block->GenerateAlloca(tmp, name);
+//     if (initval != nullptr)
+//     {
+//       Operand init = initval->GetOperand(tmp, state.cur_block);
+//       std::vector<Operand> args;
+//       auto src = new Var(Var::Constant, tmp, "");
+//       src->add_use(init);
+//       args.push_back(alloca);
+//       args.push_back(src);
+//       args.push_back(ConstIRInt::GetNewConstant(tmp->GetSize()));
+//       args.push_back(ConstIRBoolean::GetNewConstant(false));
+//       state.cur_block->GenerateCallInst("llvm.memcpy.p0.p0.i32", args, 0);
+//       std::vector<int> temp;
+//       dynamic_cast<Initializer *>(init)->Var2Store(state.cur_block, name, temp);
+//     }
+//   }
+//   else
+//   {
+//     auto decl_type = NewTypeFromIRDataType(Singleton<IR_DataType>());
+//     if (Singleton<IR_CONSTDECL_FLAG>().flag == 1)
+//     {
+//       Operand var;
+//       if (initval == nullptr)
+//       {
+//         if (Singleton<IR_DataType>() == IR_Value_INT)
+//           var = ConstIRInt::GetNewConstant();
+//         else if (Singleton<IR_DataType>() == IR_Value_Float)
+//           var = ConstIRFloat::GetNewConstant();
+//         else
+//           assert(0);
+//       }
+//       else
+//         var = initval->GetFirst(nullptr);
+//       if (Singleton<IR_DataType>() == IR_Value_INT)
+//         var = ToInt(var, nullptr);
+//       else if (Singleton<IR_DataType>() == IR_Value_Float)
+//         var = ToFloat(var, nullptr);
+//       Singleton<Module>().Register(name, var);
+//     }
+//     else
+//     {
+//       auto alloca = state.cur_block->GenerateAlloca(decl_type, name);
+//       if (initval != nullptr)
+//       {
+//         state.cur_block->GenerateStoreInst(initval->GetFirst(state.cur_block), alloca);
+//       }
+//     }
+//   }
+//   return state.cur_block;
+// }
+
 BasicBlock *BaseDef::GetInst(GetInstState state)
 {
   if (array_descriptor)
@@ -274,70 +330,138 @@ void InitVals::push_back(InitVal *_data)
   DataList.push_back(_data);
 }
 
-Operand InitVals::GetOperand(Type *_tp, BasicBlock *block)
-{
-  assert(_tp->GetTypeEnum() == IR_ARRAY);
+// Operand InitVals::GetOperand(Type *_tp, BasicBlock *block)
+// {
+//   assert(_tp->GetTypeEnum() == IR_ARRAY);
 
-  auto ret = new Initializer(_tp);
+//   auto ret = new Initializer(_tp);
+//   size_t offs = 0;
+//   std::map<Type *, Type *> type_map;
+
+//   for (ArrayType *atp = dynamic_cast<ArrayType *>(_tp); atp; atp = dynamic_cast<ArrayType *>(atp->GetSubType()))
+//   {
+//     type_map[atp->GetSubType()] = atp;
+//   }
+
+//   auto max_type = [&](Type *tp) -> Type *
+//   {
+//     while (offs % tp->GetSize() != 0)
+//     {
+//       tp = dynamic_cast<ArrayType *>(tp)->GetSubType();
+//     }
+//     return tp;
+//   };
+
+//   auto sub = dynamic_cast<ArrayType *>(_tp)->GetSubType();
+
+//   for (auto &i : DataList)
+//   {
+//     Type *expectedType = max_type(sub); // 缓存对齐的期望类型
+//     Operand tmp = i->GetOperand(expectedType, block);
+
+//     if (tmp->GetType() != expectedType)
+//     {
+//       if (Singleton<IR_DataType>() == IR_Value_INT)
+//         tmp = ToInt(tmp, block);
+//       else if (Singleton<IR_DataType>() == IR_Value_Float)
+//         tmp = ToFloat(tmp, block);
+//       else
+//         assert(0);
+//     }
+
+//     offs += tmp->GetType()->GetSize();
+//     ret->push_back(tmp);
+
+//     Type *lastType = ret->back()->GetType();
+//     while (lastType != expectedType)
+//     {
+//       auto upper = dynamic_cast<ArrayType *>(type_map[lastType]);
+//       int ele = upper->GetNum();
+//       auto omit = new Initializer(upper);
+
+//       for (int j = 0; j < ele; j++)
+//       {
+//         omit->push_back(ret->back());
+//         ret->pop_back();
+//       }
+//       std::reverse(omit->begin(), omit->end());
+//       ret->push_back(omit);
+//       lastType = ret->back()->GetType();
+//     }
+//   }
+
+//   Type *lastType = ret->back()->GetType();
+//   while (lastType != sub)
+//   {
+//     auto upper = dynamic_cast<ArrayType *>(type_map[lastType]);
+//     int ele = upper->GetNum();
+//     auto omit = new Initializer(upper);
+//     for (int i = 0; i < ele && !ret->empty() && ret->back()->GetType() == upper->GetSubType(); i++)
+//     {
+//       omit->push_back(ret->back());
+//       ret->pop_back();
+//     }
+//     std::reverse(omit->begin(), omit->end());
+//     ret->push_back(omit);
+//     lastType = ret->back()->GetType();
+//   }
+
+//   return ret;
+// }
+// nme
+Operand InitVals::GetOperand(Type *tp, BasicBlock *cur)
+{
+  assert(tp->GetTypeEnum() == IR_ARRAY);
+  auto ret = new Initializer(tp);
   size_t offs = 0;
   std::map<Type *, Type *> type_map;
-
-  for (ArrayType *atp = dynamic_cast<ArrayType *>(_tp); atp; atp = dynamic_cast<ArrayType *>(atp->GetSubType()))
+  [&type_map](ArrayType *tp)
   {
-    type_map[atp->GetSubType()] = atp;
-  }
-
-  auto max_type = [&](Type *tp) -> Type *
+    while (tp != nullptr)
+    {
+      type_map[tp->GetSubType()] = tp;
+      tp = dynamic_cast<ArrayType *>(tp->GetSubType());
+    }
+  }(dynamic_cast<ArrayType *>(tp));
+  auto max_type = [&](Type *tp)
   {
     while (offs % tp->GetSize() != 0)
-    {
       tp = dynamic_cast<ArrayType *>(tp)->GetSubType();
-    }
     return tp;
   };
-
-  auto sub = dynamic_cast<ArrayType *>(_tp)->GetSubType();
-
+  auto sub = dynamic_cast<ArrayType *>(tp)->GetSubType();
   for (auto &i : DataList)
   {
-    Type *expectedType = max_type(sub); // 缓存对齐的期望类型
-    Operand tmp = i->GetOperand(expectedType, block);
-
-    if (tmp->GetType() != expectedType)
+    auto type_expect = max_type(sub);
+    auto tmp = i->GetOperand(type_expect, cur);
+    if (tmp->GetType() != type_expect)
     {
       if (Singleton<IR_DataType>() == IR_Value_INT)
-        tmp = ToInt(tmp, block);
+        tmp = ToInt(tmp, cur);
       else if (Singleton<IR_DataType>() == IR_Value_Float)
-        tmp = ToFloat(tmp, block);
+        tmp = ToFloat(tmp, cur);
       else
         assert(0);
     }
-
     offs += tmp->GetType()->GetSize();
     ret->push_back(tmp);
-
-    Type *lastType = ret->back()->GetType();
-    while (lastType != expectedType)
+    while (ret->back()->GetType() != max_type(sub))
     {
-      auto upper = dynamic_cast<ArrayType *>(type_map[lastType]);
+      auto upper = dynamic_cast<ArrayType *>(type_map[ret->back()->GetType()]);
       int ele = upper->GetNum();
       auto omit = new Initializer(upper);
-
-      for (int j = 0; j < ele; j++)
+      for (int i = 0; i < ele; i++)
       {
         omit->push_back(ret->back());
         ret->pop_back();
       }
       std::reverse(omit->begin(), omit->end());
       ret->push_back(omit);
-      lastType = ret->back()->GetType();
     }
   }
-
-  Type *lastType = ret->back()->GetType();
-  while (lastType != sub)
+  while (ret->back()->GetType() != sub)
   {
-    auto upper = dynamic_cast<ArrayType *>(type_map[lastType]);
+    auto upper = dynamic_cast<ArrayType *>(type_map[ret->back()->GetType()]);
     int ele = upper->GetNum();
     auto omit = new Initializer(upper);
     for (int i = 0; i < ele && !ret->empty() && ret->back()->GetType() == upper->GetSubType(); i++)
@@ -347,9 +471,7 @@ Operand InitVals::GetOperand(Type *_tp, BasicBlock *block)
     }
     std::reverse(omit->begin(), omit->end());
     ret->push_back(omit);
-    lastType = ret->back()->GetType();
   }
-
   return ret;
 }
 
@@ -535,6 +657,42 @@ void FuncParam::GetVar(Function &tmp)
   }
 }
 
+// void FuncParam::GetVar(Function &tmp)
+// {
+//   auto get_type = [](AST_Type _tp) -> Type *
+//   {
+//     switch (_tp)
+//     {
+//     case AST_INT:
+//       return IntType::NewIntTypeGet();
+//     case AST_FLOAT:
+//       return FloatType::NewFloatTypeGet();
+//     default:
+//       std::cerr << "Wrong Type\n";
+//       assert(0);
+//     }
+//   };
+//   if (array_subscripts != nullptr)
+//   {
+//     auto vec = array_subscripts->GenerateArrayTypeDescriptor(get_type(tp));
+//     if (empty_square)
+//       vec = PointerType::NewPointerTypeGet(vec);
+//     else
+//     {
+//       auto inner = dynamic_cast<HasSubType *>(vec);
+//       vec = PointerType::NewPointerTypeGet(inner->GetSubType());
+//     }
+//     tmp.PushParam(name, new Var(Var::Param, vec, name));
+//   }
+//   else
+//   {
+//     if (empty_square)
+//       tmp.PushParam(name, new Var(Var::Param, PointerType::NewPointerTypeGet(get_type(tp)), name));
+//     else
+//       tmp.PushParam(name, new Var(Var::Param, get_type(tp), name));
+//   }
+// }
+
 FuncParams::FuncParams(FuncParam *ptr)
 {
   DataList.push_back(ptr);
@@ -690,6 +848,48 @@ Operand LVal::GetPointer(BasicBlock *block)
   return handle;
 }
 
+// Operand LVal::GetPointer(BasicBlock *block)
+// {
+//   auto ptr = Singleton<Module>().GetValueByName(name);
+//   if (ptr->isConst())
+//     return ptr;
+//   std::vector<Operand> tmp;
+//   if (array_descriptor != nullptr)
+//     tmp = array_descriptor->GetVisitDescripter(block);
+
+//   Operand handle;
+//   if (dynamic_cast<PointerType *>(ptr->GetType())->GetSubType()->GetTypeEnum() == IR_ARRAY)
+//   {
+//     handle = block->GenerateGepInst(ptr);
+//     dynamic_cast<GepInst *>(handle)->add_use(ConstIRInt::GetNewConstant());
+//   }
+//   else if (dynamic_cast<PointerType *>(ptr->GetType())->GetSubType()->GetTypeEnum() == IR_PTR)
+//   {
+//     if (array_descriptor == nullptr)
+//       return ptr;
+//     handle = block->GenerateLoadInst(ptr);
+//   }
+//   else
+//   {
+//     assert(tmp.empty());
+//     return ptr;
+//   }
+
+//   for (auto &i : tmp)
+//   {
+//     if (auto gep = dynamic_cast<GepInst *>(handle))
+//       gep->add_use(i);
+//     else
+//     {
+//       handle = block->GenerateGepInst(handle);
+//       dynamic_cast<GepInst *>(handle)->add_use(i);
+//     }
+//     if (i != tmp.back() && dynamic_cast<PointerType *>(handle->GetType())->GetSubType()->GetTypeEnum() == IR_PTR)
+//       block->GenerateLoadInst(handle);
+//   }
+//   return handle;
+// }
+
 Operand LVal::GetOperand(BasicBlock *block)
 {
   auto ptr = GetPointer(block);
@@ -758,7 +958,6 @@ BasicBlock *WhileStmt::GetInst(GetInstState state)
     inner_loop = nullptr;
   }
 
-  // 如果出口没人用，删掉
   if (nxt_block->GetValUseList().is_empty())
   {
     delete nxt_block;

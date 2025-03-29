@@ -7,7 +7,7 @@ import difflib
 import re
 
 compiler_path = "./Compiler"
-test_folder="./testcase/functional"
+test_folder="./testcase"
 # pass_args=["--mem2reg"]
 
 # grab all the testcases
@@ -86,6 +86,7 @@ for test in test_list:
                 # 假设total_time已经定义，并且是以秒为单位的
                 total_time += total_seconds
             else:
+                print("stderr_output:", stderr_output)
                 print("No TOTAL time found in stderr_output.")
         except subprocess.TimeoutExpired:
             continue

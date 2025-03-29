@@ -7,45 +7,41 @@
 class SymbolTable
 {
 protected:
-  std::unordered_map<std::string, std::unique_ptr<std::stack<Value *>>> mp;
-  std::vector<std::vector<std::stack<Value *> *>> rec;
+  using recoder = std::stack<Value *> *;
+  std::map<std::string, std::unique_ptr<std::stack<Value *>>> mp;
+  std::vector<std::vector<recoder>> rec;
 
 public:
-  void Register(const std::string &name, Value *val)
-  {
-    auto &i = mp.emplace(name, std::make_unique<std::stack<Value *>>()).first->second;
-    i->push(val);
-  }
-
-  Value *GetValueByName(const std::string &name)
-  {
-    auto it = mp.find(name);
-    assert(it != mp.end() && !it->second->empty()); // 确保 `name` 存在且非空
-    return it->second->top();
-  }
-
   void layer_increase()
   {
-    rec.push_back({});
+    rec.push_back(std::vector<recoder>());
   }
-
   void layer_decrease()
   {
-    if (rec.empty())
-      return;
-
     for (auto &i : rec.back())
-    {
-      if (i && !i->empty())
-      {
+      if (!i->empty())
         i->pop();
-      }
-    }
     rec.pop_back();
+  }
+  Value *GetValueByName(std::string name)
+  {
+    auto &i = mp[name];
+    assert(i != nullptr && !i->empty());
+    return i->top();
+  }
+  void Register(std::string name, Value *val)
+  {
+    auto &i = mp[name];
+    if (i == nullptr)
+      i.reset(new std::stack<Value *>());
+    if (!rec.empty())
+      rec.back().push_back(i.get());
+    /// @todo 函数重定义是科学的
+    i->push(val);
   }
   int IR_number(std::string str)
   {
-    static std::unordered_map<std::string, int> recorder;
-    return recorder[str]++;
+    static std::unordered_map<std::string, int> cnt;
+    return cnt[str]++;
   }
 };

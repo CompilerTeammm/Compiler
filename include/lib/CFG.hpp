@@ -90,7 +90,7 @@ public:
       std::cout << " = global ";
     else if (usage == Constant)
       std::cout << " = constant ";
-    else /* if(usage==Param) */
+    else
       return;
     auto tp = dynamic_cast<PointerType *>(GetType());
     assert(tp != nullptr && "Variable Must Be a Pointer Type to Inner Content!");
@@ -615,7 +615,7 @@ public:
   GepInst(Operand base, std::vector<Operand> &args);
 
   void AddArg(Value *arg);
-  Type *GetType(); // 暂未实现
+  Type *GetType();
   std::vector<Operand> GetIndexs();
 
   GepInst *clone(std::unordered_map<Operand, Operand> &) override;
@@ -697,11 +697,11 @@ Operand ToInt(Operand op, BasicBlock *block);
 class PhiInst : public Instruction
 {
 private:
-  int oprandNum;  //记录操作数的数目
-  std::vector<Value*> Incomings;  
-  std::map<int,std::pair<Value*,BasicBlock*>> PhiRecord;  //phi [val1,BB1] [val2,BB2]; phi语句类似如此 我要记录这个
-  std::vector<BasicBlock*> IncomingBlocks;
-  std::map<Use*,int> UseRecord;
+  int oprandNum; // 记录操作数的数目
+  std::vector<Value *> Incomings;
+  std::map<int, std::pair<Value *, BasicBlock *>> PhiRecord; // phi [val1,BB1] [val2,BB2]; phi语句类似如此 我要记录这个
+  std::vector<BasicBlock *> IncomingBlocks;
+  std::map<Use *, int> UseRecord;
 
 public:
   PhiInst(Type *_tp);
@@ -713,18 +713,19 @@ public:
     return this;
   }
   void print() final
-  { }
+  {
+  }
 
-  static PhiInst *Create(Instruction* BeforeInst,BasicBlock* currentBB, std::string Name="");
-  static PhiInst *Create(Instruction* BeforeInst,BasicBlock* currentBB, Type* type, std::string Name="");
-  static PhiInst *Create(Type* type);
+  static PhiInst *Create(Instruction *BeforeInst, BasicBlock *currentBB, std::string Name = "");
+  static PhiInst *Create(Instruction *BeforeInst, BasicBlock *currentBB, Type *type, std::string Name = "");
+  static PhiInst *Create(Type *type);
 
   // 增加前驱 to phiInst 的值
   void addIncoming(Value *Incoming, BasicBlock *PreBB);
-  int getNumIncomingValues()  { return oprandNum; } //
-  BasicBlock* getIncomingBlock(int num);
-  Value* getIncomingValue(int num);
-  std::vector<Value*>& RecordIncomingValsA_Blocks();
+  int getNumIncomingValues() { return oprandNum; } //
+  BasicBlock *getIncomingBlock(int num);
+  Value *getIncomingValue(int num);
+  std::vector<Value *> &RecordIncomingValsA_Blocks();
   bool IsReplaced();
 };
 

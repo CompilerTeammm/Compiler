@@ -137,13 +137,13 @@ Value::~Value()
     delete valuselist.front()->user;
 }
 
-Type *Value::GetType() const { return type; }
+Type *Value::GetType() { return type; }
 
-IR_DataType Value::GetTypeEnum() const { return GetType()->GetTypeEnum(); }
+IR_DataType Value::GetTypeEnum() { return GetType()->GetTypeEnum(); }
 
-const std::string &Value::GetName() const { return name; }
+std::string Value::GetName() { return name; }
 
-void Value::SetName(const std::string &_name) { this->name = _name; }
+void Value::SetName(std::string _name) { this->name = _name; }
 
 void Value::SetType(Type *_type) { type = _type; }
 
@@ -153,7 +153,6 @@ int Value::GetValUseListSize() { return valuselist.GetSize(); }
 
 void Value::ReplaceAllUseWith(Value *value) // dh RAUW
 {
-  
 }
 
 void Value::SetVersion(int new_version) { version = new_version; }
@@ -179,8 +178,8 @@ void Value::print()
     std::cout << "@" << GetName();
   else if (auto temp = dynamic_cast<Function *>(this))
     std::cout << "@" << temp->GetName();
-  // else if (auto temp = dynamic_cast<BuiltinFunc *>(this))
-  //   std::cout << "@" << temp->GetName();
+  else if (auto temp = dynamic_cast<BuiltinFunc *>(this))
+    std::cout << "@" << temp->GetName();
   else if (GetName() == "undef")
     std::cout << GetName();
   else

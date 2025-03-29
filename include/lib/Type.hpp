@@ -89,7 +89,7 @@ class FloatType : public Type
 public:
     void print() final
     {
-        std::cout << "f32";
+        std::cout << "float";
     }
 
     static FloatType *NewFloatTypeGet()
@@ -130,7 +130,7 @@ class BoolType : public Type
 public:
     void print() final
     {
-        std::cout << "il"; // 类llvm
+        std::cout << "i1"; // 类llvm
     }
     static BoolType *NewBoolTypeGet()
     {

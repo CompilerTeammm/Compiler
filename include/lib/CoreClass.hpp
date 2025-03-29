@@ -160,10 +160,10 @@ public:
   virtual ~Value();
 
   // 基本操作：获取&设置各种值
-  virtual Type *GetType() const;
-  IR_DataType GetTypeEnum() const;
-  const std::string &GetName() const;
-  void SetName(const std::string &_name);
+  virtual Type *GetType();
+  IR_DataType GetTypeEnum();
+  virtual std::string GetName();
+  void SetName(std::string _name);
   void SetType(Type *_type);
   ValUseList &GetValUseList();
   int GetValUseListSize();
