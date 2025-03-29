@@ -67,7 +67,8 @@
     "cassert": "cpp",
     "queue": "cpp",
     "bitset": "cpp",
-    "stack": "cpp"
+    "stack": "cpp",
+    "regex": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",
   "C_Cpp_Runner.cppCompilerPath": "g++",

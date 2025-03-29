@@ -151,6 +151,11 @@ ValUseList &Value::GetValUseList() { return valuselist; }
 
 int Value::GetValUseListSize() { return valuselist.GetSize(); }
 
+void Value::ReplaceAllUseWith(Value *value) // dh RAUW
+{
+  
+}
+
 void Value::SetVersion(int new_version) { version = new_version; }
 
 int Value::GetVersion() const { return version; }

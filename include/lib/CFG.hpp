@@ -742,7 +742,7 @@ public:
   bool reachable; // 是否可达
   int size_Inst = 0;
   // BasicBlock包含Instruction
-  using InstPtr = std::unique_ptr<Instruction>;
+  using InstPtr = std::shared_ptr<Instruction>;
   // 当前基本块的指令
   // std::vector<InstPtr> instructions = {};
   // 前驱&后续基本块列表
@@ -751,6 +751,7 @@ public:
 
 public:
   // 获取当前基本块的指令
+  // 这个东西没有实现，，，
   std::vector<InstPtr> &GetInsts();
 
   BasicBlock();          // 构造函数
@@ -781,6 +782,7 @@ public:
   bool is_empty_Insts() const; // 判断指令是否为空
 
   // 获取基本块的最后一条指令
+  // 这个也没有实现
   Instruction *GetLastInsts() const;
 
   // 替换后继块中的某个基本块
