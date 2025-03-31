@@ -146,3 +146,31 @@ void BlockInfo::GetBlockLivein(RISCVBasicBlock *block){
         }
     }
 }
+void BlockInfo::Build(){
+    for(RISCVBasicBlock *block :*m_func){
+        std::unordered_set<MOperand> live =BlockLivein[block];
+        for(auto inst_=block->rbegin();inst_ !=block->rend();){
+            RISCVMIR *inst=*inst_;
+            OpType op=inst->GetOpcode();
+            
+            if(op==OpType::mv||op==OpType::_fmv_s){
+                if(auto val=inst->GetOperand(0)->ignoreLA()){
+                    live.erase(val);
+                    if(!NotMove.count(inst)){
+                        moveList[val].insert(inst);
+                    }
+                }
+                if(auto def=inst->GetDef()->ignoreLA()){
+                    if(!NotMove.count(inst)){
+                        moveList[def].insert(inst);
+                    }
+                }
+                if(!NotMove..count(inst)){
+                    worklistMoves.push_back(inst);
+                }
+            }else if(op==OpType::call){
+                
+            }
+        }
+    }
+}
