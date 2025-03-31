@@ -279,3 +279,117 @@ void InterVal::init(){
         }
     }
 }
+//计算活跃区间
+void InterVal::computeLiveIntervals(){
+    for(RISCVBasicBlock *block:*func){
+        std::unordered_map<MOperand,std::vector<InterVal>> CurrentRegLiveinterval;
+        int begin=-1;//当前基本块的起始指令编号,用于区间计算
+        for(RISCVMIR *inst:*block){
+            int Curr =instNum[inst];
+            if(inst==block->front()){
+                begin=instNum[inst];//记录当前基本块第一条指令的编号
+            }
+            for(MOperand Op:InstLive[inst]){
+                //如果Op没有活跃区间
+                // 创建一个新的 Interval 记录 Op 的活跃区间起点。
+                // 终点 end = -1，表示还未结束。
+                // 把 Interval 存入 CurrentRegLiveinterval。
+                if(!CurrentRegLiveinterval.count(Op)){
+                    Interval interval;
+                    interval.start=Curr;
+                    interval.end=-1;
+                    CurrentRegLiveinterval[Op].push_back(interval);
+                }//如果当前指令 inst 是基本块的最后一条指令，并且区间还未结束，则更新区间终点 end = Curr
+                 //如果 Op 的前一个区间已经结束，并且 Op 在 inst 这条指令中被使用（count(Op, inst) 为真），则创建一个新的活跃区间。
+                else{
+                    if(CurrentRegLiveinterval[Op].back().end==-1&&inst==block->back()){
+                        CurrentRegLiveinterval[Op].back().end=Curr;
+                    }else if(CurrentRegLiveinterval[Op].back().end != -1 && count(Op, inst)){
+                        Interval interval;
+                        interval.start=Curr;
+                        interval.end=-1;
+                        CurrentRegLiveinterval[Op].push_back(interval);
+                    }
+                }
+            }
+            for (auto &[Op, intervals] : CurrentRegLiveinterval){
+                if (intervals.back().end == -1 && inst == block->back() && !count(Op, inst))
+                    CurrentRegLiveinterval[Op].back().end = Curr - 1;//使活跃区间终止于Curr-1
+                else if (intervals.back().end == -1 && inst == block->back())
+                    CurrentRegLiveinterval[Op].back().end = Curr;
+                else if (intervals.back().end == -1 && !count(Op, inst))
+                    intervals.back().end = Curr - 1;
+                else if (intervals.back().end == -1 && count(Op, inst))
+                    continue;
+            }
+        }
+        if(verify(CurrentRegLiveinterval)){
+            for(auto &[op, intervals] : CurrentRegLiveinterval){
+                auto curr=intervals.begin();
+                for(auto iter = intervals.begin(); iter != intervals.end(); ++iter){
+                    if(iter==curr){
+                        continue;
+                    }
+                    if(curr->start < iter->start){
+                        ++curr;
+                        *curr=*iter;
+                    }else{
+                        curr->end=std::max(curr->end,iter->end);
+                    }
+                }
+                intervals.erase(std::next(curr),intervals.end());
+            }
+            RegLiveness[block]=CurrentRegLiveinterval;
+        }
+    }
+}
+bool InterVal::verify(std::unordered_map<MOperand, std::vector<Interval>> Liveinterval){
+    int num = 0;
+    for (auto &[op, intervals] : Liveinterval){
+        for (auto &i : intervals){
+            if (i.start > i.end){
+                return false;
+            }
+            if (num > i.end){
+                return false;
+            }
+        }
+    }
+    return true;
+}
+void InterVal::PrintAnalysis(){
+    std::cout << "--------InstLive--------" << std::endl;
+    for (RISCVBasicBlock *block : *func){
+        std::cout << "-----Block " << block->GetName() << "-----" << std::endl;
+        for (RISCVMIR *inst : *block){
+            std::cout << "inst" << instNum[inst] << "Liveness:";
+            for (RISCVMOperand *Op : InstLive[inst]){
+                if (dynamic_cast<VirRegister *>(Op)){
+                    Op->print();
+                }else{
+                    Op->print();
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+    for (RISCVBasicBlock *block : *func){
+        std::cout << "--------LiveInterval--------" << std::endl;
+        std::cout << "--------Block:" << block->GetName() << "--------" << std::endl;
+        for (auto &[op, intervals] : RegLiveness[block]){
+            if (dynamic_cast<VirRegister *>(op)){
+                op->print();
+            }else{
+                op->print();
+            }
+            for (auto &i : intervals){
+                std::cout << "[" << i.start << "," << i.end << "]";
+            }
+            std::cout << std::endl;
+        }
+    }
+}
+void InterVal::RunOnFunc_(){
+    init();  // 初始化指令编号
+    computeLiveIntervals();  // 计算活跃区间
+}
