@@ -152,33 +152,35 @@ void BlockInfo::Build(){
         for(auto inst_=block->rbegin();inst_ !=block->rend();){
             RISCVMIR *inst=*inst_;
             OpType op=inst->GetOpcode();
-            
+            //寄存器复制指令
             if(op==OpType::mv||op==OpType::_fmv_s){
+                //删除被移动的源操作数
                 if(auto val=inst->GetOperand(0)->ignoreLA()){
                     live.erase(val);
                     if(!NotMove.count(inst)){
                         moveList[val].insert(inst);
                     }
                 }
+                //处理目标寄存器
                 if(auto def=inst->GetDef()->ignoreLA()){
                     if(!NotMove.count(inst)){
                         moveList[def].insert(inst);
                     }
-                }
+                }//movelist记录mv指令，以便后续寄存器合并
                 if(!NotMove.count(inst)){
                     worklistMoves.push_back(inst);
                 }
-            }else if(op==OpType::call){
+            }else if(op==OpType::call){//处理call指令
                 for(auto reg:reglist.GetReglistCaller()){
                     live.insert(reg);
                 }
                 for(auto reg:reglist.GetReglistCaller()){
                     for(auto v:live){
-                        AddEdge(reg,v);
+                        AddEdge(reg,v);//添加干涉边，确保reg不能被分配给v
                     }
                 }
                 for(auto reg:reglist.GetReglistCaller()){
-                    live.erase(reg);
+                    live.erase(reg);//移除caller—Saved，表明call指令结束后它们已经失效
                 }
             }
             if(auto def_val=inst->GetDef()){
@@ -190,6 +192,7 @@ void BlockInfo::Build(){
                     live.erase(def);
                 }
             }
+            //遍历所有操作数，将use加入live集合
             for(int i=0;i<inst->GetOperandSize();i++){
                 if(auto val=inst->GetOperand(i)->ignoreLA()){
                     live.insert(val);
@@ -200,6 +203,7 @@ void BlockInfo::Build(){
         }
     }
 }
+//用于 调试寄存器干涉图，帮助分析 哪些寄存器相互干涉，确保构造正确。
 void BlockInfo::PrintEdge()
 {
     for (auto &[key, val] : adjSet)
@@ -231,5 +235,47 @@ void BlockInfo::AddEdge(Register *u, Register *v)
     {
         AdjList[u].insert(v);
         Degree[u]++;
+    }
+}
+//打印每个basic block的livein liveout集合，用于调试活跃变量分析
+void BlockInfo:PrintPass(){
+    std::cout << "--------BlockLiveInfo--------" << std::endl;
+    for (RISCVBasicBlock *_block : *m_func){
+        std::cout << "--------Block:" << _block->GetName() << "--------" << std::endl;
+        std::cout << "        Livein" << std::endl;
+        for (RISCVMOperand *_value : BlockLivein[_block])
+        {
+            // if (dynamic_cast<VirRegister *>(_value))
+            //     _value->print();
+            // else
+            //     _value->print();
+            // std::cout << " ";
+            _value->print();
+            std::cout<<" ";
+        }
+        std::cout << std::endl;
+        std::cout << "        Liveout" << std::endl;
+        for (RISCVMOperand *_value : BlockLiveout[_block])
+        {
+            // if (dynamic_cast<VirRegister *>(_value))
+            //     _value->print();
+            // else
+            //     _value->print();
+            // std::cout << " ";
+            _value->print();
+            std::cout<<" ";
+        }
+        std::cout << std::endl;
+    }    
+}
+//为每条指令赋予唯一编号
+void InterVal::init(){
+    int curr = 0;
+    for (RISCVBasicBlock *block : *func){
+        for (RISCVMIR *inst : *block)
+        {
+            instNum[inst] = curr;
+            curr++;
+        }
     }
 }
