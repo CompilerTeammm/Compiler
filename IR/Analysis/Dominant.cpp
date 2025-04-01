@@ -4,10 +4,16 @@
 
 void DominantTree::InitNodes()
 {
+
+
     //   pair <BasicBlock* , TreeNode*>
-    for (int i = 0; i <= BasicBlocks.size(); i++)
-        BlocktoNode[BasicBlocks[i]] = Nodes[i],  // map
-            Nodes[i]->curBlock = BasicBlocks[i]; // key-value value不好寻找key
+    for (int i = 0; i < BasicBlocks.size(); i++){
+        Nodes[i] = new TreeNode();
+        BlocktoNode[BasicBlocks[i]] = Nodes[i]; // map
+        // auto e = BasicBlocks[i];
+        // auto m = Nodes[i]->curBlock;
+        Nodes[i]->curBlock = BasicBlocks[i]; // key-value value不好寻找key
+    }
 
     // 建立了前驱与后继的确定
     for (auto bb : BasicBlocks)
@@ -109,6 +115,11 @@ void DominantTree::InitIdom()
 
 void DominantTree::InitDSU()
 {
+    for(int i = 0; i <DSU.size(); i++)
+    {
+        DSU[i] = new dsuNode();
+    }
+
     for (int i = 1; i < DSU.size(); i++)
     {
         int order = Nodes[i - 1]->dfs_order;

@@ -712,9 +712,7 @@ public:
   {
     return this;
   }
-  void print() final
-  {
-  }
+  void print() final;
 
   static PhiInst *Create(Instruction *BeforeInst, BasicBlock *currentBB, std::string Name = "");
   static PhiInst *Create(Instruction *BeforeInst, BasicBlock *currentBB, Type *type, std::string Name = "");
@@ -754,7 +752,7 @@ public:
   // 获取当前基本块的指令
   // 这个东西没有实现，，，
   std::vector<InstPtr> &GetInsts();
-
+  int& GetIndex() { return index;}
   BasicBlock();          // 构造函数
   virtual ~BasicBlock(); // 析构函数
 
@@ -869,7 +867,7 @@ public:
   void InitBBs();
   void PushParam(std::string, Var *);
   void UpdateParam(Var *var) { params.emplace_back(var); }
-  int GetSize() { return size_BB; }
+  int& GetSize() { return size_BB; }
 };
 
 class Module : public SymbolTable

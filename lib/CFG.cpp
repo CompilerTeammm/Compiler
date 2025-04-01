@@ -652,13 +652,27 @@ PhiInst::PhiInst(Instruction *BeforeInst) : oprandNum(0)
     id = Op::Phi;
 }
 
-// PhiInst *PhiInst::clone(std::unordered_map<Operand, Operand> &mapping)
-// {
-// }
-
-// void PhiInst::print()
-// {
-// }
+void PhiInst::print()
+{
+    int count = 0;
+    dynamic_cast<Value*> (this)->print();
+    std::cout << " = phi ";
+    this->GetType()->print();
+    std::cout << " ";
+    for(auto &[_1,value] : PhiRecord)
+    {
+        std::cout << "[";
+        value.first->print();
+        std::cout << ", ";
+        dynamic_cast<Value*>(value.second)->print();
+        std::cout << "]";
+        if (count != PhiRecord.size() - 1)
+            std::cout << ", ";
+        count++;
+    }
+    std::cout << "\n ";
+    return;
+} 
 
 PhiInst *PhiInst::Create(Type *type)
 {

@@ -20,8 +20,7 @@ enum PassName
 };
 
 // PassManager 用来管理Passes
-template<typename MyPass>
-class PassManager :_PassBase<MyPass,Function>
+class PassManager :_PassBase<PassManager,Function>
 {   
 private:
     std::queue<PassName> Passque;
@@ -38,17 +37,31 @@ public:
     // 我这里从前端获取到内存形式的 M-SSA 
     PassManager() { _mod = &Singleton<Module>(); }
     void RunOnTest();
-    
+    void run() override 
+    {
+
+    }
 };
 
-template<typename MyPass>
-void PassManager<MyPass>:: RunOnTest()
+
+void PassManager:: RunOnTest()
 {
     auto& funcVec = _mod->GetFuncTion();
     for(auto& function : funcVec)
     {
+        // Function;
         auto fun = function.get();
+        fun->GetSize() = 0;
+        fun->GetBBs().clear();
+        for(auto bb : *fun)
+        {
+            // BasicBlock
+            bb->index = fun->GetSize()++;
+            std::shared_ptr<BasicBlock> shared_bb(bb);
+            fun->GetBBs().push_back(shared_bb);
+        }
         DominantTree tree(fun);
+        tree.BuildDominantTree();
         Mem2reg(fun,&tree).run();
     }
 }

@@ -21,8 +21,8 @@
 #include <getopt.h>
 #include <iostream>
 #include <memory>
-// #include "PassManager.hpp"
-// #include "include/IR/Opt/PassManager.hpp"
+#include "PassManager.hpp"
+#include "include/IR/Opt/PassManager.hpp"
 
 extern FILE *yyin;
 extern int optind, opterr, optopt;
@@ -59,10 +59,13 @@ int main(int argc, char **argv)
    // auto PM = std::make_unique<_PassManager>();
    // PM->DecodeArgs(argc, argv);
    // PM->RunOnTest();
-   Singleton<Module>().Test();
+   // Singleton<Module>().Test();
 
    // 中端
-   // Singleton<PassManager>().RunOnTest();
+   auto PM = std::make_unique<PassManager>();
+   PM->RunOnTest();
+
+   Singleton<Module>().Test();
 
 
    fflush(stdout);

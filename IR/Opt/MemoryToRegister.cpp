@@ -125,6 +125,7 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst *AI, std::set<BasicBlock *> 
         // 寻找前驱是store的块，才可以终止对pre的回溯
 
         // 支配树搭建完成，取BB的前驱结点
+        
         for(auto& preNode :_tree->getNode(BB)->predNodes)
         {
             BasicBlock* preBB = preNode->curBlock;

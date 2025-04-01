@@ -151,8 +151,21 @@ ValUseList &Value::GetValUseList() { return valuselist; }
 
 int Value::GetValUseListSize() { return valuselist.GetSize(); }
 
+// 做两件事情，消除原来的Use*的关系
+// 对于value需要它去继承之前的关系
+// phi 的处理貌似没有做
 void Value::ReplaceAllUseWith(Value *value) // dh RAUW
 {
+    // auto list =  valuselist;
+    valuselist.GetSize() = 0;
+
+    Use* &Head = valuselist.front();
+    while(Head) {
+        Head->usee = value;
+        Use* tmp = Head->next;
+        value->valuselist.push_front(Head);
+        Head = tmp;
+    }
 }
 
 void Value::SetVersion(int new_version) { version = new_version; }
