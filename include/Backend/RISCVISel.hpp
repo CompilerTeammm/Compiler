@@ -12,13 +12,6 @@ class RISCVISel : public BackEndPass<Function>
   RISCVMIR *Builder(RISCVMIR::RISCVISA, std::initializer_list<RISCVMOperand *>);
   RISCVMIR *Builder_withoutDef(RISCVMIR::RISCVISA _isa, std::initializer_list<RISCVMOperand *> list);
 
-  /*
-  // Future work
-  void LowerCallInstParallel(CallInst *); // Parallel call scenario
-  void LowerCallInstCacheLookUp(CallInst *); // Cache lookup
-  void LowerCallInstCacheLookUp4(CallInst *); // 4-way cache lookup
-  */
-
   // In the lowering phase within the Control Flow Graph(CFG)
   void InstLowering(Instruction *); //
   void InstLowering(LoadInst *);    //
@@ -26,6 +19,7 @@ class RISCVISel : public BackEndPass<Function>
   /// @todo
   void InstLowering(AllocaInst *); //
   void InstLowering(CallInst *);   //
+  void InstLowering(StoreInst *);  //
 
   void InstLowering(RetInst *);    //
   void InstLowering(CondInst *);   //
@@ -41,6 +35,12 @@ class RISCVISel : public BackEndPass<Function>
   void InstLowering(FP2SIInst *);  //
   void InstLowering(SI2FPInst *);  //
   void InstLowering(PhiInst *);    //
+
+  void LowerCallInstParallel(CallInst *);
+  void LowerCallInstCacheLookUp(CallInst *);
+  void LowerCallInstCacheLookUp4(CallInst *);
+
+  void condition_helper(BinaryInst *);
 
 public:
   RISCVISel(RISCVLoweringContext &, RISCVAsmPrinter *&);
