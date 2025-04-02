@@ -29,7 +29,7 @@ public:
       : m_func(func), ctx(_ctx) {
     m_func = ctx.GetCurFunction();
   }
-  void RunGCpass();
+  void RunGCpass();//调用GraphColor进行寄存器分配
 
 protected:
   std::vector<PhyRegister *> float_available;
@@ -43,7 +43,7 @@ class GraphColor : public LiveInterval {
 public:
   RISCVLoweringContext &ctx;
   RISCVFunction *m_func;
-  using Interval = LiveInterval::RegLiveInterval;
+  using Interval = LiveInterval::RegLiveInterval;//活跃区间
   using IntervalLength = unsigned int;
   GraphColor(RISCVFunction *func, RISCVLoweringContext &_ctx)
       : LiveInterval(func), ctx(_ctx), m_func(func) {}
@@ -58,21 +58,20 @@ private:
   void CalcIG(RISCVMIR *inst);//计算冲突图
   void New_CalcIG(MOperand u, MOperand v);
   void CalInstLive(RISCVBasicBlock *block);
-  void CaculateLiveness();
+  void CaculateLiveness();//活跃变量分析
   void CaculateLiveInterval(RISCVBasicBlock *mbb);
-  void simplify();
-  void coalesce();
-  void freeze();
-  void spill();
-  void AssignColors();
+  void simplify();//移除低度数节点
+  void coalesce();//合并不冲突的变量
+  void freeze();//冻结某些变量防止合并
+  void spill();//选择溢出变量
+  void AssignColors();//为变量分配物理寄存器
   void SpillNodeInMir();
   void RewriteProgram();
   void CaculateTopu(RISCVBasicBlock *mbb);
   void DecrementDegree(MOperand target);
   MOperand HeuristicFreeze();
   MOperand HeuristicSpill();
-  PhyRegister *SelectPhyReg(MOperand vreg, RISCVType ty,
-                            std::unordered_set<MOperand> &assist);
+  PhyRegister *SelectPhyReg(MOperand vreg, RISCVType ty,std::unordered_set<MOperand> &assist);//为虚拟寄存器选择合适的物理寄存器
   bool GeorgeCheck(MOperand dst, MOperand src, RISCVType ty);
   bool BriggsCheck(MOperand dst, MOperand src, RISCVType ty);
   void AddWorkList(MOperand v);
@@ -83,13 +82,11 @@ private:
   void SetRegState(PhyRegister *reg, RISCVType ty);
   int GetRegNums(MOperand v);
   int GetRegNums(RISCVType ty);
-  void GC_init();
-  void LiveInfoInit();
+  void GC_init();//初始化图着色算法，用于寄存器分配
+  void LiveInfoInit();//初始化活跃变量信息
   std::set<MOperand> Adjacent(MOperand);
-  RISCVMIR *CreateSpillMir(RISCVMOperand *spill,
-                           std::unordered_set<VirRegister *> &temps);
-  RISCVMIR *CreateLoadMir(RISCVMOperand *load,
-                          std::unordered_set<VirRegister *> &temps);
+  RISCVMIR *CreateSpillMir(RISCVMOperand *spill,std::unordered_set<VirRegister *> &temps);
+  RISCVMIR *CreateLoadMir(RISCVMOperand *load,std::unordered_set<VirRegister *> &temps);
   void Print();
   std::vector<MOperand> SpillStack;
   // 保证Interval vector的顺序
@@ -122,8 +119,6 @@ private:
   // 合并后的别名管理
   std::unordered_map<MOperand, MOperand> alias;
   std::unordered_map<PhyRegister *, RISCVType> RegType;
-  // 记录已经重写的spill node
-  //  std::unordered_map<VirRegister *, RISCVMIR *> AlreadySpill;
   std::vector<RISCVBasicBlock *> topu;
   std::set<RISCVBasicBlock *> assist;
   std::unordered_map<MOperand, int> SpillToken;
