@@ -670,7 +670,7 @@ void PhiInst::print()
             std::cout << ", ";
         count++;
     }
-    std::cout << "\n ";
+    std::cout << "\n";
     return;
 } 
 
@@ -762,6 +762,7 @@ std::vector<Value *> &PhiInst::RecordIncomingValsA_Blocks()
 
 bool PhiInst::IsReplaced()
 {
+    RecordIncomingValsA_Blocks();
     Value *tmp = Incomings[0];
     bool ret = true;
     for (auto e : Incomings)

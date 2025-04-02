@@ -25,6 +25,7 @@ struct less_first {
 // %op2 = load i32, i32* %op0     使用 usingB
 void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
 {
+    clear();
     // 确定 该条 alloca 的使用情况 value->Use ->User
     for(Use*use : AI->GetValUseList())
     {
@@ -55,8 +56,6 @@ void AllocaInfo::AnalyzeAlloca(AllocaInst* AI)
                 OnlyOneBk = tmpBB;
             else if(OnlyOneBk != tmpBB)   // 这个是精华  判断这个load 和 store 是否都再一个基本块中
                 OnlyUsedInOneBlock = false;
-            else 
-                continue;
         }
     }
     // 到这里任然存在问题，有待去解决
@@ -92,7 +91,7 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst *AI, std::set<BasicBlock *> 
         if(!DefBlock.count(BB)) 
             continue; //判断有没有store的情况
         
-        for(auto it = BB->end();;++it)
+        for(auto it = BB->begin();;++it)
         {
             Instruction* inst = *it;
             // 最开始是storeInst的处理
@@ -109,8 +108,10 @@ void PromoteMem2Reg::ComputeLiveInBlocks(AllocaInst *AI, std::set<BasicBlock *> 
 
             if(LoadInst* LInst = dynamic_cast<LoadInst*>(inst))
             {
-                if(LInst->GetOperand(0) == AI)
-                    break;
+                if(LInst->GetOperand(0) != AI)
+                    continue;
+                
+                break;
             }
         }
     }
@@ -204,7 +205,7 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
     for(Use* use : AI->GetValUseList())
     {
         User* AIuser = use->GetUser();
-        LoadInst* LInst = dynamic_cast<LoadInst*> (user);
+        LoadInst* LInst = dynamic_cast<LoadInst*> (AIuser);
         if(!LInst)  // 只让LoadInst 语句下去
             continue;
 
@@ -218,9 +219,8 @@ bool PromoteMem2Reg::rewriteSingleStoreAlloca(AllocaInfo& info,AllocaInst *AI,  
                     info.UsingBlocks.push_back(StoreBB);
                     continue;
                 }
-            }  // 不在同一个BB中    一个支配关系
-            else if( LInst->GetParent() != StoreBB 
-            && _tree->dominates(StoreBB, LInst->GetParent()))
+            } else if( LInst->GetParent() != StoreBB  // 不在同一个BB中    一个支配关系 
+            && !_tree->dominates(StoreBB, LInst->GetParent()))
             {
                 info.UsingBlocks.push_back(LInst->GetParent());
                 continue;
@@ -420,14 +420,17 @@ void PromoteMem2Reg::RenamePass(BasicBlock *BB, BasicBlock *Pred,
         
         // keep track of the successor so we dont visit the same successor twice
         std::set<BasicBlock*> VisitedSucc;
+        VisitedSucc.insert(BB);
 
         auto It = cur->succNodes.begin();
         Pred = BB;
+
+        // BB = _tree.getNode(*It++).curBlock;
+
         BB = (*It)->curBlock;
         It++;
 
-        VisitedSucc.insert(BB);
-        while(It != cur->succNodes.end())
+        for(;It != cur->succNodes.end();It++)
         {
             // 把未处理的结点，全部塞进去
             BasicBlock* tmp = (*It)->curBlock;
@@ -575,7 +578,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister()
             {
                 Value* value = PInst->GetOperand(0);
                 PInst->ReplaceAllUseWith(value);
-                NewPhiNodes.erase(I);
+                NewPhiNodes.erase(I++);
                 IsEliminated = true;
             }
         }   
@@ -624,5 +627,6 @@ bool PromoteMem2Reg::promoteMemoryToRegister()
     }
 
     NewPhiNodes.clear();
+    return true;
 }
 

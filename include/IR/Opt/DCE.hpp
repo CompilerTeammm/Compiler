@@ -1,7 +1,6 @@
 
 #pragma once
 #include "Passbase.hpp"
-#include "AnalysisManager.hpp"
 #include "CoreClass.hpp"
 #include "CFG.hpp"
 #include "MyList.hpp"

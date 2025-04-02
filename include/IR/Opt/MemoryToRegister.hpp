@@ -23,6 +23,14 @@ public:
 
     void AnalyzeAlloca(AllocaInst* AI);
 
+    void clear() {
+      DefBlocks.clear();
+      UsingBlocks.clear();
+      OnlyOneBk = nullptr;
+      OnlyStoreInst = nullptr;
+      OnlyUsedInOneBlock = true;
+    }
+
     AllocaInfo()
       :OnlyOneBk(nullptr), OnlyStoreInst(nullptr),OnlyUsedInOneBlock(true)
     {  

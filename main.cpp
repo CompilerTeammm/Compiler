@@ -61,7 +61,7 @@ int main(int argc, char **argv)
    // PM->RunOnTest();
    // Singleton<Module>().Test();
 
-   // 中端
+   // 中端 前端要是测试可以把这段代码注释掉即可
    auto PM = std::make_unique<PassManager>();
    PM->RunOnTest();
 

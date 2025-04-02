@@ -10,7 +10,7 @@ struct less_second {
 };
 
 class BasicBlock;
-void IDFCalculator::calculate(std::vector<BasicBlock*>& IDFBlocks)
+void IDFCalculator::calculate(std::vector<BasicBlock*>& PHIBlocks)
 {
     // 计算支配树的层级
     if(DomLevels.empty()){

@@ -25,11 +25,15 @@ void DominantTree::InitNodes()
             BasicBlock *des_true = dynamic_cast<BasicBlock *>(uselist[1]->GetValue());
             BasicBlock *des_false = dynamic_cast<BasicBlock *>(uselist[2]->GetValue());
 
+            // 
             BlocktoNode[bb]->succNodes.push_front(BlocktoNode[des_true]);
             BlocktoNode[bb]->succNodes.push_front(BlocktoNode[des_false]);
 
-            BlocktoNode[bb]->predNodes.push_back(BlocktoNode[des_true]);
-            BlocktoNode[bb]->predNodes.push_back(BlocktoNode[des_false]);
+            BlocktoNode[des_true]->predNodes.push_back(BlocktoNode[bb]);
+            BlocktoNode[des_false]->predNodes.push_back(BlocktoNode[bb]);
+
+            // BlocktoNode[bb]->predNodes.push_back(BlocktoNode[des_true]);
+            // BlocktoNode[bb]->predNodes.push_back(BlocktoNode[des_false]);
         }
         else if (UnCondInst *uncondInst = dynamic_cast<UnCondInst *>(Inst))
         {
@@ -37,7 +41,8 @@ void DominantTree::InitNodes()
             BasicBlock *des = dynamic_cast<BasicBlock *>(uselist[0]->GetValue());
 
             BlocktoNode[bb]->succNodes.push_front(BlocktoNode[des]);
-            BlocktoNode[bb]->predNodes.push_front(BlocktoNode[des]);
+            // BlocktoNode[bb]->predNodes.push_front(BlocktoNode[des]);
+            BlocktoNode[des]->predNodes.push_back(BlocktoNode[bb]);
         }
     }
 }
@@ -72,7 +77,7 @@ void DominantTree::InitIdom()
 {
     // 逆序遍历，从dfs最大的结点开始, sdom求取
     // 需要记录最小的sdom对吧
-    for (int i = Nodes.size(); i >= 1; i--)
+    for (int i = Nodes.size(); i > 1; i--)
     {
         // int min;
         // TreeNode* tmp = nullptr;
@@ -134,7 +139,7 @@ void DominantTree::DFS(TreeNode *pos)
     pos->visited = true;
     pos->dfs_order = count;
     count++;
-    for (auto e : pos->predNodes)
+    for (auto e : pos->succNodes)
     {
         if (!e->visited)
         {
