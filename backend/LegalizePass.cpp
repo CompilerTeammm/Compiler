@@ -64,7 +64,43 @@ void Legalize::run(){
                         auto name=getTagName();
                         auto hi=new LARegister(riscv_ptr,name,LARegister::hi);
                         auto lo=new LARegister(riscv_ptr,name,LARegister::lo);
-                        
+                        auto reg=inst->GetDef()->as<Register>();
+                        assert(reg!=nullptr);
+                        //获取当前 LoadGlobalAddr 指令的目标寄存器 reg，这个寄存器用于存储最终的全局变量地址。
+                        RISCVMIR* lui=new RISCVMIR(RISCVMIR::_lui);
+                        lui->SetDef(reg);
+                        lui->AddOperand(hi);
+
+                        RISCVMIR* addi=new RISCVMIR(RISCVMIR::_addi);
+                        addi->SetDef(reg);
+                        addi->AddOperand(reg);
+                        addi->AddOperand(lo);
+                        it.insert_before(lui);
+                        it.insert_before(addi);
+                        //转换前
+                        // a0 = LoadGlobalAddr globalvar
+                        // 转换后
+                        // lui  a0, %hi(globalvar)   高20位
+                        // addi a0, a0, %lo(globalvar) 组合低12位
+                        it=mylist<RISCVBasicBlock,RISCVMIR>::iterator(addi);
+                        delete inst;
+                        break;
+                    }
+                    case RISCVMIR::LoadLocalAddr:{
+                        //addi reg, s0, offset
+                        auto frameobj=inst->GetOperand(0)->as<RISCVFrameObject>();
+                        auto stackreg=frameobj->GetStackReg();
+                        auto reg=inst->GetDef()->as<Register>();
+                        assert(reg!=nullptr);
+                        RISCVMIR* addi=new RISCVMIR(RISCVMIR::_addi);
+                        addi->SetDef(reg);
+                        addi->AddOperand(stackreg->GetReg());
+                        addi->AddOperand(Imm::GetImm(ConstIRInt::GetNewConstant(stackreg->GetOffset())));
+                        //获取该局部变量在栈中的偏移量，转换成立即数并作为 addi 的第二个操作数。
+                        it.insert_before(addi);
+                        it=mylist<RISCVBasicBlock,RISCVMIR>::iterator(addi);
+                        delete inst;
+                        break;
                     }
                 }
             }
