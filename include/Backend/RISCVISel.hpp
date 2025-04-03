@@ -16,7 +16,6 @@ class RISCVISel : public BackEndPass<Function>
   void InstLowering(Instruction *); //
   void InstLowering(LoadInst *);    //
 
-  /// @todo
   void InstLowering(AllocaInst *); //
   void InstLowering(CallInst *);   //
   void InstLowering(StoreInst *);  //

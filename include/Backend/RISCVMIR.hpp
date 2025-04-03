@@ -2,10 +2,10 @@
 #include "../../include/Backend/RISCVFrameContext.hpp"
 #include "../../include/lib/MyList.hpp"
 
-class RISCVMIR : public list_node<RISCVBasicBlock, RISCVMIR>
+class RISCVMIR : public List<RISCVBasicBlock, RISCVMIR>
 {
-  RISCVMOperand *def = nullptr;
-  std::vector<RISCVMOperand *> operands;
+  RISCVMOperand *def = nullptr;          // 指向目标操作数
+  std::vector<RISCVMOperand *> operands; // 数组存储目标操作数
 
 public:
   enum RISCVISA
@@ -201,14 +201,29 @@ public:
     EndPipeline
 
   } opcode;
+  // 构造函数初始化
   RISCVMIR(RISCVISA _isa) : opcode(_isa) {};
 
-  inline RISCVISA &GetOpcode()
-  {
-    return opcode;
-  };
+  // 操作数管理
+  RISCVMOperand *&GetDef();
+  RISCVMOperand *&GetOperand(int);
+  const int GetOperandSize() { return operands.size(); }
+  void SetDef(RISCVMOperand *);
+  void SetOperand(int, RISCVMOperand *);
+  void AddOperand(RISCVMOperand *);
 
-  RISCVMOperand *&GetDef(); // 转成MIR
+  // 操作码管理
+  void SetMopcode(RISCVISA);
+  inline RISCVISA &GetOpcode() { return opcode; };
+
+  // 指令类型判断
+  bool isArithmetic()
+  {
+    return (EndArithmetic > opcode && opcode > BeginArithmetic) | (EndFloatArithmetic > opcode && opcode > BeginFloatArithmetic);
+  }
+
+  // 调试输出
+  void printfull();
 };
 
 class RISCVFunction
