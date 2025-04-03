@@ -157,3 +157,162 @@ void Legalize::run(){
         }
     }
 }
+void Legalize::run_beforeRA() {
+    int legalizetime=2, time = 0;
+    while(time < legalizetime) {
+        RISCVFunction* func = ctx.GetCurFunction();
+        for(auto block : *(func)) {
+            for(mylist<RISCVBasicBlock, RISCVMIR>::iterator it=block->begin(); it!=block->end(); ++it) {
+                LegalizePass_before(it);
+            } 
+        }
+        for(mylist<RISCVBasicBlock, RISCVMIR>::iterator it=func->GetExit()->begin(); it!=func->GetExit()->end(); ++it) {
+            LegalizePass_before(it);
+        }
+        time++;
+    }
+}
+void Legalize::run_afterRA() {
+    int legalizetime=2, time = 0;
+    while(time < legalizetime) {
+        RISCVFunction* func = ctx.GetCurFunction();
+        for(auto block : *(func)) {
+            for(mylist<RISCVBasicBlock, RISCVMIR>::iterator it=block->begin(); it!=block->end(); ++it) {
+                LegalizePass_after(it);
+            } 
+        }
+        for(mylist<RISCVBasicBlock, RISCVMIR>::iterator it=func->GetExit()->begin(); it!=func->GetExit()->end(); ++it) {
+            LegalizePass_after(it);
+        }
+        time++;
+    }
+}
+//检查每个操作数是否需要特殊处理，栈寄存器，栈帧对象，立即数，进行对应的合法化
+void Legalize::LegalizePass(mylist<RISCVBasicBlock,RISCVMIR>::iterator it){
+    using PhyReg=PhyRegister::PhyReg;
+    using ISA=RISCVMIR::RISCVISA;
+    RISCVMIR* inst=*it;
+    ISA opcode=inst->GetOpcode();
+
+    if(opcode==ISA::call||opcode==ISA::ret){
+        return;
+    }
+    for(int i=0;i<inst->GetOperandSize();i++){
+        RISCVMOperand* oprand=inst->GetOperand(i);
+        // StackReg and Frameobj out memory inst
+        RISCVFrameObject* framobj = dynamic_cast<RISCVFrameObject*>(oprand);
+        StackRegister* sreg = dynamic_cast<StackRegister*>(oprand);
+        if(frameobj||sreg){
+            if(i==0&&((opcode>ISA::BeginLoadMem&&opcode<ISA::EndLoadMem)||(opcode>ISA::BeginFloatLoadMem&&opcode<ISA::EndFloatLoadMem))) {
+                OffsetLegalize(i, it);
+            }else if(i==1&&((opcode>ISA::BeginStoreMem&&opcode<ISA::EndStoreMem)||(opcode>ISA::BeginFloatStoreMem&&opcode<ISA::EndFloatStoreMem))){
+                OffsetLegalize(i,it);
+            }
+            else{
+                StackAndFrameLegalize(i,it);
+            }
+        }
+        if(Imm* constdata=dynamic_cast<Imm*>(inst->GetOperand(i))){
+            // 整数立即数
+            if(ConstIRInt* constint = dynamic_cast<ConstIRInt*>(constdata->Getdata())) {
+                //0
+                if(constdata->Getdata()->isZero() && !isImminst(opcode)) { 
+                    zeroLegalize(i, it);
+                    continue;
+                }
+                // 带立即数的分支指令
+                if(opcode>ISA::BeginBranch && opcode<ISA::EndBranch) {
+                    branchLegalize(i, it);
+                    continue;
+                }
+                if(!isImminst(opcode)) {
+                    noImminstLegalize(i, it);
+                    continue;
+                }
+                if(opcode!=RISCVMIR::li)
+                    constintLegalize(i, it);
+            }
+        }
+    }
+}
+void Legalize::LegalizePass_before(mylist<RISCVBasicBlock,RISCVMIR>::iterator it){
+    using PhyReg=PhyRegister::PhyReg;
+    using ISA = RISCVMIR::RISCVISA;
+    RISCVMIR* inst = *it;
+    ISA opcode = inst->GetOpcode();
+    if(opcode==ISA::call||opcode==ISA::ret){
+        return;
+    }
+    for(int i=0;i<inst->GetOperandSize();i++){
+        RISCVMOperand* oprand = inst->GetOperand(i);
+        // StackReg and Frameobj out memory inst
+        RISCVFrameObject* framobj = dynamic_cast<RISCVFrameObject*>(oprand);
+        StackRegister* sreg = dynamic_cast<StackRegister*>(oprand);
+        if(framobj||sreg) {
+            StackAndFrameLegalize(i, it);
+        } 
+    }
+}
+void Legalize::LegalizePass_after(mylist<RISCVBasicBlock, RISCVMIR>::iterator it){
+    using PhyReg = PhyRegister::PhyReg;
+    using ISA = RISCVMIR::RISCVISA;
+    RISCVMIR* inst = *it;
+    ISA opcode = inst->GetOpcode();
+    if(opcode==ISA::call||opcode==ISA::ret){
+        return;
+    }
+    for(int i=0;i<inst->GetOperandSize();i++){
+        RISCVMOperand* oprand = inst->GetOperand(i);
+        RISCVFrameObject* framobj = dynamic_cast<RISCVFrameObject*>(oprand);
+        StackRegister* sreg = dynamic_cast<StackRegister*>(oprand);
+        if(frameobj||sreg){
+            if(i==0&&((opcode>ISA::BeginLoadMem&&opcode<ISA::EndLoadMem)||(opcode>ISA::BeginFloatLoadMem&&opcode<ISA::EndFloatLoadMem))) {
+                OffsetLegalize(i, it);
+            }else if(i==1&&((opcode>ISA::BeginStoreMem&&opcode<ISA::EndStoreMem)||(opcode>ISA::BeginFloatStoreMem&&opcode<ISA::EndFloatStoreMem))){
+                OffsetLegalize(i,it);
+            }
+        }
+        if(Imm* constdata=dynamic_cast<Imm*>(inst->GetOperand(i))){
+            // 整数立即数
+            if(ConstIRInt* constint = dynamic_cast<ConstIRInt*>(constdata->Getdata())) {
+                //0
+                if(constdata->Getdata()->isZero() && !isImminst(opcode)) { 
+                    zeroLegalize(i, it);
+                    continue;
+                }
+                // 带立即数的分支指令
+                if(opcode>ISA::BeginBranch && opcode<ISA::EndBranch) {
+                    branchLegalize(i, it);
+                    continue;
+                }
+                if(!isImminst(opcode)) {
+                    noImminstLegalize(i, it);
+                    continue;
+                }
+                constintLegalize(i, it);
+            }
+        }
+    }
+}
+//处理栈相关操作数的合法化
+//处理 StackRegister 和 RISCVFrameObject，插入 addi 指令计算栈地址
+void Legalize::StackAndFrameLegalize(int i,mylist<RISCVBasicBlock,RISCVMIR>::iterator& it){
+    RISCVMIR *inst=*it;
+    StackRegister* sreg=nullptr;
+    if(sreg = dynamic_cast<StackRegister*>(inst->GetOperand(i))) {
+    }else if(RISCVFrameObject* obj = dynamic_cast<RISCVFrameObject*>(inst->GetOperand(i))) {
+        sreg = dynamic_cast<RISCVFrameObject*>(obj)->GetStackReg();
+    }
+    RISCVMIR* addi=new RISCVMIR(RISCVMIR::_addi);
+    PhyRegister* t0=PhyRegister::GetPhyReg(PhyRegister::t0);
+    addi->SetDef(t0);
+    addi->AddOperand(sreg->GetReg());
+    Imm* immm=new Imm(ConstIRInt::GetNewConstant(sreg->GetOffset()));
+    addi->AddOperand(imm);
+    it.insert_before(addi);
+    inst->SetOperand(i,addi->GetDef());
+}
+//处理超出 RISC-V 可用范围的偏移量，插入 li 和 add 指令进行计算
+void Legalize::OffsetLegalize(int i,mylist<RISCVBasicBlock,RISCVMIR>::iterator& it){
+    
+}
