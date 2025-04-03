@@ -7,7 +7,7 @@ import difflib
 import re
 
 compiler_path = "./Compiler"
-test_folder="./testcase"
+test_folder="./testcases"
 # pass_args=["--mem2reg"]
 
 # grab all the testcases

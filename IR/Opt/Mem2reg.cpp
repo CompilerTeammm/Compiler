@@ -89,7 +89,8 @@ void Mem2reg::run()
 {
     if (allocas.empty())
     {
-        std::cout << "Allocas is empty" << std::endl;
+        // 调试信息
+        // std::cout << "Allocas is empty" << std::endl;
         return;
     }
     // 通过构造临时对象去执行优化

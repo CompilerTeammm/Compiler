@@ -116,6 +116,12 @@ void DominantTree::InitIdom()
             TN->idom = DSU[TN->idom->dfs_order]->Nodesbydfs->idom;
         // TN->idom = DSU[TN->idom->dfs_order]->Nodesbydfs->idom;
     }
+
+    // 建立idomChild
+    for(int i = 1; i < Nodes.size();i++)
+    {
+        Nodes[i]->idom->idomChild.push_back(Nodes[i]);
+    }
 }
 
 void DominantTree::InitDSU()
@@ -155,7 +161,7 @@ void DominantTree::caculateLevel(TreeNode *node, int level)
     for (auto child : node->idomChild)
     {
         // 核心就是一个回溯，easy
-        if (DomLevels.count(child))
+        if (!DomLevels.count(child))
             caculateLevel(child, level + 1);
     }
 }
