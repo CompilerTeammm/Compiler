@@ -102,8 +102,58 @@ void Legalize::run(){
                         delete inst;
                         break;
                     }
+                    case RISCVMIR::LoadImmReg:{
+                        //reg = LoadImmReg imm
+                        //如果是整数：li reg, imm
+                        //li t0, imm_as_int  # 先用 li 加载 IEEE 754 表示的整数
+                        //fmv.w.x reg, t0    # 再转换成浮点寄存器
+                        auto imm=inst->GetOperand(0)->as<Imm>();
+                        auto isfloatconst=imm->GetType()==RISCVType::riscv_float32;
+                        if(isfloatconst){
+                            auto fval=imm->Getdata()->as<ConstIRFloat>()->GetVal();
+                            int initval;
+                            std::memcpy(&initval,&fval,sizeof(float));
+                            //fval是浮点值
+                            //将浮点数按位模式拷贝到整数变量 initval。
+                            //目的是让 initval 具有 fval 的 IEEE 754 表示，这样 li 指令就能正确加载该浮点数的二进制表示。
+                            auto liinst=new RISCVMIR(RISCVMIR::li);
+                            liinst->SetDef(PhyRegister::GetPhyReg(PhyRegister::t0));
+                            liinst->AddOperand(IMm::GetImm(ConstIRInt::GetNewConstant(initval)));
+
+                            auto fmvwx=new RISCVMIR(RISCVMIR::_fmv_w_x);
+                            fmvwx->SetDef(inst->GetDef());
+                            fmvwx->AddOperand(PhyRegister::GetPhyReg(PhyRegister::t0));
+
+                            it=mylist<RISCVBasicBlock,RISCVMIR>::iterator(inst);
+                            it.insert_before(liinst);
+                            it.insert_before(fmvwx);
+                            delete inst;
+                            it=mylist<RISCVBasicBlock,RISCVMIR>::iterator(fmvwx);
+                            break;
+                        }else{
+                            inst->SetMopcode(RISCV::li);
+                        }
+                    }
+                    default:
+                     break;
                 }
+                ++it;
             }
+        }
+    }
+    {
+        int legalizetime = 2, time = 0;
+        while(time < legalizetime) {
+            RISCVFunction* func = ctx.GetCurFunction();
+            for(auto block : *(func)) {
+                for(mylist<RISCVBasicBlock, RISCVMIR>::iterator it=block->begin(); it!=block->end(); ++it) {
+                    LegalizePass(it);
+                } 
+            }
+            for(mylist<RISCVBasicBlock, RISCVMIR>::iterator it=func->GetExit()->begin(); it!=func->GetExit()->end(); ++it) {
+                LegalizePass(it);
+            }
+            time++;
         }
     }
 }
