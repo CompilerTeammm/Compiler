@@ -268,9 +268,11 @@ bool PromoteMem2Reg::promoteSingleBlockAlloca(AllocaInfo &Info, AllocaInst *AI, 
 
         // auto it = std::lower_bound(StoreByIndex.begin(),StoreByIndex.end(),
         //                 static_cast<StoreInst*>(nullptr),less_first());
+    
+        // Find the nearest store that has a lower index than this load.(this is down)
         auto it = std::lower_bound(StoreByIndex.begin(), StoreByIndex.end(),
                                    std::make_pair(LoadIndex, static_cast<StoreInst *>(nullptr)),
-                                   less_first());
+                                   less_first());  // 有序二分查找
         // LoadIndex < StoreIndex
         if(it == StoreByIndex.begin())
         {
@@ -279,7 +281,7 @@ bool PromoteMem2Reg::promoteSingleBlockAlloca(AllocaInfo &Info, AllocaInst *AI, 
             else   // 没有的话，这条优化无法执行 there is no store before this load;
                 return false;
         }
-        else 
+        else   // repalced prev(it) is the key (this is up)
             LInst->ReplaceAllUseWith(std::prev(it)->second->GetOperand(0));
         delete LInst;
         BkInfo.DeletIndex(LInst);

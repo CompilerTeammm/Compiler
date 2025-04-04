@@ -67,6 +67,7 @@ int main(int argc, char **argv)
    auto PM = std::make_unique<PassManager>();
    PM->RunOnTest();
 #endif
+
    Singleton<Module>().Test();
 
 

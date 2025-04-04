@@ -335,6 +335,8 @@ public:
   BinaryInst(Type *_tp) : Instruction(_tp, Op::BinaryUnknown) {};
   BinaryInst(Operand _A, Operation __op, Operand _B, bool Atom = false);
   BinaryInst *clone(std::unordered_map<Operand, Operand> &) override;
+  
+  const Operation& GetOp() { return op; }
   void print() final
   {
     Value::print();
