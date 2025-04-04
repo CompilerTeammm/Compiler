@@ -19,10 +19,10 @@ void Use::RemoveFromValUseList(User *_user)
     next->prev = prev;
   if (usee->GetValUseList().GetSize() == 0 && next != nullptr)
     assert(0);
-  user = nullptr;
-  usee = nullptr;
-  prev = nullptr;
-  next = nullptr;
+  // user = nullptr;
+  // usee = nullptr;
+  // prev = nullptr;
+  // next = nullptr;
 }
 
 // ValUseList

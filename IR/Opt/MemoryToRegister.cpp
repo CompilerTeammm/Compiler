@@ -286,6 +286,7 @@ bool PromoteMem2Reg::promoteSingleBlockAlloca(AllocaInfo &Info, AllocaInst *AI, 
     }
     
     // remove the dead stores and alloca
+    // AI->GetUserUseList();
     for(Use* use:AI->GetValUseList()){
         assert(dynamic_cast<StoreInst*>(use->GetUser()) && " should be a SInst,LInst is deleted");
         StoreInst * SInst = dynamic_cast<StoreInst*> (use->GetUser());
