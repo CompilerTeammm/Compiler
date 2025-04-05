@@ -314,5 +314,143 @@ void Legalize::StackAndFrameLegalize(int i,mylist<RISCVBasicBlock,RISCVMIR>::ite
 }
 //处理超出 RISC-V 可用范围的偏移量，插入 li 和 add 指令进行计算
 void Legalize::OffsetLegalize(int i,mylist<RISCVBasicBlock,RISCVMIR>::iterator& it){
-    
+    RISCVMIR* inst = *it;
+    StackRegister* sreg = nullptr;
+    if(sreg = dynamic_cast<StackRegister*>(inst->GetOperand(i))) {
+    }else if(RISCVFrameObject* obj = dynamic_cast<RISCVFrameObject*>(inst->GetOperand(i))) {
+        sreg = dynamic_cast<RISCVFrameObject*>(obj)->GetStackReg();
+    }
+    int offset = sreg->GetOffset();
+    if(offset>=-2048&&offset<=2047) {
+        return;
+    }else{
+        //li t0,offset
+        RISCVMIR* li = new RISCVMIR(RISCVMIR::li);
+        li->AddOperand(Imm::GetImm(ConstIRInt::GetNewConstant(offset)));
+        li->SetDef(PhyRegister::GetPhyReg(PhyRegister::t0));
+
+        //add t0, t0, sreg->GetReg()，即 t0 = offset + sreg->GetReg()。
+        RISCVMIR* add = new RISCVMIR(RISCVMIR::_add);
+        add->AddOperand(li->GetDef());
+        add->AddOperand(sreg->GetReg());
+        add->SetDef(PhyRegister::GetPhyReg(PhyRegister::t0));
+
+        it.insert_before(li);
+        it.insert_before(add);
+
+        StackRegister* newStackReg = new StackRegister(PhyRegister::t0,0);
+        inst->SetOperand(i, newStackReg);
+
+    }
+}
+
+void Legalize::zeroLegalize(int i,mylist<RISCVBasicBlock,RISCVMIR>::iterator& it){
+    RISCVMIR *inst=*it;
+    PhyRegister *zero=PhyRegister::GetPhyReg(PhyRegister::zero);
+    inst->SetOperand(i,zero);
+}
+
+void Legalize::branchLegalize(int i,mylist<RISCVBasicBlock,RISCVMIR>::iterator& it){
+    RISCVMIR* inst = *it;
+    RISCVMIR* li = new RISCVMIR(RISCVMIR::li);
+    PhyRegister* t0 = PhyRegister::GetPhyReg(PhyRegister::t0);
+    Imm* imm = dynamic_cast<Imm*>(inst->GetOperand(i));
+    li->SetDef(t0);
+    li->AddOperand(imm);
+    it.insert_before(li);
+    inst->SetOperand(i, li->GetDef());    
+}
+void Legalize::noImminstLegalize(int i,mylist<RISCVBasicBlock,RISCVMIR>::iterator& it){
+    RISCVMIR *inst=*it;
+    Imm* constdata=dynamic_cast<Imm*>(inst->GetOperand(i));
+    int val=dynamic_cast<ConstIRInt*>(constdata->GetData())->GetVal();
+    if(val>=-2048 && val<2048) {//mv rd, x0 == li rd, 0
+        if(inst->GetOpcode() == RISCVMIR::mv) {
+            inst->SetMopcode(RISCVMIR::RISCVISA::li); 
+            return;
+        }
+    }
+    RISCVMIR* li=new RISCVMIR(RISCVMIR::li);
+    PhyRegister* t0 = PhyRegister::GetPhyReg(PhyRegister::t1);
+    li->SetDef(t0);
+    li->AddOperand(constdata);
+    it.insert_before(li);
+    inst->SetOperand(i, li->GetDef());
+}
+void Legalize::constintLegalize(int i,mylist<RISCVBasicBlock,RISCVMIR>::iterator& it){
+    RISCVMIR* inst=*it;
+    Imm* constdata=dynamic_cast<Imm*>(inst->GetOperand(i));
+    PhyRegister* t0 = PhyRegister::GetPhyReg(PhyRegister::t1);
+    int inttemp = dynamic_cast<ConstIRInt*>(constdata->Getdata())->GetVal();
+
+    if(inttemp>=-2048&&inttemp<2048){
+        return;
+    }else{
+        auto mir=new RISCVMIR(RISCVMIR::li);
+        mir->SetDef(PhyRegister::GetPhyReg(PhyRegister::t0));
+        mir->AddOperand(constdata);
+        it.insert_before(mir);
+        inst->SetOperand(i, PhyRegister::GetPhyReg(PhyRegister::t0));
+        MOpcodeLegalize(inst);
+    }
+}
+
+bool Legalize::isImminst(RISCVMIR::RISCVISA opcode){
+    if(opcode == RISCVMIR::_slli ||
+       opcode == RISCVMIR::_slliw ||
+       opcode == RISCVMIR::_srli ||
+       opcode == RISCVMIR::_srliw ||
+       opcode == RISCVMIR::_srai ||
+       opcode == RISCVMIR::_sraiw ||
+       opcode == RISCVMIR::_addi ||
+       opcode == RISCVMIR::_addiw ||
+       opcode == RISCVMIR::_xori ||
+       opcode == RISCVMIR::_ori ||
+       opcode == RISCVMIR::_andi ||
+       opcode == RISCVMIR::_slti ||
+       opcode == RISCVMIR::_sltiu ||
+       opcode == RISCVMIR::li) {
+        return true;
+       }else{
+        return false;
+       }
+}
+void Legalize::MOpcodeLegalize(RISCVMIR* inst) {
+    using ISA = RISCVMIR::RISCVISA;
+    ISA& opcode = inst->GetOpcode();
+
+    if (opcode == ISA::_slli) {
+        inst->SetMopcode(ISA::_sll);
+    } else if (opcode == ISA::_slliw) {
+        inst->SetMopcode(ISA::_sllw);
+    } else if (opcode == ISA::_srli) {
+        inst->SetMopcode(ISA::_srl);
+    } else if (opcode == ISA::_srliw) {
+        inst->SetMopcode(ISA::_srlw);
+    } else if (opcode == ISA::_srai) {
+        inst->SetMopcode(ISA::_sra);
+    } else if (opcode == ISA::_sraiw) {
+        inst->SetMopcode(ISA::_sraw);
+    } else if (opcode == ISA::_addi) {
+        inst->SetMopcode(ISA::_add);
+    } else if (opcode == ISA::_addiw) {
+        inst->SetMopcode(ISA::_addw);
+    } else if (opcode == ISA::_xori) {
+        inst->SetMopcode(ISA::_xor);
+    } else if (opcode == ISA::_ori) {
+        inst->SetMopcode(ISA::_or);
+    } else if (opcode == ISA::_andi) {
+        inst->SetMopcode(ISA::_and);
+    } else if (opcode == ISA::_slti) {
+        inst->SetMopcode(ISA::_slt);
+    } else if (opcode == ISA::_sltiu) {
+        inst->SetMopcode(ISA::_sltu);
+    } else if (opcode == ISA::li) {
+        inst->SetMopcode(ISA::mv);
+    } else if (
+        opcode == ISA::_sw || opcode == ISA::_sd || opcode == ISA::_sh ||opcode == ISA::_sb) {
+        // memory store instructions: no need to modify MOpcode
+    } else {
+        assert(0 && "Invalid MOpcode type");
+    }
 }
