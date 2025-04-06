@@ -12,7 +12,7 @@ class Legalize{
     void LegalizePass_after(mylist<RISCVBasicBlock, RISCVMIR>::iterator);//之后进行合法化
     void StackAndFrameLegalize(int,mylist<RISCVBasicBlock,RISCVMIR>::iterator&);//处理涉及SP和FP的指令，如栈帧分配回收等
     void OffsetLegalize(int,mylist<RISCVBasicBlock,RISCVMIR>::iterator&);//处理偏移调整
-    void zeroLegalize(int,mylist<RISCVBasicBlock,RISCVMIR>::iterator&)//针对0这个立即数的特殊处理
+    void zeroLegalize(int,mylist<RISCVBasicBlock,RISCVMIR>::iterator&);//针对0这个立即数的特殊处理
     void branchLegalize(int,mylist<RISCVBasicBlock,RISCVMIR>::iterator&);//处理分支指令的立即数
     void noImminstLegalize(int,mylist<RISCVBasicBlock,RISCVMIR>::iterator&);//处理没有立即数版本的指令
     void constintLegalize(int,mylist<RISCVBasicBlock,RISCVMIR>::iterator&);//处理大立即数
