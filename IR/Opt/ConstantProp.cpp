@@ -29,7 +29,7 @@ void ConstantProp::run()
 
                 I->ReplaceAllUseWith(C);
                 WorkList.erase(I);
-                if(isInstrutionDead(I)){
+                if(DCE::isInstructionTriviallyDead(I)){
                     delete I;
                 }
             }

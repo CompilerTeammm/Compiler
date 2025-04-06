@@ -1,12 +1,20 @@
 #include "../../include/IR/Opt/DCE.hpp"
 #include<vector>
 
+bool DCE::mayWriteToMemory()
+{
+
+}
+
+bool DCE::mayThrow()
+{
+
+}
+
 // 有副作用
 bool DCE::hasSideEffect(Instruction* inst)
-{
-    
-
-    return false;
+{  
+    return mayWriteToMemory() || mayThrow();
 }
 
 bool DCE::isInstructionTriviallyDead(Instruction* Inst)
@@ -16,7 +24,7 @@ bool DCE::isInstructionTriviallyDead(Instruction* Inst)
 
     if(hasSideEffect(Inst))
         return false;
-    
+
     return true;
 }
 

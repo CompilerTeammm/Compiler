@@ -1,6 +1,7 @@
 #pragma once
 #include"ConstantFold.hpp"
 #include"Passbase.hpp"
+#include "DCE.hpp"
 
 class Function;
 class ConstantFold;

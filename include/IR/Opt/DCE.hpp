@@ -1,9 +1,10 @@
 
 #pragma once
 #include "Passbase.hpp"
-#include "CoreClass.hpp"
-#include "CFG.hpp"
-#include "MyList.hpp"
+#include "AnalysisManager.hpp"
+#include "../../lib/CoreClass.hpp"
+#include "../../lib/CFG.hpp"
+#include "../../lib/MyList.hpp"
 
 class DCE :public _PassBase<DCE,Function>
 {
@@ -13,8 +14,12 @@ public:
         : _AM(AM), _func(func) {}
     
     bool eliminateDeadCode(Function* func);
+
+    bool mayWriteToMemory();
+
+    bool mayThrow();
                 
-    bool isInstructionTriviallyDead(Instruction* I);
+    static bool isInstructionTriviallyDead(Instruction* I);
 
     bool IsDCEInstruction(Instruction *I,
                           std::vector<Instruction *> &WorkList);
