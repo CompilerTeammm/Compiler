@@ -21,7 +21,7 @@ public:
     bool DCEInstruction(Instruction *I,
                           std::vector<Instruction *> &WorkList);
 
-    bool hasSideEffect(Instruction* inst);
+    static bool hasSideEffect(Instruction* inst);
 private:
     Function* _func;
     AnalysisManager* _AM;

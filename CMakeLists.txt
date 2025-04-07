@@ -26,6 +26,7 @@ file(GLOB_RECURSE SOURCES
   IR/Analysis/*.cpp
   IR/Opt/Mem2reg.cpp
   IR/Opt/MemoryToRegister.cpp
+  IR/Opt/DCE.cpp
 #   IR/*.cpp
 #   backend/*.cpp
   lib/*.cpp

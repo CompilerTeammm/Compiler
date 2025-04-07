@@ -1,21 +1,23 @@
 #include "../../include/IR/Opt/DCE.hpp"
 #include<vector>
 
+// 静态成员函数中之间调用了非静态成员函数
 bool DCE::isInstructionTriviallyDead(Instruction* Inst)
 {
-    if(!Inst->is_empty() || Inst->IsTerminateInst())
+    if(!Inst->use_empty() || Inst->IsTerminateInst())
         return false;
 
-    if(hasSideEffect(Inst))
-        return false;
+    if(!hasSideEffect(Inst))
+        return true;
 
-    return true;
+    return false;
 }
 
 // 有副作用
 bool DCE::hasSideEffect(Instruction* inst)
 {  
-    return inst->IsMemoryInst() || inst->IsTerminateInst();
+    return inst->IsMemoryInst() || inst->IsTerminateInst()
+            || inst->IsCallInst();
 }
 
 bool DCE::DCEInstruction(Instruction* I,
@@ -27,7 +29,8 @@ bool DCE::DCEInstruction(Instruction* I,
         for(int i = 0 , e = I->GetOperandNums(); i!=e ;i++)
         {
             Value* op = I->GetOperand(i);
-            I->SetOperand(i, nullptr);
+            // delete 的时候就做了处理，现在做处理是不行的
+            // I->SetOperand(i, nullptr);
 
             if(!op->use_empty() || I == op)
                 continue;
@@ -57,8 +60,11 @@ bool DCE::eliminateDeadCode(Function* func)
     for(auto& BB : BBs)
     {
         for(auto I = BB->begin(), E = BB->end(); I !=E; ++I)
-        {
-            if((std::find(worklist.begin(),worklist.end(),I))!= worklist.end())
+        {   
+            // std::vector<Instruction *>::iterator it = worklist.begin();
+            // List<BasicBlock, Instruction>::iterator one = I;
+
+            if((std::find(worklist.begin(),worklist.end(),*I)) == worklist.end())
                 MadeChange |= DCEInstruction(*I,worklist);
         }
     }

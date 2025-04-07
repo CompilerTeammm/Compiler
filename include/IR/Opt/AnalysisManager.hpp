@@ -8,7 +8,7 @@ class AnalysisManager:public _AnalysisBase<AnalysisManager,Function>
 
 public:
     void run();
-    
+    void get();
     AnalysisManager();
     ~AnalysisManager()= default;
 };

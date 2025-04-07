@@ -313,6 +313,12 @@ bool Instruction::IsCastInst() const
   return id >= Op::Zext && id <= Op::SI2FP;
 }
 
+bool Instruction::IsCallInst() const
+{
+    return id == Op::Call;
+}
+
+
 void Instruction::add_use(Value *_value)
 {
   assert(_value && "Cannot add a null operand!");

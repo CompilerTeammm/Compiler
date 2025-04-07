@@ -7,9 +7,10 @@
 #include "CFG.hpp"
 #include <memory>
 #include"Singleton.hpp"
-
+#include"DCE.hpp"
+#include"AnalysisManager.hpp"
 // #include "DCE.hpp"
-
+#define dce
 
 
 enum PassName
@@ -64,4 +65,12 @@ void PassManager:: RunOnTest()
         tree.BuildDominantTree();
         Mem2reg(fun,&tree).run();
     }
+#ifdef dce
+    for(auto& function : funcVec)
+    {
+        auto fun = function.get();
+        AnalysisManager* AM;
+        DCE(fun,AM).run();
+    }
+#endif
 }

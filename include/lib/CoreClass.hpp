@@ -262,7 +262,7 @@ public:
     BinaryUnknown,      
     Max,
     Min,
-    Select              // ? :
+    Select              // ? : 运算符
   };
   Op id; // 指令类型
 
@@ -280,6 +280,8 @@ public:
   bool IsMemoryInst() const;
   // 是否为类型转换指令
   bool IsCastInst() const;
+
+  bool IsCallInst() const;
 
   void add_use(Value *_value) override;
   virtual void print() = 0;
