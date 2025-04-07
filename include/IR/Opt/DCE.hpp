@@ -6,6 +6,7 @@
 #include "../../lib/CFG.hpp"
 #include "../../lib/MyList.hpp"
 
+// DCE 中对于Instruction的一些判断是在class Instruction类中实现的
 class DCE :public _PassBase<DCE,Function>
 {
 public:
@@ -14,14 +15,10 @@ public:
         : _AM(AM), _func(func) {}
     
     bool eliminateDeadCode(Function* func);
-
-    bool mayWriteToMemory();
-
-    bool mayThrow();
                 
     static bool isInstructionTriviallyDead(Instruction* I);
 
-    bool IsDCEInstruction(Instruction *I,
+    bool DCEInstruction(Instruction *I,
                           std::vector<Instruction *> &WorkList);
 
     bool hasSideEffect(Instruction* inst);

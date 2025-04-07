@@ -174,6 +174,8 @@ public:
   // 克隆，以Value*形式返回
   virtual Value *clone(std::unordered_map<Value *, Value *> &mapping);
 
+  bool use_empty() { return valuselist.is_empty(); }
+
   void print();
   void add_use(Use *_use);
   bool isConstZero();
@@ -204,7 +206,10 @@ public:
   virtual void add_use(Value *_value);
   bool remove_use(Use *_use);
   void clear_use();
+
+  int GetOperandNums() {  return useruselist.size(); }
   inline Operand GetOperand(int i) { return useruselist[i]->GetValue(); }
+  inline void SetOperand(int i,Value* val) { useruselist[i]->usee = val; }
 
   // 默认调用Value的print
   virtual void print() = 0;
@@ -222,14 +227,14 @@ public:
   {
     None,
     // Terminators
-    UnCond,
-    Cond,
-    Ret,
+    UnCond,             // br label %.1
+    Cond,               
+    Ret,                // ret i32 1; or  ret void;
     // Memory
-    Alloca,
+    Alloca,              
     Load,
     Store,
-    Memcpy,
+    Memcpy,             // llvm Intrinsic
     // Binary
     Add,
     Sub,
@@ -246,18 +251,18 @@ public:
     Le,
     G,
     // Other
-    Gep,
-    Phi,
-    Call,
-    Zext,
-    Sext,
-    Trunc,
-    FP2SI,
-    SI2FP,
-    BinaryUnknown,
+    Gep,                // GetElementPtr
+    Phi,        
+    Call,               // call i32 @add(i32 , i32)
+    Zext,               // 0扩展
+    Sext,               // 符号扩展
+    Trunc,              // 截断指令
+    FP2SI,              // 浮点到有符号整数， fptosi
+    SI2FP,              // 有符号整数到浮点  sitofp
+    BinaryUnknown,      
     Max,
     Min,
-    Select
+    Select              // ? :
   };
   Op id; // 指令类型
 

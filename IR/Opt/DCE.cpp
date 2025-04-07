@@ -1,22 +1,6 @@
 #include "../../include/IR/Opt/DCE.hpp"
 #include<vector>
 
-bool DCE::mayWriteToMemory()
-{
-
-}
-
-bool DCE::mayThrow()
-{
-
-}
-
-// 有副作用
-bool DCE::hasSideEffect(Instruction* inst)
-{  
-    return mayWriteToMemory() || mayThrow();
-}
-
 bool DCE::isInstructionTriviallyDead(Instruction* Inst)
 {
     if(!Inst->is_empty() || Inst->IsTerminateInst())
@@ -28,19 +12,38 @@ bool DCE::isInstructionTriviallyDead(Instruction* Inst)
     return true;
 }
 
+// 有副作用
+bool DCE::hasSideEffect(Instruction* inst)
+{  
+    return inst->IsMemoryInst() || inst->IsTerminateInst();
+}
 
-bool DCE::IsDCEInstruction(Instruction* I,
+bool DCE::DCEInstruction(Instruction* I,
                           std::vector<Instruction*> &WorkList)
 {
    if(isInstructionTriviallyDead(I))
    {
         //遍历它的op操作数
-        for(auto& use : I->GetUserUseList())
+        for(int i = 0 , e = I->GetOperandNums(); i!=e ;i++)
         {
-            Value* op = use->GetValue();
+            Value* op = I->GetOperand(i);
+            I->SetOperand(i, nullptr);
 
+            if(!op->use_empty() || I == op)
+                continue;
+
+            if(Instruction* OpI = dynamic_cast<Instruction*>(op))
+            {
+                if(isInstructionTriviallyDead(OpI))
+                    WorkList.push_back(OpI);
+            }
         }
+
+        delete I;
+        return true;
    }
+
+   return false;
 }
 
 bool DCE::eliminateDeadCode(Function* func)
@@ -56,7 +59,7 @@ bool DCE::eliminateDeadCode(Function* func)
         for(auto I = BB->begin(), E = BB->end(); I !=E; ++I)
         {
             if((std::find(worklist.begin(),worklist.end(),I))!= worklist.end())
-                MadeChange |= IsDCEInstruction(*I,worklist);
+                MadeChange |= DCEInstruction(*I,worklist);
         }
     }
 
@@ -65,7 +68,7 @@ bool DCE::eliminateDeadCode(Function* func)
     {
         Instruction* Inst = worklist.back();
         worklist.pop_back();
-        MadeChange |= IsDCEInstruction(Inst,worklist);
+        MadeChange |= DCEInstruction(Inst,worklist);
     }
 
     return MadeChange;
