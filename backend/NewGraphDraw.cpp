@@ -71,3 +71,73 @@ void GraphColor::MakeWorklist(){
         }
     }
 }
+//判断某个变量是否与尚未处理的 move 指令有关。
+std::unordered_set<RISCVMIR*> GraphColor::MoveRelated(MOperand v){
+  std::unordered_set<RISCVMIR*> tmp;
+  if(moveList.find(v)==moveList.end()){
+    return tmp;
+  }
+  for(auto inst:moveList[v]){
+    auto iter=std::find(worklistMoves.begin(),worklistMoves.end(),inst);
+    if(activeMoves.find(inst)!=activeMoves.end()||iter!=worklistMoves.end()){
+      tmp.insert(inst);//还未完成，加到tmp中后续处理
+    }
+  }
+  return tmp;
+}
+
+//查找一个变量合并后的代表节点（类似并查集）
+MOperand GraphColor::GetAlias(MOperand v){
+  //当前v存在于coalescedNodes，则返回v的alias
+  if(coalescedNodes.find(v)!=coalescedNodes.end()){
+    return GetAlias(alias[v]);
+    // 向上传递直到找到根节点
+  }else{
+    return v;
+  }
+}
+
+// 合并 src 和 dst 可以省去 mov dst, src 这样的指令；
+// 但合并后可能导致寄存器分配失败（图着色冲突）；
+// 所以我们引入两个启发式判断方法：
+
+// George：强调 src 的邻居对 dst 是否友好（安全）；
+
+// Briggs：评估合并后整体邻居中度数过高的数量是否可控。
+bool GraphColor::GeorgeCheck(MOperand dst,MOperand src,RISCVType type){
+  //George 启发式适用于 src 是普通节点、dst 是预着色节点。
+  if(type==riscv_i32||type=riscv_ptr||type=riscv_i64){
+    auto x=Adjacent(src);//获取src的邻接节点
+    for(auto tmp:x){
+      // bool ok=false;
+      // if(Degree[tmp] < reglist.GetReglistInt().size()){
+      //   ok|=true;
+      // }
+      // if(Precolored.find(tmp) != Precolored.end()){
+      //   ok|=true;
+      // }
+      // auto &adj=adjSet[dst];
+      // if(adj.find(tmp)!=Precolored.end()){
+      //   ok|=true;
+      // }
+      // if(ok!=true){
+      //   return false;
+      // }
+      //等价简洁版：
+
+      // 判断当前 tmp 是否对 dst 是“安全”的邻居：
+      // 满足任意一个条件即可：
+      // 1. tmp 的度数小于可用寄存器数 ⇒ 易于着色
+      // 2. tmp 是预着色的（物理寄存器） ⇒ 不冲突
+      // 3. tmp 与 dst 已经相邻 ⇒ 不会新增冲突边
+      auto &adj = adjSet[dst];
+      if (!(Degree[tmp] < reglist.GetReglistInt().size() ||
+            Precolored.find(tmp) != Precolored.end() ||
+            adj.find(tmp) != adj.end())){
+          return false; // 只要有一个邻居不安全，就不能合并
+      }
+    }
+  }else if(type==riscv_float32){
+
+  }
+}
