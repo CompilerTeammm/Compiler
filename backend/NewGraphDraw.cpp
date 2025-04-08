@@ -653,10 +653,268 @@ void GraphColor::RewriteProgram(){
             << dynamic_cast<VirRegister *>(operand)->GetName()
             << " To Preg " << replace->GetName() << std::endl;)
           mir->SetOperand(i, replace);
-        }else if(){
-          
+        }else if(auto lareg = dynamic_cast<LARegister *>(operand)){//LARegister（用于访问全局变量的地址加载指令）
+          if (lareg->GetVreg() == nullptr){
+            continue;            
+          }
+          if (color.find(dynamic_cast<MOperand>(lareg->GetVreg())) == color.end()){
+            assert(0);            
+          }
+          auto replace = color[dynamic_cast<MOperand>(lareg->GetVreg())];
+          lareg->SetReg(replace);
+        }else if(auto stackreg = dynamic_cast<StackRegister *>(operand)){//处理stackregister
+          if (stackreg->GetVreg() == nullptr)
+            continue;
+          if (color.find(dynamic_cast<MOperand>(stackreg->GetVreg())) ==
+              color.end())
+            assert(0);
+          auto replace = color[dynamic_cast<MOperand>(stackreg->GetVreg())];
+          stackreg->SetPreg(replace);
+        }
+      }
+      if ((mir->GetOpcode() == RISCVMIR::mv || mir->GetOpcode() == RISCVMIR::_fmv_s) && mir->GetDef() == mir->GetOperand(0)) {
+        delete mir;//删除死代码?哈哈哈
+      }
+    }
+  }
+}
+
+//单独抽离成一个函数，后续有调用规约修改的时候我们再更改
+//物理寄存器选择:
+PhyRegister *GraphColor::SelectPhyReg(MOperand vreg, RISCVType ty,std::unordered_set<MOperand> &assist){
+  std::unordered_set<PhyRegister *> MoveTarget;
+  if (moveList.find(vreg) != moveList.end()) {//消除move指令
+    const auto &MovReg = moveList[vreg];
+    for (auto v : MovReg) {
+      auto def = v->GetDef();
+      auto op = v->GetOperand(0);
+      if (auto st = dynamic_cast<StackRegister *>(def)) {
+        def = st->GetVreg();
+      }
+      if (auto st = dynamic_cast<StackRegister *>(op)) {
+        op = st->GetVreg();
+      }
+      if (def == vreg) {
+        if (auto p_op = dynamic_cast<PhyRegister *>(op))
+          MoveTarget.insert(p_op);
+      } else if (vreg == op) {
+        if (auto p_def = dynamic_cast<PhyRegister *>(def))
+          MoveTarget.insert(p_def);
+      } else {
+        // assert(0);
+      }
+    }
+  }
+  if (ty == riscv_i32 || ty == riscv_ptr || ty == riscv_i64) {
+    if (!MoveTarget.empty()) {
+      for (auto reg : MoveTarget) {
+        if (assist.find(reg) != assist.end()) {
+          return reg;
+        }
+      }
+    }
+    for (auto reg : reglist.GetReglistInt()) {
+      if (assist.find(reg) != assist.end()) {
+        return reg;
+      }
+    }
+  } else if (ty == riscv_float32) {
+    if (!MoveTarget.empty()) {
+      for (auto reg : MoveTarget) {
+        if (assist.find(reg) != assist.end()) {
+          return reg;
+        }
+      }
+    }
+    for (auto reg : reglist.GetReglistFloat()) {
+      if (assist.find(reg) != assist.end())
+        return reg;
+    }
+  }
+  assert(0);
+}
+//打印最终着色结果,方便调试
+void GraphColor::Print() {
+  for (auto v : color) {
+    if (dynamic_cast<VirRegister *>(v.first))
+      std::cout << "Replace " << v.first->GetName() << "  with  "
+                << v.second->GetName() << std::endl;
+  }
+}
+
+//对 CFG 做拓扑排序，得到 topu 顺序供重写程序使用
+void GraphColor::CaculateTopu(RISCVBasicBlock *mbb) {
+  if (!assist.insert(mbb).second)
+    return;
+  for (auto des : SuccBlocks[mbb]) {
+    CaculateTopu(des);
+  }
+  topu.push_back(mbb);
+}
+
+//清空图着色寄存器分配过程中所有使用到的状态数据结构，为一次新的寄存器分配过程做准备。
+void GraphColor::GC_init() {
+  ValsInterval.clear();
+  freezeWorkList.clear();
+  worklistMoves.clear();
+  simplifyWorkList.clear();
+  spillWorkList.clear();
+  spilledNodes.clear();
+  initial.clear();
+  coalescedNodes.clear();
+  constrainedMoves.clear();
+  coalescedMoves.clear();
+  frozenMoves.clear();
+  coloredNode.clear();
+  AdjList.clear();
+  selectstack.clear();
+  belongs.clear();
+  activeMoves.clear();
+  alias.clear();
+  RegType.clear();
+  InstLive.clear();
+  Precolored.clear();
+  color.clear();
+  moveList.clear();
+  instNum.clear();
+  RegLiveness.clear();
+  assist.clear();
+  topu.clear();
+}
+
+//获取某节点有效的邻接节点（排除已选栈与合并节点）
+std::set<MOperand> GraphColor::Adjacent(MOperand val) {
+  std::set<MOperand> tmp;
+  for (auto _val : AdjList[val]) {
+    auto it_1 = std::find(selectstack.begin(), selectstack.end(), _val);
+    if (it_1 == selectstack.end() && coalescedNodes.find(_val) == coalescedNodes.end()) {
+      tmp.insert(_val);
+    }
+  }
+  return tmp;
+}
+
+//对图中某个点的度数 -1，并根据新度数将其分类管理
+void GraphColor::DecrementDegree(MOperand target){
+  Degree[target]--;
+  if(target->GetType() == riscv_i32 || target->GetType() == riscv_ptr || target->GetType()==riscv_i64){
+    if (Degree[target] == (GetRegNums(riscv_i32) - 1)) {
+      auto x = Adjacent(target);
+      std::unordered_set<MOperand> tmp(x.begin(), x.end());
+      tmp.insert(target);
+      // EnableMove 当节点度降低后，原本不能合并的 move，现在也许可以了！
+      for (auto node : tmp){
+        for (auto mov : MoveRelated(node)) {
+          if (activeMoves.find(mov) != activeMoves.end()) {
+            activeMoves.erase(mov);
+            PushVecSingleVal(worklistMoves, mov);
+          }
+        }
+      }
+      spillWorkList.erase(target);
+      if (MoveRelated(target).size() != 0) {
+        freezeWorkList.insert(target);
+      } else {
+        simplifyWorkList.push_back(target);
+      }
+    }
+  }else if(target->GetType() == riscv_float32){
+    if (Degree[target] == (GetRegNums(riscv_float32) - 1)) {
+      auto x = Adjacent(target);
+      std::unordered_set<MOperand> tmp(x.begin(), x.end());
+      tmp.insert(target);
+      for (auto node : tmp){
+        for (auto mov : MoveRelated(node)) {
+          if (activeMoves.find(mov) != activeMoves.end()) {
+            activeMoves.erase(mov);
+            PushVecSingleVal(worklistMoves, mov);
+          }
+        }
+      }
+      spillWorkList.erase(target);
+      if (MoveRelated(target).size() != 0) {
+        freezeWorkList.insert(target);
+      } else {
+        simplifyWorkList.push_back(target);
+      }
+    }
+  }
+}
+
+//根据 活跃性冲突（干扰关系），为所有 spilledNodes 中的变量打上一个 SpillToken 编号，
+//代表它们可以共享一个内存槽（Spill Slot），或者必须各占一个。
+void GraphColor::CaculateSpillLiveness(){
+  SpillToken.clear();
+  int token=0;
+  if (spilledNodes.size() == 1) {
+    SpillToken[*(spilledNodes.begin())] = token;
+    return;
+  }
+  for (const auto spill: spilledNodes){
+    for(const auto other: spilledNodes){
+      if(spill==other){
+        continue;//跳过同一个变量对于自身的情况
+      }
+      if(!IsHasInterference(spill, other)){//无干扰,可以合并使用slot
+        if (SpillToken.find(spill) == SpillToken.end() && SpillToken.find(other) == SpillToken.end()) {
+          //如果都没分配token,同时分配同一个新token;
+          SpillToken[spill] = token;
+          SpillToken[other] = token++;
+        }else if(SpillToken.find(spill) != SpillToken.end() && SpillToken.find(other) == SpillToken.end()){
+          SpillToken[other] = SpillToken[spill];
+        }else if(SpillToken.find(spill) == SpillToken.end() &&  SpillToken.find(other) != SpillToken.end()){
+          SpillToken[spill] = SpillToken[other];//其中一个有,那就另一个也用它的
+        }
+      }else{//干扰,不能合并
+        if (SpillToken.find(spill) == SpillToken.end() &&  SpillToken.find(other) == SpillToken.end()) {
+          SpillToken[spill] = token++;
+          SpillToken[other] = token++;
+        } else if (SpillToken.find(spill) != SpillToken.end() &&  SpillToken.find(other) == SpillToken.end()) {
+          SpillToken[other] = token++;
+        } else if (SpillToken.find(spill) == SpillToken.end() &&  SpillToken.find(other) != SpillToken.end()) {
+          SpillToken[spill] = token++;
         }
       }
     }
   }
+}
+
+//为活跃性分析及图构建阶段做准备的初始化函数。它清空的是跟寄存器活跃性分析 和 图构建相关的数据结构。
+void GraphColor::LiveInfoInit()
+{
+    BlockLivein.clear();
+    BlockLiveout.clear();
+    BlockInfo.clear();
+    RegLiveness.clear();
+    instNum.clear();
+    InstLive.clear();
+    ValsInterval.clear();
+    freezeWorkList.clear();
+    worklistMoves.clear();
+    simplifyWorkList.clear();
+    spillWorkList.clear();
+    spillWorkList.clear();
+    spilledNodes.clear();
+    initial.clear();
+    coalescedNodes.clear();
+    constrainedMoves.clear();
+    coalescedMoves.clear();
+    frozenMoves.clear();
+    coloredNode.clear();
+    AdjList.clear();
+    selectstack.clear();
+    belongs.clear();
+    activeMoves.clear();
+    alias.clear();
+    RegType.clear();
+    InstLive.clear();
+    Precolored.clear();
+    color.clear();
+    moveList.clear();
+    instNum.clear();
+    RegLiveness.clear();
+    assist.clear();
+    Degree.clear();
+    adjSet.clear();
+    SpillStack.clear();
 }
