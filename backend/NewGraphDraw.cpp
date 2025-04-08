@@ -444,22 +444,130 @@ void GraphColor::spill() {
 
 //终于到了,分配实际物理寄存器!
 void GraphColor::AssignColors(){
-  MOperand select = selectstack.front();
-  RISCVType ty = select->GetType();
-  selectstack.erase(selectstack.begin());
-  std::unordered_set<MOperand> int_assist{reglist.GetReglistInt().begin(),reglist.GetReglistInt().end()};
-  std::unordered_set<MOperand> float_assist{reglist.GetReglistFloat().begin(), reglist.GetReglistFloat().end()};
-  //遍历所有的冲突点，查看他们分配的颜色，保证我们分配的颜色一定是不同的
-    for(auto adj:AdjList[select]){
-      if (coloredNode.find(GetAlias(adj)) != coloredNode.end() ||
-          Precolored.find(GetAlias(adj)) != Precolored.end()) {
-        if (color.find(dynamic_cast<MOperand>(GetAlias(adj))) == color.end())
-          assert(0);
-        if (ty == riscv_i32 || ty == riscv_ptr || ty == riscv_i64)
-          int_assist.erase(color[GetAlias(adj)]);
-        else if (ty == riscv_float32)
-          float_assist.erase(color[GetAlias(adj)]);
+  while(!selectstack.empty()){
+    MOperand select = selectstack.front();
+    RISCVType ty = select->GetType();
+    selectstack.erase(selectstack.begin());
+    std::unordered_set<MOperand> int_assist{reglist.GetReglistInt().begin(),reglist.GetReglistInt().end()};
+    std::unordered_set<MOperand> float_assist{reglist.GetReglistFloat().begin(), reglist.GetReglistFloat().end()};
+    //遍历所有的冲突点，查看他们分配的颜色，保证我们分配的颜色一定是不同的
+      for(auto adj:AdjList[select]){
+        if (coloredNode.find(GetAlias(adj)) != coloredNode.end() ||
+            Precolored.find(GetAlias(adj)) != Precolored.end()) {
+          if (color.find(dynamic_cast<MOperand>(GetAlias(adj))) == color.end())
+            assert(0);
+          if (ty == riscv_i32 || ty == riscv_ptr || ty == riscv_i64)
+            int_assist.erase(color[GetAlias(adj)]);
+          else if (ty == riscv_float32)
+            float_assist.erase(color[GetAlias(adj)]);
+        }
       }
+      bool flag=false;
+      if(ty==riscv_i32||ty==riscv_ptr||ty==riscv_i64){
+        if(int_assist.size()==0){
+          spilledNodes.insert(select);
+        }else{
+          coloredNode.insert(select);
+          color[select]=SelectPhyReg(select,ty,int_assist);
+
+          _DEBUG(std::cerr << "Assign reg(int): " << color[select]->GetName()
+                         << " To " << select->GetName() << std::endl;)
+        }
+      }else if(ty==riscv_float32){
+        if (float_assist.size() == 0){
+        spilledNodes.insert(select);
+        }else{
+          coloredNode.insert(select);
+          color[select] = SelectPhyReg(select, ty, float_assist);
+          _DEBUG(std::cerr << "Assign reg(float): " << color[select]->GetName()
+                          << " To " << select->GetName() << std::endl;)
+        }
+      }
+  }
+  for (auto caols : coalescedNodes) {
+    // if (caols->GetName() == ".31"){
+    //   int i = 0;
+    // }调试语句，用于打断点
+    color[caols] = color[GetAlias(caols)];
+  }
+}
+
+// 该函数遍历所有基本块和指令，把被 spill 的虚拟寄存器：
+
+// 替换成内存加载/存储指令（load/store）
+
+// 用新的临时虚拟寄存器来保存中间值
+
+// 更新 mir 指令中的使用（operand）和定义（def）
+void GraphColor::SpillNodeInMir(){
+  //记录 spill 过程中 **临时新生成的虚拟寄存器**（用于加载/保存）
+  std::unordered_set<VirRegister*> temps;
+  for(const auto mbb: topu){
+    for(auto mir_begin=mbb->begin(),mir_end=mbb->end();mir_begin!=mir_end){
+      auto mir=*mir_begin;
+      if(mir->GetOpcode()==RISCV::call||mir->GetOpcode()==RISCV::ret||mir->GetOpcode()==RISCV::_j){
+        ++mir_begin;
+        continue;//跳过特定指令
+      }
+      if(mir->GetDef()!=nullptr&& dynamic_cast<VirRegister*>(mir->GetDef())&& spilledNodes.find(dynamic_cast<VirRegister*>(mir->GetDef()))!=spilledNodes.end()){
+        auto op = dynamic_cast<VirRegister *>(mir->GetDef());
+        auto sd = CreateSpillMir(mir->GetDef(), temps);
+        mir_begin.insert_after(sd);
+        _DEBUG(std::cerr
+                   << "Spilling "
+                   << dynamic_cast<VirRegister *>(mir->GetDef())->GetName()
+                   << ", Use Vreg "
+                   << dynamic_cast<VirRegister *>(sd->GetOperand(0))->GetName()
+                   << " To Replace" << std::endl;)
+        mir->SetDef(sd->GetOperand(0));
+          //r10 = add r3, r4   // r10 溢出了
+          //belike:
+          //vTemp = add r3, r4   // 替换 r10 为临时寄存器
+          //sw vTemp, offset(sp) // 把 vTemp 写回内存（spill）
+
+        if (mir->GetOpcode() == RISCVMIR::RISCVISA::mv ||
+            mir->GetOpcode() == RISCVMIR::RISCVISA::_fmv_s){
+          NotMove.insert(mir);
+        }
+      }
+      for(int i=0;i<mir->GetOperandSize();i++){
+        auto operand=mir->GetOperand(i);
+        if(mir->GetOperand(i) != nullptr &&
+        dynamic_cast<VirRegister *>(mir->GetOperand(i)) &&
+        spilledNodes.find(dynamic_cast<VirRegister *>(
+            mir->GetOperand(i))) != spilledNodes.end()){
+              auto op = dynamic_cast<VirRegister *>(mir->GetOperand(i));
+              auto ld = CreateLoadMir(mir->GetOperand(i), temps);
+              mir_begin.insert_before(ld);
+              _DEBUG(
+                std::cerr
+                    << "Find a Spilled Node "
+                    << dynamic_cast<VirRegister *>(mir->GetOperand(i))->GetName()
+                    << ", Use Vreg "
+                    << dynamic_cast<VirRegister *>(ld->GetDef())->GetName()
+                    << " To Replace" << std::endl;)
+              mir->SetOperand(i, ld->GetDef());
+              //  add r1, r2, r3
+              //  ld vTemp, offset(sp)
+              //add r1, vTemp, r3   现在 r2 被 vTemp 替代
+              if(mir->GetOpcode() == RISCVMIR::RISCVISA::mv ||
+              mir->GetOpcode() == RISCVMIR::RISCVISA::_fmv_s){
+                NotMove.insert(mir);
+              }
+            }
+      }
+      ++mir_begin;
     }
-    
+  }
+  spilledNodes.clear();
+  initial.clear();
+  initial.insert(coloredNode.begin(), coloredNode.end());
+  initial.insert(coalescedNodes.begin(), coalescedNodes.end());
+  initial.insert(temps.begin(), temps.end());
+  coalescedNodes.clear();
+  coloredNode.clear();
+}
+
+RISCVMIR *GraphColor::CreateSpillMir(RISCVMOperand *spill,std::unordered_set<VirRegister*> &temps){
+  
 }
