@@ -12,13 +12,15 @@ Use::Use(User *_user, Value *_usee) : user(_user), usee(_usee)
 void Use::RemoveFromValUseList(User *_user)
 {
   assert(_user == user); // 必须是User
-  usee->GetValUseList().GetSize()--;
+  if(usee)
+      usee->GetValUseList().GetSize()--;
   if (*prev != nullptr)
     *prev = next;
   if (next != nullptr)
     next->prev = prev;
-  if (usee->GetValUseList().GetSize() == 0 && next != nullptr)
-    assert(0);
+  if(usee)
+    if (usee->GetValUseList().GetSize() == 0 && next != nullptr)
+      assert(0);
   
   // all is nullptr cant't fullfill the operator++
   // user = nullptr;
@@ -66,7 +68,8 @@ void ValUseList::push_front(Use *_use)
 
 bool ValUseList::is_empty()
 {
-  return head == nullptr;
+  // return head == nullptr;
+   return size == 0;
 }
 
 Use *&ValUseList::front()

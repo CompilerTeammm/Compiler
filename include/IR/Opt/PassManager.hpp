@@ -3,10 +3,10 @@
 #include "Mem2reg.hpp"
 #include "MemoryToRegister.hpp"
 #include<queue>
-#include "CoreClass.hpp"
-#include "CFG.hpp"
+#include "../../lib/CoreClass.hpp"
+#include "../../lib/CFG.hpp"
 #include <memory>
-#include"Singleton.hpp"
+#include"../../lib/Singleton.hpp"
 #include"DCE.hpp"
 #include"AnalysisManager.hpp"
 // #include "DCE.hpp"

@@ -209,7 +209,13 @@ public:
 
   int GetOperandNums() {  return useruselist.size(); }
   inline Operand GetOperand(int i) { return useruselist[i]->GetValue(); }
-  inline void SetOperand(int i,Value* val) { useruselist[i]->usee = val; }
+
+  inline void SetOperand(int i,Value* val) { 
+     useruselist[i]->usee->GetValUseList().GetSize()--;
+     
+     useruselist[i]->usee = val; 
+    //  useruselist[i]->usee.
+  }
 
   // 默认调用Value的print
   virtual void print() = 0;

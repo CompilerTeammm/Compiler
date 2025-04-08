@@ -30,7 +30,7 @@ bool DCE::DCEInstruction(Instruction* I,
         {
             Value* op = I->GetOperand(i);
             // delete 的时候就做了处理，现在做处理是不行的
-            // I->SetOperand(i, nullptr);
+            I->SetOperand(i, nullptr);
 
             if(!op->use_empty() || I == op)
                 continue;
