@@ -569,5 +569,94 @@ void GraphColor::SpillNodeInMir(){
 }
 
 RISCVMIR *GraphColor::CreateSpillMir(RISCVMOperand *spill,std::unordered_set<VirRegister*> &temps){
+  auto vreg=dynamic_cast<VirRegister*>(spill);
+  assert(vreg && "the chosen operand must be a vreg");
   
+  //特殊用处寄存器
+  if(auto specialmop=m_func->GetSpecialUsageMOperand(vreg)){
+    auto mir=new RISCVMIR(RISCVMIR::MarkDead);
+    auto newreg=ctx.createVReg(vreg->GetType());
+    mir->AddOperand(newreg);
+    temps.insert(newreg);
+    return mir;
+  }
+  VirRegister *reg = new VirRegister(vreg->GetType());
+  temps.insert(reg);
+  RISCVMIR *sd = nullptr;
+  if (spill->GetType() == RISCVType::riscv_i32 ||
+      spill->GetType() == RISCVType::riscv_ptr ||
+      spill->GetType() == RISCVType::riscv_i64 )
+    sd = new RISCVMIR(RISCVMIR::RISCVISA::_sd);
+  else if (spill->GetType() == RISCVType::riscv_float32)
+    sd = new RISCVMIR(RISCVMIR::RISCVISA::_fsw);
+  sd->AddOperand(reg);
+  auto spillnode = m_func->GetFrame()->spill(vreg);
+  sd->AddOperand(spillnode);
+  return sd;
+}
+
+RISCVMIR *GraphColor::CreateLoadMir(RISCVMOperand *load,std::unordered_set<VirRegister *> &temps) {
+auto vreg = dynamic_cast<VirRegister *>(load);
+assert(vreg && "the chosen operand must be a vreg");
+
+if (auto specialmop = m_func->GetSpecialUsageMOperand(vreg)) {
+auto mir = m_func->CreateSpecialUsageMIR(specialmop);
+temps.insert(mir->GetDef()->as<VirRegister>());
+return mir;
+}
+
+VirRegister *reg = new VirRegister(vreg->GetType());
+temps.insert(reg);
+RISCVMIR *lw = nullptr;
+if (load->GetType() == RISCVType::riscv_i32 ||
+load->GetType() == RISCVType::riscv_ptr ||
+load->GetType() == RISCVType::riscv_i64 )
+lw = new RISCVMIR(RISCVMIR::RISCVISA::_ld);
+else if (load->GetType() == RISCVType::riscv_float32)
+lw = new RISCVMIR(RISCVMIR::RISCVISA::_flw);
+auto spillnode = m_func->GetFrame()->spill(vreg);
+lw->SetDef(reg);
+lw->AddOperand(spillnode);
+return lw;
+}
+
+void GraphColor::RewriteProgram(){
+  for(const auto mbb:topu){
+    for(auto mirit=mbb-begin();mirit!=mbb->end();){
+      auto mir=*mirit;
+      ++mirit;
+      //忽略call
+      if(mir->GetOpcode()==RISCVMIR::call){
+        continue;
+      }
+      //替换定义的寄存器（Def）
+      if (mir->GetDef() != nullptr && dynamic_cast<VirRegister *>(mir->GetDef())) {
+        if (color.find(dynamic_cast<MOperand>(mir->GetDef())) == color.end())
+          assert(0);
+        auto replace = color[dynamic_cast<MOperand>(mir->GetDef())];
+        _DEBUG(
+            std::cerr << "REPLACE Vreg "
+                      << dynamic_cast<VirRegister *>(mir->GetDef())->GetName()
+                      << " To Preg " << replace->GetName() << std::endl;)
+        mir->SetDef(replace);
+      }
+      //替换每一个Use
+      for(int i=0;i<mir->GetOperandSize();i++){
+        auto operand=mir->GetOperand(i);
+        //普通寄存器，直接替换为物理寄存器
+        if(dynamic_cast<VirRegister*>(operand)){
+          if(color.find(dynamic_cast<MOperand>(operand))==color.end()){
+            assert(0);
+          }
+          auto replace=color[dynamic_cast<MOperand>(operand)];
+          _DEBUG(std::cerr << "REPLACE Vreg "
+            << dynamic_cast<VirRegister *>(operand)->GetName()
+            << " To Preg " << replace->GetName() << std::endl;)
+          mir->SetOperand(i, replace);
+        }else if(){
+          
+        }
+      }
+    }
+  }
 }
