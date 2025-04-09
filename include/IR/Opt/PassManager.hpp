@@ -9,9 +9,10 @@
 #include"../../lib/Singleton.hpp"
 #include"DCE.hpp"
 #include"AnalysisManager.hpp"
-#include "DCE.hpp"
-#define dce
+#include"ConstantProp.hpp"
 
+#define dce
+#define sccp
 
 enum PassName
 {
@@ -71,6 +72,14 @@ void PassManager:: RunOnTest()
         auto fun = function.get();
         AnalysisManager* AM;
         DCE(fun,AM).run();
+    }
+#endif
+#ifdef sccp
+    for (auto &function : funcVec)
+    {
+        auto fun = function.get();
+        AnalysisManager *AM;
+        ConstantProp(fun).run();
     }
 #endif
 }

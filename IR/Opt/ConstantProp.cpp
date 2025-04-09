@@ -15,8 +15,8 @@ void ConstantProp::run()
 
     while(!WorkList.empty())
     {
-        Instruction* I = *WorkList.end();
-        WorkList.erase(WorkList.end());
+        Instruction* I = *WorkList.begin();
+        WorkList.erase(WorkList.begin());
 
         if(!I->is_empty())
         {

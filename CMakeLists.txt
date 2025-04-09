@@ -27,6 +27,8 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/Mem2reg.cpp
   IR/Opt/MemoryToRegister.cpp
   IR/Opt/DCE.cpp
+  IR/Opt/ConstantFold.cpp
+  IR/Opt/ConstantProp.cpp
 #   IR/*.cpp
 #   backend/*.cpp
   lib/*.cpp
@@ -36,6 +38,8 @@ file(GLOB_RECURSE SOURCES
 
 list(REMOVE_ITEM ALL_HEADERS
     include/IR/Opt/DCE.hpp
+    include/IR/Opt/ConstantFold.hpp
+    include/IR/Opt/ConstantProp.hpp
     include/IR/Opt/AnalysisManager.hpp
 )
 
