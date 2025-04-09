@@ -321,6 +321,25 @@ bool Instruction::IsCallInst() const
     return id == Op::Call;
 }
 
+bool Instruction:: IsGepInst() const
+{
+    return id == Op::Gep;
+}
+
+bool Instruction::IsMinInst() const
+{
+    return id == Op::Min;
+}
+
+bool Instruction::IsMaxInst() const
+{
+    return id == Op::Max;
+}
+
+bool Instruction::IsSelectInst() const
+{
+    return id == Op::Select;
+}
 
 void Instruction::add_use(Value *_value)
 {

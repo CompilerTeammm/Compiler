@@ -1,14 +1,5 @@
 #include "../../include/IR/Opt/ConstantFold.hpp"
-
-ConstantData*ConstantFold::ConstFoldLoadInst(LoadInst* LI)
-{
-
-}
-
-ConstantData* ConstantFold::ConstFoldInstOperands(ConstantData *I)
-{
-
-}
+#include "../../include/IR/Opt/DealUndefOps.hpp"
 
 ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
 {
@@ -25,7 +16,8 @@ ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
             if(!C)
                 return nullptr;
 
-            C = ConstFoldInstOperands(C);
+            // 对phi函数的处理有问题
+            C = ConstantFoldInstOperands(C);
 
             if(CommonValue && C!= CommonValue)
                 return nullptr;
@@ -53,17 +45,30 @@ ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
     if(auto LI = dynamic_cast<LoadInst*>(I))
         return ConstFoldLoadInst(LI);
     
-    return ConstantFoldBinaryOpOperands(I,ConstOps);
+    return ConstantFoldInstOperands(I,ConstOps);
 }
 
-ConstantData* ConstantFold:: ConstantFoldBinaryOpOperands
+ConstantData* ConstantFold:: ConstantFoldInstOperands
                             (Instruction* I,std::vector<ConstantData*>& Ops)
 {
     if(I->IsBinary())
         return ConstFoldBinaryOps(I,Ops[0],Ops[1]);
     
-    // if(I->IsCastInst())
-    //     return ConstFoldCastOps(I,Ops[0]);
+    if(I->IsCastInst())
+        return ConstFoldCastOps(I,Ops[0]);
+    
+    if(I->IsGepInst())
+        return nullptr;
+    
+    if(I->IsMaxInst())
+        return nullptr;
+    
+    if(I->IsMinInst())
+        return nullptr;
+    
+    if(I->IsSelectInst())
+        return nullptr;
+
     return nullptr;
 }
 
@@ -77,10 +82,28 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
                             ConstantData* LHS,ConstantData* RHS)
 {
     BinaryInst* BInst = dynamic_cast<BinaryInst*> (I);
+    assert(BInst && "BInst must be BINARY");
     BinaryInst::Operation op = BInst->GetOp();
-    if(op == BinaryInst::Op_Add)
-    {
-        int Result = dynamic_cast<ConstIRInt*>(LHS)->GetVal() + dynamic_cast<ConstIRInt*>(RHS)->GetVal();
-        return ConstIRInt::GetNewConstant(Result);
+    
+    DealUndefBinary(LHS,RHS);
+    if( I->GetTypeEnum() == IR_Value_INT)
+    {   
+        if(auto val = ConstFoldBinaryInt(LHS,RHS))
+             
     }
+    else if( I->GetTypeEnum() == IR_Value_Float)
+    {
+
+    }
+    else 
+    {
+        assert("what happened!!!");
+    }
+
+    return nullptr;
+}
+
+ConstantData*ConstantFold::ConstFoldLoadInst(LoadInst* LI)
+{
+
 }
