@@ -234,16 +234,15 @@ struct Terminator
 {
   double prob2true = 0.5;
   RISCVMIR *branchinst = nullptr;
-  RISCVBasicBlock *falseblock = nullptr;
-
+  bool implictly = false;
   RISCVBasicBlock *trueblock = nullptr;
   RISCVBasicBlock *falseblock = nullptr;
 
   inline void SetProb(double _p) { prob2true = _p; };       // 设置分支频率，用于优化
-  void RotateCondition();                                   // 分支概率优化
   inline bool isUncond() { return falseblock == nullptr; }; // 判断是不是无条件跳转
   inline bool isRet() { return branchinst == nullptr; };    // 判断是不是ret指令
-  void makeFallthrough(RISCVBasicBlock *_candidate);        // 强制顺序执行，以上跳转全pass
+  void RotateCondition();                                   // 分支概率优化
+  void makeFallthrough(RISCVBasicBlock *cand);              // 强制顺序执行，以上跳转全pass
 };
 
 class RISCVBasicBlock : public NamedMOperand, public List<RISCVBasicBlock, RISCVMIR>, public Node<RISCVFunction, RISCVBasicBlock>

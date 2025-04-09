@@ -112,6 +112,129 @@ void Terminator::RotateCondition()
   std::swap(trueblock, falseblock);   // 交换true/false块的记录
 }
 
+void Terminator::makeFallthrough(RISCVBasicBlock *cand)
+{
+  if (trueblock == cand || falseblock == cand)
+  {
+    if (!isUncond())
+      if (trueblock == cand)
+        RotateCondition();
+    implictly = true;
+    auto j = branchinst->GetParent()->GetBack();
+    delete j;
+  }
+}
+
+RISCVBasicBlock::RISCVBasicBlock(std::string _name) : NamedMOperand(_name, RISCVType::riscv_none) {}
+
+RISCVBasicBlock *RISCVBasicBlock::CreateRISCVBasicBlock()
+{
+  static int t = 0;
+  return new RISCVBasicBlock(".LBB" + std::to_string(t++));
+}
+
+void RISCVBasicBlock::replace_succ(RISCVBasicBlock *Now, RISCVBasicBlock *New)
+{
+  for (auto it = rbegin(); it != rend(); --it)
+  {
+    RISCVMIR *Instruction = *it;
+    RISCVMIR::RISCVISA opcode = Instruction->GetOpcode();
+    if (opcode < RISCVMIR::EndBranch && opcode > RISCVMIR::BeginBranch)
+    {
+      bool flag = false;
+      for (int i = 0; i < Instruction->GetOperandSize(); i++)
+      {
+        if (Instruction->GetOperand(i) == Now)
+        {
+          Instruction->SetOperand(i, New);
+          flag = true;
+        }
+      }
+      if (flag)
+        return;
+    }
+  }
+  assert(0 && "IMPOSSIBLE");
+}
+
+Terminator &RISCVBasicBlock::getTerminator()
+{
+  if (term.implictly == true) // 隐式操作
+    return term;
+
+  auto inst_size = Size();
+  assert(inst_size);
+
+  // 反向遍历操作码
+  for (auto it = rbegin(); it != rend(); --it)
+  {
+    auto minst = *it;
+    // ret
+    if (minst->GetOpcode() == RISCVMIR::ret)
+    {
+      term.branchinst = nullptr;
+      break;
+    }
+    // 分支
+    if (RISCVMIR::BeginBranch < minst->GetOpcode() && minst->GetOpcode() < RISCVMIR::EndBranch)
+    {
+      // 无条件跳转
+      if (minst->GetOpcode() == RISCVMIR::_j)
+      {
+        term.branchinst = minst;
+        term.trueblock = minst->GetOperand(0)->as<RISCVBasicBlock>();
+      }
+      // 有条件跳转
+      else
+      {
+        term.branchinst = minst;
+        term.falseblock = minst->GetOperand(2)->as<RISCVBasicBlock>();
+        std::swap(term.trueblock, term.falseblock);
+        break;
+      }
+    }
+  }
+  if (term.isUncond())
+    term.SetProb(1);
+  return term;
+}
+
+void RISCVBasicBlock::push_before_branch(RISCVMIR *m)
+{
+  assert(this->Size());
+  for (auto it = this->rbegin(); it != this->rend(); --it)
+  {
+    RISCVMIR *inst = *it;
+    RISCVMIR::RISCVISA opcode = inst->GetOpcode();
+    if (opcode < RISCVMIR::BeginBranch || opcode > RISCVMIR::EndBranch)
+    {
+      assert(!(opcode == RISCVMIR::ret));
+      it.InsertAfter(m);
+      return;
+    }
+  }
+  this->push_front(m);
+}
+
+void RISCVBasicBlock::printfull()
+{
+  // 打印基本块标签（排除特殊退出块）
+  if (GetName() != ".LBBexit")
+  {
+    NamedMOperand::print();
+    std::cout << ":\n"; // 标签后缀换行
+  }
+
+  // 打印所有有效指令
+  for (auto *minst : *this)
+  {
+    if (minst)
+    { // 防御nullptr
+      minst->printfull();
+    }
+  }
+}
+
 std::unique_ptr<RISCVFrame> &RISCVFunction::GetFrame()
 {
   return frame;
