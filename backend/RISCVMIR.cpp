@@ -90,6 +90,28 @@ void RISCVMIR::printfull()
   std::cout << '\n';
 }
 
+void Terminator::RotateCondition()
+{
+  assert(RISCVMIR::BeginBranch < branchinst->GetOpcode() && branchinst->GetOpcode() < RISCVMIR::EndBranch);
+  assert(branchinst->GetOpcode() != RISCVMIR::_j);
+
+  // 跳转条件取反
+  branchinst->SetMopcode(static_cast<RISCVMIR::RISCVISA>(branchinst->GetOpcode() ^ 1));
+  branchinst->SetOperand(2, falseblock);
+
+  // 获取分支指令的下一条指令
+  auto it = List<RISCVBasicBlock, RISCVMIR>::iterator(branchinst);
+  ++it;
+
+  assert(it != branchinst->GetParent()->end()); // 防止跳空
+
+  auto nxt_inst = *it;                           // 获取下一条指令
+  assert(nxt_inst->GetOpcode() == RISCVMIR::_j); // 确保是无条件跳转指令
+
+  nxt_inst->SetOperand(0, trueblock); // 将j指令的目标改为原来的trueblock
+  std::swap(trueblock, falseblock);   // 交换true/false块的记录
+}
+
 std::unique_ptr<RISCVFrame> &RISCVFunction::GetFrame()
 {
   return frame;
