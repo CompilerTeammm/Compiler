@@ -1,5 +1,5 @@
 #include "../../include/IR/Opt/ConstantFold.hpp"
-#include "../../include/IR/Opt/DealUndefOps.hpp"
+#include "../../include/IR/Opt/DealOps.hpp"
 
 ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
 {
@@ -85,19 +85,20 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
     assert(BInst && "BInst must be BINARY");
     BinaryInst::Operation op = BInst->GetOp();
     
-    DealUndefBinary(LHS,RHS);
-    if( I->GetTypeEnum() == IR_Value_INT)
-    {   
-        if(auto val = ConstFoldBinaryInt(LHS,RHS))
-             
-    }
-    else if( I->GetTypeEnum() == IR_Value_Float)
-    {
+    // Undef 的情况在这里进行定义
+    ConstantData* undef = DealConstType::DealUndefBinary(BInst,LHS,RHS);
+    if (undef){
 
-    }
-    else 
-    {
-        assert("what happened!!!");
+        if (I->GetTypeEnum() == IR_Value_INT){
+            DealConstType::DealIRIntAndFloat(LHS, RHS);
+        }
+        else if (I->GetTypeEnum() == IR_Value_Float){
+            // 处理时Float类型，最后要强转成Float类型
+            DealConstType::DealIRIntAndFloat(LHS, RHS, 1);
+        }
+        else{
+            assert("what happened!!!");
+        }
     }
 
     return nullptr;
