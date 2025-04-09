@@ -6,6 +6,9 @@ class ConstantFold
 {
 public:
     ConstantData* ConstantFoldBinaryOpOperands
-                (int Opcode,Value* LHS,Value* RHS);
+                (Instruction* I,std::vector<ConstantData*>& Ops);
+                
     ConstantData* ConstFoldInstruction(Instruction* I);
+
+    ConstantData* ConstFoldLoadInst(LoadInst* LI);
 };

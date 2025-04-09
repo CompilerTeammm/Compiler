@@ -1,6 +1,7 @@
 #include "../../include/IR/Opt/ConstantFold.hpp"
 #include "../../include/IR/Opt/ConstantProp.hpp"
 
+// 之后可能会把run()-> void -----> run() -> bool
 void ConstantProp::run()
 {
     std::set<Instruction*> WorkList;
@@ -24,7 +25,9 @@ void ConstantProp::run()
                 for(Use* use : I->GetValUseList())
                 {
                     User* user = use->GetUser();
-                    WorkList.insert(dynamic_cast<Instruction*>(user));
+                    Instruction* inst = dynamic_cast<Instruction*>(user);
+                    if(inst)
+                        WorkList.insert(inst);
                 }
 
                 I->ReplaceAllUseWith(C);

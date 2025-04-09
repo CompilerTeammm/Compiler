@@ -9,7 +9,7 @@
 #include"../../lib/Singleton.hpp"
 #include"DCE.hpp"
 #include"AnalysisManager.hpp"
-// #include "DCE.hpp"
+#include "DCE.hpp"
 #define dce
 
 
