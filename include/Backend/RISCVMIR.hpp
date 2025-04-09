@@ -2,7 +2,12 @@
 #include "../../include/Backend/RISCVFrameContext.hpp"
 #include "../../include/lib/MyList.hpp"
 
-class RISCVMIR : public List<RISCVBasicBlock, RISCVMIR>
+class RISCVFrame;
+class RISCVFunction;
+class RISCVBasicBlock;
+class RISCVMIR;
+
+class RISCVMIR : public Node<RISCVBasicBlock, RISCVMIR>
 {
   RISCVMOperand *def = nullptr;          // 指向目标操作数
   std::vector<RISCVMOperand *> operands; // 数组存储目标操作数
@@ -207,7 +212,7 @@ public:
   // 操作数管理
   RISCVMOperand *&GetDef();
   RISCVMOperand *&GetOperand(int);
-  const int GetOperandSize() { return operands.size(); }
+  const int GetOperandSize();
   void SetDef(RISCVMOperand *);
   void SetOperand(int, RISCVMOperand *);
   void AddOperand(RISCVMOperand *);
@@ -221,40 +226,95 @@ public:
   {
     return (EndArithmetic > opcode && opcode > BeginArithmetic) | (EndFloatArithmetic > opcode && opcode > BeginFloatArithmetic);
   }
-
   // 调试输出
   void printfull();
 };
 
-class RISCVFunction
+struct Terminator
+{
+  double prob2true = 0.5;
+  inline void SetProb(double _p) { prob2true = _p; }; // 设置分支频率，用于优化
+  void RotateCondition();                             // 分支概率优化
+
+  RISCVBasicBlock *falseblock = nullptr;
+  inline bool isUncond() { return falseblock == nullptr; }; // 判断是不是无条件跳转
+
+  RISCVMIR *branchinst = nullptr;
+  inline bool isRet() { return branchinst == nullptr; }; // 判断是不是ret指令
+
+  void makeFallthrough(RISCVBasicBlock *_candidate); // 强制顺序执行，以上跳转全pass
+};
+
+class RISCVBasicBlock : public NamedMOperand, public List<RISCVBasicBlock, RISCVMIR>, public Node<RISCVFunction, RISCVBasicBlock>
+{
+  Terminator term;
+
+public:
+  RISCVBasicBlock(std::string);
+  static RISCVBasicBlock *CreateRISCVBasicBlock();
+  Terminator &getTerminator();                             // 获取基本块的终止指令
+  void push_before_branch(RISCVMIR *);                     // 基本块终止指令前，插入新指令，比如cmp比较等，寄存器溢出
+  void replace_succ(RISCVBasicBlock *, RISCVBasicBlock *); // 后继基本块更新
+  void printfull();                                        // 打印基本块的信息，验证
+};
+
+class RISCVFunction : public RISCVGlobalObject, public List<RISCVFunction, RISCVBasicBlock>
 {
   using RISCVframe = std::unique_ptr<RISCVFrame>;
   RISCVframe frame;
 
+  RISCVBasicBlock exit;
+  size_t max_param_size = 0;
+
 public:
+  RISCVFunction(Value *);
   RISCVframe &GetFrame();                          // 获取栈帧
-  Register *GetUsedGlobalMapping(RISCVMOperand *); // 操作数->寄存器
+  Register *GetUsedGlobalMapping(RISCVMOperand *); // 获取全局变量操作数对应的虚拟寄存器
 
   std::unordered_map<RISCVMOperand *, VirRegister *> usedGlobals; // 操作码和虚拟寄存器的映射
   RISCVMIR *CreateSpecialUsageMIR(RISCVMOperand *);
+
+  size_t GetMaxParamSize();              // 获取参数空间，——>寄存器传递 or 栈传递
+  void SetMaxParamSize(size_t);          // 设置参数最大空间（防止溢出）
+  void GenerateParamNeedSpill();         // 标记溢出到栈上的
+  std::vector<int> &GetParamNeedSpill(); // 获取溢出到栈上的
+
+  void printfull();
+
+  inline RISCVBasicBlock *GetEntry() { return GetFront(); };
+  inline RISCVBasicBlock *GetExit() { return &exit; };
+  uint64_t GetUsedPhyRegMask(); // 查询哪些物理寄存器被使用
+
+  // 特例
+  RISCVMIR *CreateSpecialUsageMIR(RISCVMOperand *);
+
+  // 获取操作数
+  std::unordered_map<VirRegister *, RISCVMOperand *> specialusage_remapping;
+  inline RISCVMOperand *GetSpecialUsageMOperand(VirRegister *vreg)
+  {
+    if (specialusage_remapping.find(vreg) != specialusage_remapping.end())
+      return specialusage_remapping[vreg];
+    return nullptr;
+  };
 };
 
 // 函数栈帧的创建
 class RISCVFrame
 {
 public:
+  RISCVFrame(RISCVFunction *);         // 初始化栈帧对象
+  StackRegister *spill(VirRegister *); // 虚拟寄存器 溢出到 栈上，用栈寄存器代替
+  RISCVMIR *spill(PhyRegister *);
+  RISCVMIR *load_to_preg(StackRegister *, PhyRegister *);
+
   void GenerateFrame();     // 分配内存
   void GenerateFrameHead(); // SP 和 BP 指针 ，栈首
   void GenerateFrameTail(); // 栈尾
+  void AddCantBeSpill(RISCVMOperand *);
+  bool CantBeSpill(RISCVMOperand *);
 
   std::vector<std::unique_ptr<RISCVFrameObject>> &GetFrameObjs();
 
 private:
   std::vector<std::unique_ptr<RISCVFrameObject>> frameobjs;
-};
-
-class RISCVBasicBlock
-{
-public:
-  static RISCVBasicBlock *CreateRISCVBasicBlock();
 };
