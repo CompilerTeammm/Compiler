@@ -11,11 +11,6 @@ RISCVMOperand *&RISCVMIR::GetOperand(int ind)
   return operands[ind];
 }
 
-const int RISCVMIR::GetOperandSize()
-{
-  return operands.size();
-}
-
 void RISCVMIR::SetOperand(int ind, RISCVMOperand *op)
 {
   assert(0 <= ind && ind < operands.size() && "Range Assertion");
@@ -235,6 +230,148 @@ void RISCVBasicBlock::printfull()
   }
 }
 
+RISCVFunction::RISCVFunction(Value *_func) : RISCVGlobalObject(_func->GetType(), _func->GetName()), func(_func), exit(".LBBexit")
+{
+  frame.reset(new RISCVFrame(this)); // 创建栈帧
+  GenerateParamNeedSpill();
+  exit.GetParent();
+}
+
+uint64_t RISCVFunction::GetUsedPhyRegMask()
+{
+  // 通过64位掩码来为每一个物理寄存器进行标号
+  uint64_t flag = 0u;
+  for (auto bb : *this)
+  {
+    for (auto inst : *bb)
+    {
+      // 处理指令定义的寄存器
+      if (auto contReg = inst->GetDef())
+      {
+        if (contReg != nullptr)
+        {
+          auto def = contReg->as<PhyRegister>();
+          if (def != nullptr)
+          {
+            flag |= PhyRegMask::GetPhyRegMask(def);
+          }
+        }
+      }
+      // 处理指令操作的寄存器
+      for (int i = 0; i < inst->GetOperandSize(); i++)
+      {
+        PhyRegister *reg = nullptr;
+        if (auto sR = inst->GetOperand(i)->as<StackRegister>()) // 栈寄存器
+          reg = sR->GetReg()->as<PhyRegister>();                // 获取栈寄存器的基址寄存器
+        else
+          reg = inst->GetOperand(i)->as<PhyRegister>(); // 获取直接物理寄存器
+
+        if (reg != nullptr)
+          flag |= PhyRegMask::GetPhyRegMask(reg);
+      }
+    }
+  }
+  return flag;
+}
+
+void RISCVFunction::printfull()
+{
+  NamedMOperand::print();
+  std::cout << ":\n"; // 添加冒号和换行
+  for (auto mbb : *this)
+  {
+    mbb->printfull();
+  }
+}
+
+RISCVFrame::RISCVFrame(RISCVFunction *func) {}
+
+StackRegister *RISCVFrame::spill(VirRegister *vir)
+{
+  if (spillmap.find(vir) == spillmap.end())
+  {
+    frameobjs.emplace_back(std::make_unique<RISCVFrameObject>(vir));
+    spillmap[vir] = frameobjs.back().get()->GetStackReg(); // 记录该虚拟寄存器对应的栈位置
+  }
+  return spillmap[vir];
+}
+
+RISCVMIR *RISCVFrame::spill(PhyRegister *phy)
+{
+  int type = phy->Getregenum();
+
+  // 创建新的栈帧对象,存储该寄存器
+  frameobjs.emplace_back(std::make_unique<RISCVFrameObject>(phy));
+  StackRegister *newStackReg = frameobjs.back().get()->GetStackReg();
+
+  RISCVMIR *store;
+  // 整型
+  if (type >= PhyRegister::begin_normal_reg && type <= PhyRegister::end_normal_reg)
+  {
+    store = new RISCVMIR(RISCVMIR::_sd);
+  }
+  // 浮点型
+  else if (type >= PhyRegister::begin_float_reg && type <= PhyRegister::end_float_reg)
+  {
+    store = new RISCVMIR(RISCVMIR::_fsd);
+  }
+  else
+    assert(0 && "wrong phyregister type!!! no int no float");
+
+  // 源地址 和 目的地址
+  store->AddOperand(phy);
+  store->AddOperand(newStackReg);
+
+  return store;
+}
+
+RISCVMIR *RISCVFrame::load_to_preg(StackRegister *stackReg, PhyRegister *phy)
+{
+  int type = phy->Getregenum();
+  RISCVMIR *load;
+  if (type >= PhyRegister::begin_normal_reg && type <= PhyRegister::end_normal_reg)
+  {
+    load = new RISCVMIR(RISCVMIR::_ld);
+  }
+  else if (type >= PhyRegister::begin_float_reg && type <= PhyRegister::end_float_reg)
+  {
+    load = new RISCVMIR(RISCVMIR::_fld);
+  }
+  else
+    assert(0 && "wrong phyregister type");
+  load->SetDef(phy);
+  load->AddOperand(stackReg);
+  return load;
+}
+
+void RISCVFrame::GenerateFrame()
+{
+  using FramObj = std::vector<std::unique_ptr<RISCVFrameObject>>;
+  frame_size = 16;
+  // 升序排序栈对象的大小(先排列小的)
+  std::sort(frameobjs.begin(), frameobjs.end(), [](const std::unique_ptr<RISCVFrameObject> &lhs, const std::unique_ptr<RISCVFrameObject> &rhs)
+            { return lhs->GetFrameObjSize() < rhs->GetFrameObjSize(); });
+  for (FramObj::iterator it = frameobjs.begin(); it != frameobjs.end(); it++)
+  {
+    std::unique_ptr<RISCVFrameObject> &contentObj = *it;
+    contentObj->SetEndAddOffsets(frame_size);
+    frame_size += contentObj->GetFrameObjSize();
+    contentObj->SetBeginAddOffsets(frame_size);
+  }
+
+  frame_size += parent->GetMaxParamSize(); // 再加上参数区大小
+  int mod = frame_size % 16;
+  if (mod != 0)
+    frame_size = frame_size + (16 - mod);
+
+  for (FramObj::iterator it = frameobjs.begin(); it != frameobjs.end(); it++)
+  {
+    std::unique_ptr<RISCVFrameObject> &obj = *it;
+    int off = 0 - (int)(obj->GetBeginAddOffsets());
+    obj->GenerateStackRegister(off);
+  }
+}
+
 std::unique_ptr<RISCVFrame> &RISCVFunction::GetFrame()
 {
   return frame;
@@ -264,19 +401,9 @@ Register *RISCVFunction::GetUsedGlobalMapping(RISCVMOperand *val)
   if (usedGlobals.find(val) == usedGlobals.end())
   {
     auto mir = CreateSpecialUsageMIR(val);
-    usedGlobals[val] = mir->GetDef()->as<VirRegister>; // Allocates the virtual register map table
-    auto entryblock = GetFront();                      // Insert the register into the mapping base block
+    usedGlobals[val] = mir->GetDef()->as<VirRegister>(); // Allocates the virtual register map table
+    auto entryblock = GetFront();                        // Insert the register into the mapping base block
     entryblock->push_front(mir);
   }
   return usedGlobals[val];
-}
-
-RISCVMOperand *&RISCVMIR::GetDef() { return def; }
-
-RISCVFunction::RISCVFunction(Value *_func)
-{
-}
-
-static RISCVBasicBlock *CreateRISCVBasicBlock()
-{
 }

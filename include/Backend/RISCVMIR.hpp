@@ -212,7 +212,7 @@ public:
   // 操作数管理
   RISCVMOperand *&GetDef();
   RISCVMOperand *&GetOperand(int);
-  const int GetOperandSize();
+  const int GetOperandSize() { return operands.size(); }
   void SetDef(RISCVMOperand *);
   void SetOperand(int, RISCVMOperand *);
   void AddOperand(RISCVMOperand *);
@@ -260,6 +260,7 @@ public:
 
 class RISCVFunction : public RISCVGlobalObject, public List<RISCVFunction, RISCVBasicBlock>
 {
+  Value *func;
   using RISCVframe = std::unique_ptr<RISCVFrame>;
   RISCVframe frame;
 
@@ -302,12 +303,13 @@ public:
 class RISCVFrame
 {
 public:
-  RISCVFrame(RISCVFunction *);         // 初始化栈帧对象
-  StackRegister *spill(VirRegister *); // 虚拟寄存器 溢出到 栈上，用栈寄存器代替
-  RISCVMIR *spill(PhyRegister *);
-  RISCVMIR *load_to_preg(StackRegister *, PhyRegister *);
+  RISCVFrame(RISCVFunction *);                            // 初始化栈帧对象
+  StackRegister *spill(VirRegister *);                    // 虚拟寄存器 溢出到 栈帧，用栈寄存器代替
+  RISCVMIR *spill(PhyRegister *);                         // 物理寄存器 一出道 栈帧，返回对应的存储指令
+  RISCVMIR *load_to_preg(StackRegister *, PhyRegister *); // 从栈帧（Stack Frame）加载数据到物理寄存器（PhyRegister）
 
-  void GenerateFrame();     // 分配内存
+  void
+  GenerateFrame();          // 计算 offset ,并确保是 16字节对齐
   void GenerateFrameHead(); // SP 和 BP 指针 ，栈首
   void GenerateFrameTail(); // 栈尾
   void AddCantBeSpill(RISCVMOperand *);
@@ -316,5 +318,8 @@ public:
   std::vector<std::unique_ptr<RISCVFrameObject>> &GetFrameObjs();
 
 private:
+  RISCVFunction *parent;
+  size_t frame_size;
+  std::unordered_map<VirRegister *, StackRegister *> spillmap;
   std::vector<std::unique_ptr<RISCVFrameObject>> frameobjs;
 };

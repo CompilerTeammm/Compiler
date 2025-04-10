@@ -179,6 +179,10 @@ public:
   void print();
   void add_use(Use *_use);
   bool isConstZero();
+
+  // 后端要用的，文姐(╥╯^╰╥)
+  template <typename T>
+  T *as() { return dynamic_cast<T *>(this); }
 };
 
 class User : public Value
@@ -207,13 +211,14 @@ public:
   bool remove_use(Use *_use);
   void clear_use();
 
-  int GetOperandNums() {  return useruselist.size(); }
+  int GetOperandNums() { return useruselist.size(); }
   inline Operand GetOperand(int i) { return useruselist[i]->GetValue(); }
 
-  inline void SetOperand(int i,Value* val) { 
-     useruselist[i]->usee->GetValUseList().GetSize()--;
-     
-     useruselist[i]->usee = val; 
+  inline void SetOperand(int i, Value *val)
+  {
+    useruselist[i]->usee->GetValUseList().GetSize()--;
+
+    useruselist[i]->usee = val;
     //  useruselist[i]->usee.
   }
 
@@ -233,14 +238,14 @@ public:
   {
     None,
     // Terminators
-    UnCond,             // br label %.1
-    Cond,               
-    Ret,                // ret i32 1; or  ret void;
+    UnCond, // br label %.1
+    Cond,
+    Ret, // ret i32 1; or  ret void;
     // Memory
-    Alloca,              
+    Alloca,
     Load,
     Store,
-    Memcpy,             // llvm Intrinsic
+    Memcpy, // llvm Intrinsic
     // Binary
     Add,
     Sub,
@@ -257,18 +262,18 @@ public:
     Le,
     G,
     // Other
-    Gep,                // GetElementPtr
-    Phi,        
-    Call,               // call i32 @add(i32 , i32)
-    Zext,               // 0扩展
-    Sext,               // 符号扩展
-    Trunc,              // 截断指令
-    FP2SI,              // 浮点到有符号整数， fptosi
-    SI2FP,              // 有符号整数到浮点  sitofp
-    BinaryUnknown,      
+    Gep, // GetElementPtr
+    Phi,
+    Call,  // call i32 @add(i32 , i32)
+    Zext,  // 0扩展
+    Sext,  // 符号扩展
+    Trunc, // 截断指令
+    FP2SI, // 浮点到有符号整数， fptosi
+    SI2FP, // 有符号整数到浮点  sitofp
+    BinaryUnknown,
     Max,
     Min,
-    Select              // ? : 运算符
+    Select // ? : 运算符
   };
   Op id; // 指令类型
 
