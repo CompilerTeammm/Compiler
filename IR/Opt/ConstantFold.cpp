@@ -84,17 +84,23 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
     BinaryInst* BInst = dynamic_cast<BinaryInst*> (I);
     assert(BInst && "BInst must be BINARY");
     BinaryInst::Operation op = BInst->GetOp();
-    
+    ConstantData* ret;
+
     // Undef 的情况在这里进行定义
     ConstantData* undef = DealConstType::DealUndefBinary(BInst,LHS,RHS);
     if (!undef){
+        assert(!dynamic_cast<UndefValue*>(LHS) && !dynamic_cast<UndefValue*>(RHS)
+                && "Unexpected UndefValue");
+        // without the UndefValue
         // undef == nullptr 
+
+        // SimplyInst also do belowed.
         if (I->GetTypeEnum() == IR_Value_INT){
-            DealConstType::DealIRIntAndFloat(LHS, RHS);
+            ret = DealConstType::DealIRIntOrFloat(op,LHS, RHS);
         }
         else if (I->GetTypeEnum() == IR_Value_Float){
             // 处理时Float类型，最后要强转成Float类型
-            DealConstType::DealIRIntAndFloat(LHS, RHS, 1);
+            ret = DealConstType::DealIRIntOrFloat(op,LHS, RHS, 1);
         }
         else{
             assert("what happened!!!");
@@ -104,9 +110,4 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
         return undef;
 
     return nullptr;
-}
-
-ConstantData*ConstantFold::ConstFoldLoadInst(LoadInst* LI)
-{
-
 }
