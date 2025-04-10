@@ -293,6 +293,10 @@ public:
   bool IsCastInst() const;
 
   bool IsCallInst() const;
+  bool IsGepInst() const;
+  bool IsMinInst() const;
+  bool IsMaxInst() const;
+  bool IsSelectInst() const;
 
   void add_use(Value *_value) override;
   virtual void print() = 0;
