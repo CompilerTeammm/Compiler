@@ -5,7 +5,6 @@
 
 class ConstantFold
 {
-    friend class DealConstType;
 public:
     ConstantData* ConstFoldInstruction(Instruction* I);
 

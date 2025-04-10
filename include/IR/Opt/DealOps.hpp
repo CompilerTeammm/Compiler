@@ -8,7 +8,7 @@ class DealConstType
 public:
     // Undef
     static ConstantData* DealUndefBinary(BinaryInst* inst,ConstantData* LHS,ConstantData* RHS);
-    static ConstantData* DealUndefAdd(ConstantData* LHS,ConstantData* RHS);
+    static ConstantData* DealUndefCalcu(BinaryInst::Operation Op,ConstantData* LHS,ConstantData* RHS);
 
 
     static ConstantData* DealIRIntAndFloat(ConstantData* LHS,ConstantData* RHS,int FLAG =0);

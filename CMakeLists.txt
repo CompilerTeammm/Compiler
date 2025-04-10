@@ -27,8 +27,8 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/Mem2reg.cpp
   IR/Opt/MemoryToRegister.cpp
   IR/Opt/DCE.cpp
-  IR/Opt/ConstantFold.cpp
-  IR/Opt/ConstantProp.cpp
+  # IR/Opt/ConstantFold.cpp
+  # IR/Opt/ConstantProp.cpp
 #   IR/*.cpp
 #   backend/*.cpp
   lib/*.cpp

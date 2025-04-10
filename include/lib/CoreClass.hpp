@@ -179,6 +179,7 @@ public:
   void print();
   void add_use(Use *_use);
   bool isConstZero();
+  bool isConstOne();
 
   // 后端要用的，文姐(╥╯^╰╥)
   template <typename T>

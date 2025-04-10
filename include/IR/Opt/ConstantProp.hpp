@@ -4,7 +4,6 @@
 #include "DCE.hpp"
 
 class Function;
-class ConstantFold;
 
 class ConstantProp:public _PassBase<ConstantProp,Function>
 {

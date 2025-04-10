@@ -87,8 +87,8 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
     
     // Undef 的情况在这里进行定义
     ConstantData* undef = DealConstType::DealUndefBinary(BInst,LHS,RHS);
-    if (undef){
-
+    if (!undef){
+        // undef == nullptr 
         if (I->GetTypeEnum() == IR_Value_INT){
             DealConstType::DealIRIntAndFloat(LHS, RHS);
         }
@@ -100,6 +100,8 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
             assert("what happened!!!");
         }
     }
+    else 
+        return undef;
 
     return nullptr;
 }
