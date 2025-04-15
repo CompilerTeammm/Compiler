@@ -4,6 +4,7 @@
 #include "DCE.hpp"
 
 class Function;
+class ConstantFold;
 
 class ConstantProp:public _PassBase<ConstantProp,Function>
 {
@@ -13,6 +14,6 @@ public:
     void run() override;
 
 private:
-    ConstantFold FoldManager;
+    ConstantFold* FoldManager;
     Function* _func;
 };

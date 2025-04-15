@@ -1,6 +1,12 @@
 #include "../../include/IR/Opt/ConstantFold.hpp"
 #include "../../include/IR/Opt/DealOps.hpp"
 
+ConstantData* ConstantFold:: ConstFoldLoadInst(LoadInst* LI)
+{
+    return nullptr;
+}
+
+
 ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
 {
     // handle phiInst here
@@ -17,7 +23,7 @@ ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
                 return nullptr;
 
             // 对phi函数的处理有问题
-            C = ConstantFoldInstOperands(C);
+            // C = ConstantFoldInstOperands(C);
 
             if(CommonValue && C!= CommonValue)
                 return nullptr;
@@ -55,7 +61,8 @@ ConstantData* ConstantFold:: ConstantFoldInstOperands
         return ConstFoldBinaryOps(I,Ops[0],Ops[1]);
     
     if(I->IsCastInst())
-        return ConstFoldCastOps(I,Ops[0]);
+        // return ConstFoldCastOps(I,Ops[0]);
+        return nullptr;
     
     if(I->IsGepInst())
         return nullptr;
@@ -96,11 +103,11 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
 
         // SimplyInst also do belowed.
         if (I->GetTypeEnum() == IR_Value_INT){
-            ret = DealConstType::DealIRIntOrFloat(op,LHS, RHS);
+            ret = DealConstType::DealIROpsIntOrFloat(op,LHS, RHS);
         }
         else if (I->GetTypeEnum() == IR_Value_Float){
             // 处理时Float类型，最后要强转成Float类型
-            ret = DealConstType::DealIRIntOrFloat(op,LHS, RHS, 1);
+            ret = DealConstType::DealIROpsIntOrFloat(op,LHS, RHS, 1);
         }
         else{
             assert("what happened!!!");

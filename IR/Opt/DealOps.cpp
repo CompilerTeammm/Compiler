@@ -24,7 +24,7 @@ ConstantData *DealConstType::DealUndefBinary(BinaryInst* inst,ConstantData *LHS,
     case BinaryInst::Op_GE:
     case BinaryInst::Op_L:
     case BinaryInst::Op_LE:
-        return DealCmp(op,LHS,RHS);
+        // return DealCmp(op,LHS,RHS);
     default:
         return nullptr;
     }
@@ -94,39 +94,30 @@ ConstantData* DealCmp(BinaryInst::Operation Op,ConstantData* LHS,ConstantData* R
     //     return ConstIRBoolean::GetNewConstant(true);
     // if(LHS > RHS && Op == BinaryInst::Op_G )
     //     return ConstIRBoolean::GetNewConstant(true);
+
     return nullptr;
 }
 
 
 // FLAG  ==  0 ---> int   1 ----> float, FLAG 标志该指令是什么类型
-ConstantData* DealConstType:: DealIRIntOrFloat(BinaryInst::Operation Op,ConstantData *LHS, ConstantData *RHS, int FLAG)
+ConstantData* DealConstType:: DealIROpsIntOrFloat(BinaryInst::Operation Op,ConstantData *LHS, ConstantData *RHS, int FLAG)
 {
-    // 这个判断的是 Ops 操作符的类型
-    // INT 的情况
-    if (LHS->GetTypeEnum() == IR_Value_INT)
-    {
-        if (LHS->GetTypeEnum() == IR_Value_INT)
-            return ConstFoldBinaryInt(Op,LHS, RHS,FLAG);
-        else
-            return ConstFoldBinaryFloatAndInt(Op,RHS, LHS,FLAG);
-    }
-    else
-    {
-        if (LHS->GetTypeEnum() == IR_Value_Float)
-            return ConstFoldBinaryFloat(Op,LHS, RHS,FLAG);
-        else
-            return ConstFoldBinaryFloatAndInt(Op,LHS, RHS,FLAG);
-    }
-}
+    // int LVal = dynamic_cast<ConstIRInt*>(LHS)->GetVal();
+    // int RVal = dynamic_cast<ConstIRInt*>(RHS)->GetVal();
+    // float a = dynamic_cast<ConstIRFloat*>(LHS)->GetVal();
+    // float b = dynamic_cast<ConstIRFloat*>(RHS)->GetVal();
+    // if(dynamic_cast<ConstIRInt*>(LHS))
+    int LFlag = 0, RFlag = 0;
+    if(LHS->GetTypeEnum() == IR_Value_Float)
+        LFlag = 1;
+    if(RHS->GetTypeEnum() == IR_Value_Float)
+        RFlag = 1;
 
-ConstantData* DealConstType::ConstFoldBinaryInt(BinaryInst::Operation Op,ConstantData *LHS, ConstantData *RHS, int flag )
-{
-    int LVal = dynamic_cast<ConstIRInt*>(LHS)->GetVal();
-    int RVal = dynamic_cast<ConstIRInt*>(RHS)->GetVal();
-
+    if(LFlag == 0 && RFlag == 0)
+        
     switch (Op)
     {
-        // calcus +   &&   ||
+    // calcus +   &&   ||
     case BinaryInst::Op_Add:
     case BinaryInst::Op_Sub:
     case BinaryInst::Op_Mul:
@@ -134,7 +125,7 @@ ConstantData* DealConstType::ConstFoldBinaryInt(BinaryInst::Operation Op,Constan
     case BinaryInst::Op_Mod:
     case BinaryInst::Op_And:
     case BinaryInst::Op_Or:
-        return ConstFoldInt(Op, LVal, RVal,flag);
+        
     // cmp
     case BinaryInst::Op_E:
     case BinaryInst::Op_NE:
@@ -142,26 +133,16 @@ ConstantData* DealConstType::ConstFoldBinaryInt(BinaryInst::Operation Op,Constan
     case BinaryInst::Op_GE:
     case BinaryInst::Op_L:
     case BinaryInst::Op_LE:
-
     default:
         return nullptr;
     }
 }
 
-ConstantData* DealConstType::ConstFoldBinaryFloat(BinaryInst::Operation Op,ConstantData *LHS, ConstantData *RHS, int flag )
-{
-    return nullptr;
-}
-
-ConstantData* DealConstType::ConstFoldBinaryFloatAndInt(BinaryInst::Operation Op, ConstantData *F, ConstantData *I, int flag)
-{
-    return nullptr;
-}
-
-
-ConstantData* DealConstType::ConstFoldInt(BinaryInst::Operation Op,int LVal,int RVal,int flag)
+template<typename TYPE1,typename TYPE2>
+ConstantData* DealConstType::ConstFoldCaclu(BinaryInst::Operation Op,TYPE1 LVal,TYPE2 RVal,int flag)
 {
     int Result;
+    
     switch (Op)
     {
     case BinaryInst::Op_Add:
@@ -179,6 +160,8 @@ ConstantData* DealConstType::ConstFoldInt(BinaryInst::Operation Op,int LVal,int 
     case BinaryInst::Op_Mod:
         Result = (LVal % RVal);
         break;
+    default:
+        assert("can't deal the Fold");
     }
 
     if (flag == 0)
@@ -186,3 +169,21 @@ ConstantData* DealConstType::ConstFoldInt(BinaryInst::Operation Op,int LVal,int 
     else
         return ConstIRFloat::GetNewConstant(Result);
 }
+
+// 使用template 简化判断的过程
+    // 这个判断的是 Ops 操作符的类型
+    // INT 的情况
+    // if (LHS->GetTypeEnum() == IR_Value_INT)
+    // {
+    //     if (LHS->GetTypeEnum() == IR_Value_INT)
+    //         return ConstFoldBinaryInt(Op,LHS, RHS,FLAG);
+    //     else
+    //         return ConstFoldBinaryFloatAndInt(Op,RHS, LHS,FLAG);
+    // }
+    // else
+    // {
+    //     if (LHS->GetTypeEnum() == IR_Value_Float)
+    //         return ConstFoldBinaryFloat(Op,LHS, RHS,FLAG);
+    //     else
+    //         return ConstFoldBinaryFloatAndInt(Op,LHS, RHS,FLAG);
+    // }
