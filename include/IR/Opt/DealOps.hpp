@@ -15,6 +15,6 @@ public:
     static ConstantData* DealIROpsIntOrFloat(BinaryInst::Operation Op,ConstantData* LHS,ConstantData* RHS,int FLAG =0);
 
     template<typename TYPE1,typename TYPE2>
-    ConstantData* ConstFoldCaclu(BinaryInst::Operation Op,TYPE1 LVal,TYPE2 RVal,int flag);
+    static ConstantData* ConstFoldCaclu(BinaryInst::Operation Op,TYPE1 LVal,TYPE2 RVal,int flag);
 };
 

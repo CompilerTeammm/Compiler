@@ -116,5 +116,5 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
     else 
         return undef;
 
-    return nullptr;
+    return ret;
 }

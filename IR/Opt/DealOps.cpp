@@ -83,6 +83,7 @@ ConstantData* DealConstType:: DealUndefCalcu(BinaryInst::Operation Op,ConstantDa
             return nullptr;
         }
     }
+    return nullptr;
 }
 
 // =  !=   >  >=   <   <=
@@ -113,8 +114,6 @@ ConstantData* DealConstType:: DealIROpsIntOrFloat(BinaryInst::Operation Op,Const
     if(RHS->GetTypeEnum() == IR_Value_Float)
         RFlag = 1;
 
-    if(LFlag == 0 && RFlag == 0)
-        
     switch (Op)
     {
     // calcus +   &&   ||
@@ -123,10 +122,21 @@ ConstantData* DealConstType:: DealIROpsIntOrFloat(BinaryInst::Operation Op,Const
     case BinaryInst::Op_Mul:
     case BinaryInst::Op_Div:
     case BinaryInst::Op_Mod:
+        if (LFlag == 0 && RFlag == 0)
+            return ConstFoldCaclu<int, int>(Op, dynamic_cast<ConstIRInt *>(LHS)->GetVal(),
+                                            dynamic_cast<ConstIRInt *>(RHS)->GetVal(), FLAG);
+        if (LFlag == 0 && RFlag == 1)
+            return ConstFoldCaclu<int, float>(Op, dynamic_cast<ConstIRInt *>(LHS)->GetVal(),
+                                              dynamic_cast<ConstIRFloat *>(RHS)->GetVal(), FLAG);
+        if (LFlag == 1 && RFlag == 0)
+            return ConstFoldCaclu<int, int>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
+                                            dynamic_cast<ConstIRInt *>(RHS)->GetVal(), FLAG);
+        if (LFlag == 1 && RFlag == 1)
+            return ConstFoldCaclu<int, int>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
+                                            dynamic_cast<ConstIRFloat *>(RHS)->GetVal(), FLAG);
+    // cmp
     case BinaryInst::Op_And:
     case BinaryInst::Op_Or:
-        
-    // cmp
     case BinaryInst::Op_E:
     case BinaryInst::Op_NE:
     case BinaryInst::Op_G:
@@ -141,33 +151,58 @@ ConstantData* DealConstType:: DealIROpsIntOrFloat(BinaryInst::Operation Op,Const
 template<typename TYPE1,typename TYPE2>
 ConstantData* DealConstType::ConstFoldCaclu(BinaryInst::Operation Op,TYPE1 LVal,TYPE2 RVal,int flag)
 {
-    int Result;
-    
-    switch (Op)
-    {
-    case BinaryInst::Op_Add:
-        Result = LVal + RVal;
-        break;
-    case BinaryInst::Op_Sub:
-        Result = LVal - RVal;
-        break;
-    case BinaryInst::Op_Mul:
-        Result = LVal * RVal;
-        break;
-    case BinaryInst::Op_Div:
-        Result = LVal / RVal;
-        break;
-    case BinaryInst::Op_Mod:
-        Result = (LVal % RVal);
-        break;
-    default:
-        assert("can't deal the Fold");
-    }
-
     if (flag == 0)
+    {
+        int Result;
+        switch (Op)
+        {
+        case BinaryInst::Op_Add:
+            Result = LVal + RVal;
+            break;
+        case BinaryInst::Op_Sub:
+            Result = LVal - RVal;
+            break;
+        case BinaryInst::Op_Mul:
+            Result = LVal * RVal;
+            break;
+        case BinaryInst::Op_Div:
+            Result = LVal / RVal;
+            break;
+        case BinaryInst::Op_Mod:
+            Result = int(LVal) % int(RVal);
+            break;
+        default:
+            assert("can't deal the Fold");
+        }
+
         return ConstIRInt::GetNewConstant(Result);
-    else
+    }
+    else 
+    {
+        float Result;
+        switch (Op)
+        {
+        case BinaryInst::Op_Add:
+            Result = LVal + RVal;
+            break;
+        case BinaryInst::Op_Sub:
+            Result = LVal - RVal;
+            break;
+        case BinaryInst::Op_Mul:
+            Result = LVal * RVal;
+            break;
+        case BinaryInst::Op_Div:
+            Result = LVal / RVal;
+            break;
+        // case BinaryInst::Op_Mod:
+        //     Result = (LVal % RVal);
+        //     break;
+        default:
+            assert("can't deal the Fold");
+        }
+
         return ConstIRFloat::GetNewConstant(Result);
+    }
 }
 
 // 使用template 简化判断的过程
