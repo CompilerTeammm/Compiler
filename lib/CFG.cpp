@@ -760,6 +760,17 @@ std::vector<Value *> &PhiInst::RecordIncomingValsA_Blocks()
     return Incomings;
 }
 
+void PhiInst::PhiProp(Value *val)
+{
+    int index;
+    std::vector<Value *> &vec =RecordIncomingValsA_Blocks();
+    auto it = std::find(vec.begin(), vec.end(), this);
+    if (it != vec.end())
+    {
+        index = std::distance(vec.begin(), it);
+    }
+}
+
 bool PhiInst::IsReplaced()
 {
     RecordIncomingValsA_Blocks();

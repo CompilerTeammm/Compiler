@@ -10,28 +10,31 @@ ConstantData* ConstantFold:: ConstFoldLoadInst(LoadInst* LI)
 ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
 {
     // handle phiInst here
-    if(auto PInst = dynamic_cast<PhiInst*> (I)){
-        ConstantData* CommonValue = nullptr;
-        for(int i = 0; i < PInst->getNumIncomingValues(); i++)
-        {
-            Value* Incoming = PInst->getIncomingValue(i);
-            if(dynamic_cast<UndefValue*>(Incoming))
-                continue;
+    // if(auto PInst = dynamic_cast<PhiInst*> (I)){
+    //     ConstantData* CommonValue = nullptr;
+    //     for(int i = 0; i < PInst->getNumIncomingValues(); i++)
+    //     {
+    //         Value* Incoming = PInst->getIncomingValue(i);
+    //         auto tmp = dynamic_cast<UndefValue*>(Incoming); 
+    //         if(tmp)
+    //             continue;
             
-            ConstantData* C = dynamic_cast<ConstantData*> (Incoming);
-            if(!C)
-                return nullptr;
+    //         ConstantData* C = dynamic_cast<ConstantData*> (Incoming);
+    //         if(!C)
+    //             return nullptr;
 
-            // 对phi函数的处理有问题
-            // C = ConstantFoldInstOperands(C);
+    //         // 对phi函数的处理有问题
+    //         // C = ConstantFoldInstOperands(C);
 
-            if(CommonValue && C!= CommonValue)
-                return nullptr;
-            CommonValue = C;
-        }
+    //         if(CommonValue && C!= CommonValue)
+    //             return nullptr;
+    //         CommonValue = C;
+    //     }
 
-        return CommonValue ? CommonValue : UndefValue::Get(PInst->GetType());
-    }
+    //     return CommonValue ? CommonValue : UndefValue::Get(PInst->GetType());
+    // }
+    if(dynamic_cast<PhiInst*>(I))
+        return nullptr;
 
     std::vector<ConstantData*> ConstOps;
     // scan the operand list, check to see if they are all constants
@@ -61,8 +64,7 @@ ConstantData* ConstantFold:: ConstantFoldInstOperands
         return ConstFoldBinaryOps(I,Ops[0],Ops[1]);
     
     if(I->IsCastInst())
-        // return ConstFoldCastOps(I,Ops[0]);
-        return nullptr;
+        return ConstFoldCastOps(I,Ops[0]);
     
     if(I->IsGepInst())
         return nullptr;
@@ -117,4 +119,44 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
         return undef;
 
     return ret;
+}
+
+//     Zext,      // 0扩展
+//     Sext,  // 符号扩展
+//     Trunc, // 截断指令
+//     FP2SI, // 浮点到有符号整数， fptosi
+//     SI2FP, // 有符号整数到浮点  sitofp
+ConstantData *ConstantFold::ConstFoldCastOps(Instruction *I,
+                                                 ConstantData *op)
+{
+    auto Opcode = I->GetInstId();
+    Type* ty = I->GetType();
+
+    // deal undef
+    // zext(undef) = 0  sext(undef) = 0
+    // itofp(undef) = 0
+    if(dynamic_cast<UndefValue*>(op)){
+        if(Opcode == Instruction::Zext || Opcode == Instruction::Sext 
+           || Opcode == Instruction::SI2FP )
+            return ConstantData::getNullValue(ty);
+        return UndefValue::Get(ty);
+    }
+
+    switch (Opcode)
+    {
+    case Instruction::Zext:
+    case Instruction::Sext:
+    case Instruction::Trunc:
+    case Instruction::FP2SI:
+        if(FP2SIInst* FIsnt = dynamic_cast<FP2SIInst*>(I))
+        {
+
+        }
+    case Instruction::SI2FP:
+
+    default:
+        break;
+    }
+
+    return nullptr;
 }

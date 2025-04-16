@@ -266,11 +266,13 @@ public:
     Gep, // GetElementPtr
     Phi,
     Call,  // call i32 @add(i32 , i32)
+
     Zext,  // 0扩展
     Sext,  // 符号扩展
     Trunc, // 截断指令
     FP2SI, // 浮点到有符号整数， fptosi
     SI2FP, // 有符号整数到浮点  sitofp
+    
     BinaryUnknown,
     Max,
     Min,

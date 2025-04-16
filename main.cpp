@@ -23,7 +23,7 @@
 #include <memory>
 #include "PassManager.hpp"
 #include "include/IR/Opt/PassManager.hpp"
-#define mem2reg
+#define OPT
 
 
 extern FILE *yyin;
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
    // Singleton<Module>().Test();
 
    // 中端 前端要是测试可以把这段代码注释掉即可
-#ifdef mem2reg
+#ifdef OPT
    auto PM = std::make_unique<PassManager>();
    PM->RunOnTest();
 #endif
