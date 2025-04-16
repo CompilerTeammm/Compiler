@@ -6,6 +6,7 @@
 class Function;
 class ConstantFold;
 
+// 没有 bool 类型，识别不了
 class ConstantProp:public _PassBase<ConstantProp,Function>
 {
 public:

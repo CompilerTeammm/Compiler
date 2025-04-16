@@ -360,6 +360,7 @@ public:
   int GetVal();
 };
 
+
 class ConstIRFloat : public ConstantData
 {
 private:

@@ -4,6 +4,7 @@
 // Todo
 ConstantData* ConstantFold:: ConstFoldLoadInst(LoadInst* LI)
 {
+    
     return nullptr;
 }
 
@@ -102,7 +103,7 @@ ConstantData* ConstantFold::ConstFoldBinaryOps(Instruction* I,
 }
 
 //     Zext,      // 0扩展
-//     Sext,  // 符号扩展
+//     Sext,  // 符号扩展  这里需要处理有将bool ---> int 类型的操作
 //     Trunc, // 截断指令
 //     FP2SI, // 浮点到有符号整数， fptosi
 //     SI2FP, // 有符号整数到浮点  sitofp
@@ -141,8 +142,18 @@ ConstantData *ConstantFold::ConstFoldCastOps(Instruction *I,
             if(auto opI = dynamic_cast<ConstIRInt*>(Operand))
                 return ConstIRFloat::GetNewConstant((float)(opI->GetVal()));
         }
-    // TODO ???
     case Instruction::Zext:
+        //%.13 = zext i1 %.12 to i32
+        if (auto BooLInst = dynamic_cast<ZextInst*>(I))
+        {
+            Value* Op = BooLInst->GetOperand(0);
+            ConstIRBoolean* BoolOp = dynamic_cast<ConstIRBoolean*> (Op);
+            if(BoolOp->GetVal())
+                return ConstIRInt::GetNewConstant(1);
+            else  
+                return ConstIRInt::GetNewConstant(0);
+        }
+    // TODO ???
     case Instruction::Sext:
     case Instruction::Trunc:
         break;

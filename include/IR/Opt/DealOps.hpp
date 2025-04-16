@@ -16,6 +16,7 @@ public:
     template<typename TYPE1,typename TYPE2>
     static ConstantData* ConstFoldCaclu(BinaryInst::Operation Op,TYPE1 LVal,TYPE2 RVal,int flag);
 
-    static ConstantData* DealCmp(BinaryInst::Operation Op,ConstantData* LHS,ConstantData* RHS);
+    template<typename TYPE1,typename TYPE2>
+    static ConstantData* DealCmp(BinaryInst::Operation Op,TYPE1 LHS,TYPE2 RHS);
 };
 

@@ -87,16 +87,23 @@ ConstantData* DealConstType:: DealUndefCalcu(BinaryInst::Operation Op,ConstantDa
 }
 
 // =  !=   >  >=   <   <=
-ConstantData* DealCmp(BinaryInst::Operation Op,ConstantData* LHS,ConstantData* RHS)
+template<typename TYPE1,typename TYPE2>
+ConstantData*DealConstType:: DealCmp(BinaryInst::Operation Op,TYPE1 LHS,TYPE2 RHS)
 {
-    // if(LHS == RHS && Op == BinaryInst::Op_E)
-    //     return ConstIRBoolean::GetNewConstant(true);
-    // if(LHS != RHS && Op == BinaryInst::Op_NE)
-    //     return ConstIRBoolean::GetNewConstant(true);
-    // if(LHS > RHS && Op == BinaryInst::Op_G )
-    //     return ConstIRBoolean::GetNewConstant(true);
+    if(LHS == RHS && Op == BinaryInst::Op_E)
+        return ConstIRBoolean::GetNewConstant(true);
+    if(LHS != RHS && Op == BinaryInst::Op_NE)
+        return ConstIRBoolean::GetNewConstant(true);
+    if(LHS > RHS && Op == BinaryInst::Op_G )
+        return ConstIRBoolean::GetNewConstant(true);
+    if(LHS >= RHS && Op == BinaryInst::Op_GE)
+        return ConstIRBoolean::GetNewConstant(true);
+    if(LHS < RHS && Op == BinaryInst::Op_L)
+        return ConstIRBoolean::GetNewConstant(true);
+    if(LHS <= RHS && Op == BinaryInst::Op_LE)
+        return ConstIRBoolean::GetNewConstant(true);
 
-    return nullptr;
+    return ConstIRBoolean::GetNewConstant(false);
 }
 
 
@@ -122,6 +129,7 @@ ConstantData* DealConstType:: DealIROpsIntOrFloat(BinaryInst::Operation Op,Const
     case BinaryInst::Op_Mul:
     case BinaryInst::Op_Div:
     case BinaryInst::Op_Mod:
+
         if (LFlag == 0 && RFlag == 0)
             return ConstFoldCaclu<int, int>(Op, dynamic_cast<ConstIRInt *>(LHS)->GetVal(),
                                             dynamic_cast<ConstIRInt *>(RHS)->GetVal(), FLAG);
@@ -129,11 +137,12 @@ ConstantData* DealConstType:: DealIROpsIntOrFloat(BinaryInst::Operation Op,Const
             return ConstFoldCaclu<int, float>(Op, dynamic_cast<ConstIRInt *>(LHS)->GetVal(),
                                               dynamic_cast<ConstIRFloat *>(RHS)->GetVal(), FLAG);
         if (LFlag == 1 && RFlag == 0)
-            return ConstFoldCaclu<int, int>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
-                                            dynamic_cast<ConstIRInt *>(RHS)->GetVal(), FLAG);
+            return ConstFoldCaclu<float, int>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
+                                              dynamic_cast<ConstIRInt *>(RHS)->GetVal(), FLAG);
         if (LFlag == 1 && RFlag == 1)
-            return ConstFoldCaclu<int, int>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
-                                            dynamic_cast<ConstIRFloat *>(RHS)->GetVal(), FLAG);
+            return ConstFoldCaclu<float, float>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
+                                                dynamic_cast<ConstIRFloat *>(RHS)->GetVal(), FLAG);
+
     // cmp
     case BinaryInst::Op_E:
     case BinaryInst::Op_NE:
@@ -141,7 +150,26 @@ ConstantData* DealConstType:: DealIROpsIntOrFloat(BinaryInst::Operation Op,Const
     case BinaryInst::Op_GE:
     case BinaryInst::Op_L:
     case BinaryInst::Op_LE:
-            return DealCmp();
+        if (dynamic_cast<ConstIRBoolean *>(LHS) || dynamic_cast<ConstIRBoolean *>(RHS))
+        {
+            return DealCmp<bool,bool>(Op,dynamic_cast<ConstIRBoolean *>(LHS)->GetVal(),
+                                         dynamic_cast<ConstIRBoolean *>(RHS)->GetVal());
+        }
+        else
+        {
+            if (LFlag == 0 && RFlag == 0)
+                return DealCmp<int, int>(Op, dynamic_cast<ConstIRInt *>(LHS)->GetVal(),
+                                         dynamic_cast<ConstIRInt *>(RHS)->GetVal());
+            if (LFlag == 0 && RFlag == 1)
+                return DealCmp<int, float>(Op, dynamic_cast<ConstIRInt *>(LHS)->GetVal(),
+                                           dynamic_cast<ConstIRFloat *>(RHS)->GetVal());
+            if (LFlag == 1 && RFlag == 0)
+                return DealCmp<float, int>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
+                                           dynamic_cast<ConstIRInt *>(RHS)->GetVal());
+            if (LFlag == 1 && RFlag == 1)
+                return DealCmp<float, float>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
+                                             dynamic_cast<ConstIRFloat *>(RHS)->GetVal());
+        }
     case BinaryInst::Op_And:
     case BinaryInst::Op_Or:
     default:
@@ -204,12 +232,6 @@ ConstantData* DealConstType::ConstFoldCaclu(BinaryInst::Operation Op,TYPE1 LVal,
 
         return ConstIRFloat::GetNewConstant(Result);
     }
-}
-
-// icmp  has conditional code
-ConstantData* DealConstType::DealCmp(BinaryInst::Operation Op,ConstantData* LHS,ConstantData* RHS)
-{
-    
 }
 
 
