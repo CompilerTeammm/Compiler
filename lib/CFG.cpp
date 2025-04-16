@@ -737,7 +737,7 @@ void PhiInst::addIncoming(Value *IncomingVal, BasicBlock *PreBB)
 
 BasicBlock *PhiInst::getIncomingBlock(int num)
 {
-    auto &[v, bb] = PhiRecord[num];
+    auto& [v, bb] = PhiRecord[num];
     return bb;
 }
 
@@ -752,6 +752,7 @@ std::vector<Value *> &PhiInst::RecordIncomingValsA_Blocks()
     Incomings.clear();
     IncomingBlocks.clear();
 
+    // C++ 17 的语法， _1 忽略键，value对应的pair<Value*.BasicBlock*>
     for (const auto &[_1, value] : PhiRecord)
     {
         Incomings.push_back(value.first);
@@ -760,15 +761,19 @@ std::vector<Value *> &PhiInst::RecordIncomingValsA_Blocks()
     return Incomings;
 }
 
-void PhiInst::PhiProp(Value *val)
+void PhiInst::PhiProp(Value* old,Value *val)
 {
+    // 标记是第几个 phi的分支
     int index;
-    std::vector<Value *> &vec =RecordIncomingValsA_Blocks();
-    auto it = std::find(vec.begin(), vec.end(), this);
-    if (it != vec.end())
+    std::vector<Value *> &comingVals =RecordIncomingValsA_Blocks();
+    auto it = std::find(comingVals.begin(), comingVals.end(), old);
+    if (it != comingVals.end())
     {
-        index = std::distance(vec.begin(), it);
+        index = std::distance(comingVals.begin(), it);
     }
+    BasicBlock* bb = getIncomingBlock(index);
+    // 更改该位置下的值
+    PhiRecord[index] = std::make_pair(val,bb);
 }
 
 bool PhiInst::IsReplaced()

@@ -135,14 +135,15 @@ ConstantData* DealConstType:: DealIROpsIntOrFloat(BinaryInst::Operation Op,Const
             return ConstFoldCaclu<int, int>(Op, dynamic_cast<ConstIRFloat *>(LHS)->GetVal(),
                                             dynamic_cast<ConstIRFloat *>(RHS)->GetVal(), FLAG);
     // cmp
-    case BinaryInst::Op_And:
-    case BinaryInst::Op_Or:
     case BinaryInst::Op_E:
     case BinaryInst::Op_NE:
     case BinaryInst::Op_G:
     case BinaryInst::Op_GE:
     case BinaryInst::Op_L:
     case BinaryInst::Op_LE:
+            return DealCmp();
+    case BinaryInst::Op_And:
+    case BinaryInst::Op_Or:
     default:
         return nullptr;
     }
@@ -204,6 +205,13 @@ ConstantData* DealConstType::ConstFoldCaclu(BinaryInst::Operation Op,TYPE1 LVal,
         return ConstIRFloat::GetNewConstant(Result);
     }
 }
+
+// icmp  has conditional code
+ConstantData* DealConstType::DealCmp(BinaryInst::Operation Op,ConstantData* LHS,ConstantData* RHS)
+{
+    
+}
+
 
 // 使用template 简化判断的过程
     // 这个判断的是 Ops 操作符的类型

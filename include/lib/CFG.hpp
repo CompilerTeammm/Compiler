@@ -729,7 +729,7 @@ public:
   bool IsReplaced();
 
   // 常量传播处理phi函数的,在RAUW里面做的处理
-  void PhiProp(Value* val);
+  void PhiProp(Value* old,Value* val);
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构

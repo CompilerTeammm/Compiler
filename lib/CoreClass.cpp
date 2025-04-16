@@ -167,8 +167,9 @@ void Value::ReplaceAllUseWith(Value *value) // dh RAUW
     Use* &Head = valuselist.front();
     while(Head) {
         // PhiInst 需要专门去传播的原因是：它是在Incoming中使用的
+        // 这里面的替换都是在Inst中去替换
         if (PhiInst* PInst = dynamic_cast<PhiInst*> (Head->GetUser()))
-              PInst->PhiProp(value);      
+              PInst->PhiProp(Head->GetValue(),value);      
         Head->usee = value;
         Use* tmp = Head->next;
         value->valuselist.push_front(Head);

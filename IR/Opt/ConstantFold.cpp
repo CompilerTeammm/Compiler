@@ -1,38 +1,16 @@
 #include "../../include/IR/Opt/ConstantFold.hpp"
 #include "../../include/IR/Opt/DealOps.hpp"
 
+// Todo
 ConstantData* ConstantFold:: ConstFoldLoadInst(LoadInst* LI)
 {
     return nullptr;
 }
 
-
 ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
 {
     // handle phiInst here
-    // if(auto PInst = dynamic_cast<PhiInst*> (I)){
-    //     ConstantData* CommonValue = nullptr;
-    //     for(int i = 0; i < PInst->getNumIncomingValues(); i++)
-    //     {
-    //         Value* Incoming = PInst->getIncomingValue(i);
-    //         auto tmp = dynamic_cast<UndefValue*>(Incoming); 
-    //         if(tmp)
-    //             continue;
-            
-    //         ConstantData* C = dynamic_cast<ConstantData*> (Incoming);
-    //         if(!C)
-    //             return nullptr;
-
-    //         // 对phi函数的处理有问题
-    //         // C = ConstantFoldInstOperands(C);
-
-    //         if(CommonValue && C!= CommonValue)
-    //             return nullptr;
-    //         CommonValue = C;
-    //     }
-
-    //     return CommonValue ? CommonValue : UndefValue::Get(PInst->GetType());
-    // }
+    // The handle places on the RAUW
     if(dynamic_cast<PhiInst*>(I))
         return nullptr;
 
@@ -51,6 +29,7 @@ ConstantData* ConstantFold::ConstFoldInstruction(Instruction* I)
     if(flag)
         return nullptr;
 
+    // Todo
     if(auto LI = dynamic_cast<LoadInst*>(I))
         return ConstFoldLoadInst(LI);
     
@@ -66,6 +45,7 @@ ConstantData* ConstantFold:: ConstantFoldInstOperands
     if(I->IsCastInst())
         return ConstFoldCastOps(I,Ops[0]);
     
+    // Really need TODO ???
     if(I->IsGepInst())
         return nullptr;
     
@@ -134,7 +114,7 @@ ConstantData *ConstantFold::ConstFoldCastOps(Instruction *I,
 
     // deal undef
     // zext(undef) = 0  sext(undef) = 0
-    // itofp(undef) = 0
+    // itofp(undef) = 0  deal Undef
     if(dynamic_cast<UndefValue*>(op)){
         if(Opcode == Instruction::Zext || Opcode == Instruction::Sext 
            || Opcode == Instruction::SI2FP )
@@ -144,16 +124,28 @@ ConstantData *ConstantFold::ConstFoldCastOps(Instruction *I,
 
     switch (Opcode)
     {
+    case Instruction::FP2SI: // float to int
+        if(FP2SIInst* FIsnt = dynamic_cast<FP2SIInst*>(I))
+        {
+            //   %.14 = fptosi float %.11 to i32
+            Value* Operand = FIsnt->GetOperand(0);
+            if(auto opF = dynamic_cast<ConstIRFloat*>(Operand))
+                return ConstIRInt::GetNewConstant((int)(opF->GetVal()));
+        }
+    case Instruction::SI2FP:
+        if(SI2FPInst* IInst = dynamic_cast<SI2FPInst*>(I))
+        {
+
+            //  %.10 = sitofp i32 10 to float
+            Value* Operand = IInst->GetOperand(0);
+            if(auto opI = dynamic_cast<ConstIRInt*>(Operand))
+                return ConstIRFloat::GetNewConstant((float)(opI->GetVal()));
+        }
+    // TODO ???
     case Instruction::Zext:
     case Instruction::Sext:
     case Instruction::Trunc:
-    case Instruction::FP2SI:
-        if(FP2SIInst* FIsnt = dynamic_cast<FP2SIInst*>(I))
-        {
-
-        }
-    case Instruction::SI2FP:
-
+        break;
     default:
         break;
     }
