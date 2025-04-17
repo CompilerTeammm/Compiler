@@ -24,10 +24,10 @@ private:
 class RISCVFunctionLowering : BackEndPass<Function>
 {
 public:
-  bool run(Module *) override;
+  bool run(Module *);
   RISCVFunctionLowering(RISCVLoweringContext &ctx, RISCVAsmPrinter *&asmprinter);
 
 private:
   RISCVLoweringContext &ctx;
   RISCVAsmPrinter *&asmprinter;
-}
+};

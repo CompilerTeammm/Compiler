@@ -1,5 +1,5 @@
-#include "../../include/backend/RISCVMIR.hpp"
-#include "../../include/backend/RISCVRegister.hpp"
+#include "../../include/Backend/RISCVMIR.hpp"
+#include "../../include/Backend/RISCVRegister.hpp"
 
 namespace RISCVTrival
 {

@@ -22,7 +22,7 @@ private:
   RISCVMOperand *Create(Value *);
   // @warning 实现多态性，返回一个基类指针，指向派生类
 public:
-  void operator(RISCVMIR *);
+  void operator()(RISCVMIR *);
   void operator()(RISCVBasicBlock *);
   void operator()(RISCVFunction *);
   void insert_val2mop(Value *, RISCVMOperand *);
