@@ -17,7 +17,7 @@
 #include "./yacc/parser.hpp"
 // #include "IR/Opt/PassManager.hpp"
 // #include "./include/Backend/RISCVLowering.hpp"
-#include "./include/Backend/RISCVLowering.hpp"
+// // #include "./include/Backend/RISCVLowering.hpp"
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
@@ -25,7 +25,7 @@
 // #include "PassManager.hpp"
 #include "include/IR/Opt/PassManager.hpp"
 #define OPT
-
+// #define backend
 extern FILE *yyin;
 extern int optind, opterr, optopt;
 extern char *optargi;
@@ -74,10 +74,16 @@ int main(int argc, char **argv)
    fflush(stdout);
    fclose(stdout);
 
+// 后端，使用前先定义backend，避免与中端测试冲突
+
+#ifdef backend
+#include "./include/Backend/RISCVLowering.hpp"
    // 后端
    freopen(asmoutput_path.c_str(), "w", stdout);
    RISCVModuleLowering RISCVAsm;
    RISCVAsm.run(&Singleton<Module>());
+#endif
+
 
    fflush(stdout);
    fclose(stdout);
