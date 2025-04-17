@@ -5,22 +5,14 @@
       // "compilerPath": "E:/MinGW64/bin/gcc.exe",
       "compilerPath": "/usr/bin/g++",
       "includePath": [
-        "${workspaceFolder}/**"
+        "${workspaceFolder}/**",
+        "/usr/local/include" //第三方库
       ],
       "defines": [],
       "cStandard": "${default}",
       "cppStandard": "${default}",
       "configurationProvider": "ms-vscode.cmake-tools",
       "intelliSenseMode": "linux-gcc-x64"
-    },
-    {
-      "name": "MacOS",
-      "includePath": [
-        "${workspaceFolder}/**"
-      ],
-      "defines": [],
-      "cStandard": "c17",
-      "cppStandard": "c++17"
     }
   ],
   "version": 4

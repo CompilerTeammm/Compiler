@@ -1,4 +1,4 @@
-#include "../include/Backend/BuildInFunctionTransform.hpp"
+/* #include "../include/Backend/BuildInFunctionTransform.hpp"
 #include "../include/lib/Trival.hpp"
 
 // 遍历基本块和指令，识别函数调用 CALLINst
@@ -17,4 +17,4 @@ bool BuildInFunctionTransform::run(Function *func)
     }
   }
   return true;
-}
+} */

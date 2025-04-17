@@ -12,7 +12,8 @@ set(CMAKE_BUILD_TYPE Debug)
 # 包含头文件目录
 include_directories(
   include
-#   include/Backend
+  #include/Backend
+  ${PROJECT_SOURCE_DIR}/include/Backend
   include/IR/Analysis
   include/IR/Opt/
 #   include/RISCVSupport
@@ -30,7 +31,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/ConstantFold.cpp
   IR/Opt/ConstantProp.cpp
 #   IR/*.cpp
-#   backend/*.cpp
+    backend/*.cpp
   lib/*.cpp
   yacc/lex.yy.cpp       # 包含lex生成的代码
   yacc/parser.cpp       # 包含yacc生成的代码

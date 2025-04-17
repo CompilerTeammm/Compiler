@@ -12,9 +12,14 @@ public:
   }
 
   bool RunImpl();
-  bool run(RISCVFunction *func);
 
 private:
+  bool run(RISCVFunction *func);
   RISCVLoweringContext &ctx;
   RISCVFunction *func;
+  std::vector<RISCVMIR *> wait_del;
+  bool CanHandle(RISCVMIR *inst);
+  bool RunOnBlock(RISCVBasicBlock *block);
+  bool TryDeleteInst(RISCVMIR *inst, std::unordered_set<MOperand> &live);
+  void UpdateLive(RISCVMIR *inst, std::unordered_set<MOperand> &live);
 };

@@ -318,6 +318,7 @@ public:
   std::vector<std::unique_ptr<RISCVFrameObject>> &GetFrameObjs();
 
 private:
+  std::vector<RISCVMOperand *> cantbespill;
   RISCVFunction *parent;
   size_t frame_size;
   std::unordered_map<VirRegister *, StackRegister *> spillmap;

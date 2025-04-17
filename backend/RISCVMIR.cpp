@@ -407,3 +407,134 @@ Register *RISCVFunction::GetUsedGlobalMapping(RISCVMOperand *val)
   }
   return usedGlobals[val];
 }
+
+void RISCVFrame::GenerateFrameHead()
+{
+  // 初始化物理寄存器
+  using Phy = PhyRegister::PhyReg;
+  using ISA = RISCVMIR::RISCVISA;
+  PhyRegister *sp = PhyRegister::GetPhyReg(Phy::sp); // 栈指针
+  PhyRegister *s0 = PhyRegister::GetPhyReg(Phy::s0); // 帧指针
+  PhyRegister *ra = PhyRegister::GetPhyReg(Phy::ra); // 返回地址
+
+  // RISC-V 的 addi 指令的立即数范围为 [-2048, 2047)
+  int con_frame_size = frame_size;
+  if (frame_size > 2047)
+  {
+    con_frame_size = frame_size % 2048;
+  }
+
+  // addi sp, sp, -con_frame_size
+  RISCVMIR *inst_addi = new RISCVMIR(ISA::_addi);
+  Imm *imm_addi = new Imm(ConstIRInt::GetNewConstant(0 - con_frame_size));
+  inst_addi->SetDef(sp);
+  inst_addi->AddOperand(sp);
+  inst_addi->AddOperand(imm_addi);
+
+  // addi s0, sp, temp_frame_size
+  RISCVMIR *inst_addi2 = new RISCVMIR(ISA::_addi);
+  Imm *imm_addi2 = new Imm(ConstIRInt::GetNewConstant(con_frame_size));
+  inst_addi2->SetDef(s0);
+  inst_addi2->AddOperand(sp);
+  inst_addi2->AddOperand(imm_addi2);
+
+  // addi sp, sp, framesize-temp_frame_size
+  if (frame_size != con_frame_size)
+  {
+    RISCVMIR *inst_addi3 = new RISCVMIR(ISA::_addi);
+    Imm *imm_addi3 = new Imm(ConstIRInt::GetNewConstant(con_frame_size - frame_size));
+    inst_addi3->SetDef(sp);
+    inst_addi3->AddOperand(sp);
+    inst_addi3->AddOperand(imm_addi3);
+
+    parent->GetFront()->begin().InsertBefore(inst_addi3);
+  }
+
+  // sd ra, con_frame_size - 8(sp)
+  RISCVMIR *inst_ra = new RISCVMIR(ISA::_sd);
+  StackRegister *sp_sd = new StackRegister(Phy::sp, con_frame_size - 8);
+  inst_ra->AddOperand(ra);
+  inst_ra->AddOperand(sp_sd);
+
+  // sd s0, temp_frame_size-16(sp)
+  RISCVMIR *inst3 = new RISCVMIR(ISA::_sd);
+  StackRegister *sp_stack3 = new StackRegister(Phy::sp, con_frame_size - 16);
+  inst3->AddOperand(s0);
+  inst3->AddOperand(sp_stack3);
+
+  parent->GetFront()->begin().InsertBefore(inst_addi2);
+  parent->GetFront()->begin().InsertBefore(inst3);
+  parent->GetFront()->begin().InsertBefore(inst_ra);
+  parent->GetFront()->begin().InsertBefore(inst_addi);
+}
+
+void RISCVFrame::GenerateFrameTail()
+{
+  using PhyReg = PhyRegister::PhyReg;
+  using ISA = RISCVMIR::RISCVISA;
+  PhyRegister *sp = PhyRegister::GetPhyReg(PhyReg::sp);
+  PhyRegister *s0 = PhyRegister::GetPhyReg(PhyReg::s0);
+  PhyRegister *ra = PhyRegister::GetPhyReg(PhyReg::ra);
+
+  int temp_frame_size = frame_size;
+  RISCVFunction *func = parent;
+  auto exit_bb = func->GetExit();
+
+  if (frame_size > 2047)
+    temp_frame_size = frame_size % 2048;
+
+  // addi sp, sp, framesize-temp_frame_size
+  RISCVMIR *inst0 = new RISCVMIR(ISA::_addi);
+  if (temp_frame_size != frame_size)
+  {
+    Imm *imm0 = new Imm(ConstIRInt::GetNewConstant(frame_size - temp_frame_size));
+    inst0->SetDef(sp);
+    inst0->AddOperand(sp);
+    inst0->AddOperand(imm0);
+  }
+
+  // ld ra, temp_frame_size-8(sp)
+  RISCVMIR *inst1 = new RISCVMIR(ISA::_ld);
+  StackRegister *sp_stack1 = new StackRegister(PhyReg::sp, temp_frame_size - 8);
+  inst1->SetDef(ra);
+  inst1->AddOperand(sp_stack1);
+
+  // ld s0, temp_frame_size-16(sp)
+  RISCVMIR *inst2 = new RISCVMIR(ISA::_ld);
+  StackRegister *sp_stack2 =
+      new StackRegister(PhyReg::sp, temp_frame_size - 16);
+  inst2->SetDef(s0);
+  inst2->AddOperand(sp_stack2);
+
+  // addi sp, sp, temp_frame_size
+  RISCVMIR *inst3 = new RISCVMIR(ISA::_addi);
+  Imm *imm3 = new Imm(ConstIRInt::GetNewConstant(temp_frame_size));
+  inst3->SetDef(sp);
+  inst3->AddOperand(sp);
+  inst3->AddOperand(imm3);
+
+  if (temp_frame_size != frame_size)
+  {
+    exit_bb->push_back(inst0);
+  }
+  exit_bb->push_back(inst1);
+  exit_bb->push_back(inst2);
+  exit_bb->push_back(inst3);
+}
+
+void RISCVFrame::AddCantBeSpill(RISCVMOperand *reg)
+{
+  auto it = std::find(cantbespill.begin(), cantbespill.end(), reg);
+  if (it != cantbespill.end())
+    return;
+  cantbespill.push_back(reg);
+}
+
+bool RISCVFrame::CantBeSpill(RISCVMOperand *reg)
+{
+  auto it = std::find(cantbespill.begin(), cantbespill.end(), reg);
+  if (it == cantbespill.end())
+    return false;
+  else
+    return true;
+}

@@ -17,14 +17,14 @@
 #include "./yacc/parser.hpp"
 // #include "IR/Opt/PassManager.hpp"
 // #include "./include/Backend/RISCVLowering.hpp"
+#include "./include/Backend/RISCVLowering.hpp"
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
 #include <memory>
-#include "PassManager.hpp"
+// #include "PassManager.hpp"
 #include "include/IR/Opt/PassManager.hpp"
 #define mem2reg
-
 
 extern FILE *yyin;
 extern int optind, opterr, optopt;
@@ -71,17 +71,15 @@ int main(int argc, char **argv)
 
    Singleton<Module>().Test();
 
-
    fflush(stdout);
    fclose(stdout);
 
+   // 后端
+   freopen(asmoutput_path.c_str(), "w", stdout);
+   RISCVModuleLowering RISCVAsm;
+   RISCVAsm.run(&Singleton<Module>());
 
-// 后端
-   // freopen(asmoutput_path.c_str(), "w", stdout);
-   // RISCVModuleLowering RISCVAsm;
-   // RISCVAsm.run(&Singleton<Module>());
-
-   // fflush(stdout);
-   // fclose(stdout);
+   fflush(stdout);
+   fclose(stdout);
    return 0;
 }
