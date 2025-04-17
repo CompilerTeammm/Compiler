@@ -20,7 +20,7 @@ void ConstantProp::run()
 
         if(!I->is_empty())
         {
-            if(ConstantData* C = FoldManager.ConstFoldInstruction(I))
+            if(ConstantData* C = FoldManager->ConstFoldInstruction(I))
             {
                 for(Use* use : I->GetValUseList())
                 {

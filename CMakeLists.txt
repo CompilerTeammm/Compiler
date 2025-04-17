@@ -30,6 +30,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/DCE.cpp
   IR/Opt/ConstantFold.cpp
   IR/Opt/ConstantProp.cpp
+  IR/Opt/DealOps.cpp
 #   IR/*.cpp
     backend/*.cpp
   lib/*.cpp

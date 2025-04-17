@@ -158,7 +158,7 @@ int Value::GetValUseListSize() { return valuselist.GetSize(); }
 
 // 做两件事情，消除原来的Use*的关系
 // 对于value需要它去继承之前的关系
-// phi 的处理貌似没有做
+// phi 的处理貌似没有做, sccp 的时候如果不做phi函数的处理会报错
 void Value::ReplaceAllUseWith(Value *value) // dh RAUW
 {
     // auto list =  valuselist;
@@ -166,6 +166,10 @@ void Value::ReplaceAllUseWith(Value *value) // dh RAUW
 
     Use* &Head = valuselist.front();
     while(Head) {
+        // PhiInst 需要专门去传播的原因是：它是在Incoming中使用的
+        // 这里面的替换都是在Inst中去替换
+        if (PhiInst* PInst = dynamic_cast<PhiInst*> (Head->GetUser()))
+              PInst->PhiProp(Head->GetValue(),value);      
         Head->usee = value;
         Use* tmp = Head->next;
         value->valuselist.push_front(Head);
@@ -225,6 +229,13 @@ bool Value::isConstZero()
   else
     return false;
 }
+
+bool Value::isConstOne()
+{
+  if(auto num = dynamic_cast<ConstIRInt*>(this)) 
+    return num->GetVal() == 1;
+}
+
 
 // User
 Value *User::GetDef() { return dynamic_cast<Value *>(this); }

@@ -179,6 +179,7 @@ public:
   void print();
   void add_use(Use *_use);
   bool isConstZero();
+  bool isConstOne();
 
   // 后端要用的，文姐(╥╯^╰╥)
   template <typename T>
@@ -265,11 +266,13 @@ public:
     Gep, // GetElementPtr
     Phi,
     Call,  // call i32 @add(i32 , i32)
+
     Zext,  // 0扩展
     Sext,  // 符号扩展
     Trunc, // 截断指令
     FP2SI, // 浮点到有符号整数， fptosi
     SI2FP, // 有符号整数到浮点  sitofp
+    
     BinaryUnknown,
     Max,
     Min,
@@ -356,6 +359,7 @@ public:
   static ConstIRInt *GetNewConstant(int _val = 0);
   int GetVal();
 };
+
 
 class ConstIRFloat : public ConstantData
 {
