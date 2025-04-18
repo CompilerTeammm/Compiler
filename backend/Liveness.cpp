@@ -348,12 +348,14 @@ void InterVal::init()
         }
     }
 }
+
 // 计算活跃区间
 void InterVal::computeLiveIntervals()
 {
     for (RISCVBasicBlock *block : *func)
     {
-        std::unordered_map<MOperand, std::vector<InterVal>> CurrentRegLiveinterval;
+        std::unordered_map<Register *, std::vector<LiveInterval::Interval>> CurrentRegLiveinterval;
+        // std::unordered_map<MOperand, std::vector<InterVal>> CurrentRegLiveinterval;
         int begin = -1; // 当前基本块的起始指令编号,用于区间计算
         for (RISCVMIR *inst : *block)
         {
@@ -378,7 +380,7 @@ void InterVal::computeLiveIntervals()
                   // 如果 Op 的前一个区间已经结束，并且 Op 在 inst 这条指令中被使用（count(Op, inst) 为真），则创建一个新的活跃区间。
                 else
                 {
-                    if (CurrentRegLiveinterval[Op].back().end == -1 && inst == block->back())
+                    if (CurrentRegLiveinterval[Op].back().end == -1 && inst == block->GetBack())
                     {
                         CurrentRegLiveinterval[Op].back().end = Curr;
                     }
@@ -393,9 +395,9 @@ void InterVal::computeLiveIntervals()
             }
             for (auto &[Op, intervals] : CurrentRegLiveinterval)
             {
-                if (intervals.back().end == -1 && inst == block->back() && !count(Op, inst))
+                if (intervals.back().end == -1 && inst == block->GetBack() && !count(Op, inst))
                     CurrentRegLiveinterval[Op].back().end = Curr - 1; // 使活跃区间终止于Curr-1
-                else if (intervals.back().end == -1 && inst == block->back())
+                else if (intervals.back().end == -1 && inst == block->GetBack())
                     CurrentRegLiveinterval[Op].back().end = Curr;
                 else if (intervals.back().end == -1 && !count(Op, inst))
                     intervals.back().end = Curr - 1;

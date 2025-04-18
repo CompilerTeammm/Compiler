@@ -852,6 +852,7 @@ public:
     BuildIn,
   };
   Tag tag = Normal;
+  bool CmpEqual = false;
   std::vector<ParamPtr> &GetParams();
   std::vector<BBPtr> &GetBBs();
   // std::vector<BasicBlock*> &GetBasicBlock();

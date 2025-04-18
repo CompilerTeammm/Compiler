@@ -1,3 +1,4 @@
+#pragma once
 #include "../../include/Backend/RISCVMOperand.hpp"
 #include "../../include/Backend/RISCVFrameContext.hpp"
 #include "../../include/lib/MyList.hpp"
@@ -5,6 +6,7 @@
 class RISCVFrame;
 class RISCVFunction;
 class RISCVBasicBlock;
+
 class RISCVMIR;
 
 class RISCVMIR : public Node<RISCVBasicBlock, RISCVMIR>
@@ -285,9 +287,6 @@ public:
   inline RISCVBasicBlock *GetEntry() { return GetFront(); };
   inline RISCVBasicBlock *GetExit() { return &exit; };
   uint64_t GetUsedPhyRegMask(); // 查询哪些物理寄存器被使用
-
-  // 特例
-  RISCVMIR *CreateSpecialUsageMIR(RISCVMOperand *);
 
   // 获取操作数
   std::unordered_map<VirRegister *, RISCVMOperand *> specialusage_remapping;

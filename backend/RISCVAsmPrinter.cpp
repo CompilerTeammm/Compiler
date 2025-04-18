@@ -74,19 +74,44 @@ void RISCVAsmPrinter::PrintAsmGlobal()
     this->data->PrintDataSegment_Globval();
 }
 // 这样的格式可以将.hpp代码内容直接包含进来
-void RISCVAsmPrinter::PrintCacheLookUp()
+/* void RISCVAsmPrinter::PrintCacheLookUp()
 {
     static const char *cachelookuplib =
 #include "../include/RISCVSupport/cachelib.hpp"
-        ;
+;
     std::cout << cachelookuplib;
+} */
+
+void RISCVAsmPrinter::PrintCacheLookUp()
+{
+    std::ifstream file("../include/RISCVSupport/cachelib.hpp");
+    if (file)
+    {
+        std::cout << file.rdbuf();
+    }
+    else
+    {
+        std::cerr << "Error opening cachelib.hpp\n";
+    }
 }
-void RISCVAsmPrinter::PrintCacheLookUp4()
+/* void RISCVAsmPrinter::PrintCacheLookUp4()
 {
     static const char *cachelookuplib4 =
 #include "../include/RISCVSupport/cachelib4.hpp"
         ;
     std::cout << cachelookuplib4;
+} */
+void RISCVAsmPrinter::PrintCacheLookUp4()
+{
+    std::ifstream file("../include/RISCVSupport/cachelib4.hpp");
+    if (file)
+    {
+        std::cout << file.rdbuf();
+    }
+    else
+    {
+        std::cerr << "Error opening cachelib4.hpp\n";
+    }
 }
 // void RISCVAsmPrinter::PrintParallelLib(){
 //     static const char* buildinlib=
@@ -137,7 +162,7 @@ void dataSegment::GenerateTempvarList(RISCVLoweringContext &ctx)
             for (List<RISCVBasicBlock, RISCVMIR>::iterator it = block->begin(); it != block->end(); ++it)
             {
                 RISCVMIR *machineinst = *it;
-                if (machineinst->GetOperandSize() = 0)
+                if (machineinst->GetOperandSize() == 0)
                 {
                     continue; // 过滤掉没有操作数的指令
                 }

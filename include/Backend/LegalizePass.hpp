@@ -9,7 +9,7 @@ class Legalize
     RISCVLoweringContext &ctx;
 
 public:
-    Legalize(RISCVLoweringContext &);
+    Legalize(RISCVLoweringContext &_ctx);
     void LegalizePass(List<RISCVBasicBlock, RISCVMIR>::iterator);                 // 对单条指令进行合法化
     void LegalizePass_before(List<RISCVBasicBlock, RISCVMIR>::iterator);          // 在寄存器分配之前执行合法化
     void LegalizePass_after(List<RISCVBasicBlock, RISCVMIR>::iterator);           // 之后进行合法化

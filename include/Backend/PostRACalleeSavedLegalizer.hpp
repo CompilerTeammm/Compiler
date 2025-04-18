@@ -1,4 +1,4 @@
-
+#pragma once
 #include "../../include/Backend/BackEndPass.hpp"
 #include "../../include/Backend/RISCVMIR.hpp"
 

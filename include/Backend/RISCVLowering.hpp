@@ -1,5 +1,5 @@
+#pragma once
 #include "../../include/Backend/BackEndPass.hpp"
-#include "../../include/Backend/RISCVContext.hpp"
 #include "../../include/Backend/RISCVISel.hpp"
 #include "../../include/Backend/RISCVAsmPrinter.hpp"
 #include "../../include/Backend/RISCVISel.hpp"
@@ -8,7 +8,7 @@
 #include "../../include/lib/CFG.hpp"
 #include "../../include/Backend/PhiElimination.hpp"
 // #include "../../include/Backend/LegalizePass.hpp"
-// #include "../../include/Backend/BackendDCE.hpp"
+#include "../../include/Backend/BackendDCE.hpp"
 
 // 定义 LLVM IR 到 RISCV 转换的类
 class RISCVModuleLowering : BackEndPass<Module>

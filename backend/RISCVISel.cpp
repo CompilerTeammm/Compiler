@@ -252,7 +252,7 @@ void RISCVISel::InstLowering(RetInst *inst)
 void RISCVISel::InstLowering(CondInst *inst)
 {
   // const bool     eg:if(true)
-  if (auto cond = inst->GetOperand(0)->as<ConstIRBoolean>)
+  if (auto cond = inst->GetOperand(0)->as<ConstIRBoolean>())
   {
     bool condition = cond->GetVal();
     if (condition)
@@ -266,16 +266,16 @@ void RISCVISel::InstLowering(CondInst *inst)
     return;
   }
   // Conditional comparison   eg:if( a > b )
-  else if (auto cond = inst->GetOperand(0)->as<BinaryInst>)
+  else if (auto cond = inst->GetOperand(0)->as<BinaryInst>())
   {
     assert(cond->GetDef()->GetType() == BoolType::NewBoolTypeGet() && "Invalid Condition Type");
 
-    bool onlyUser = cond->GetUserListSize() == 1;
+    bool onlyUser = cond->GetUserUseListSize() == 1;
 
     // float type
     if (onlyUser && cond->GetOperand(0)->GetType() != FloatType::NewFloatTypeGet())
     {
-      auto opcode = cond->getoperation(); // no finish？？？？？
+      auto opcode = cond->GetOp(); // no finish？？？？？
       // lambda function
       auto cond_opcodes = [&](RISCVMIR::RISCVISA opcode)
       {

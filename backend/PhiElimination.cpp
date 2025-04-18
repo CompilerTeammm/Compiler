@@ -1,6 +1,7 @@
 #include "../include/Backend/PhiElimination.hpp"
 #include "../include/Backend/RISCVMIR.hpp"
 #include "../include/Backend/RISCVTrival.hpp"
+#include "../include/Backend/RISCVContext.hpp"
 #include <forward_list>
 #include <queue>
 

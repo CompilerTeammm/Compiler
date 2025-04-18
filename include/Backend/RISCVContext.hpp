@@ -1,4 +1,6 @@
-
+#pragma once
+#ifndef RISCV_LOWERING_CONTEXT_H
+#define RISCV_LOWERING_CONTEXT_H
 #include "../../include/Backend/RISCVMIR.hpp"
 class RISCVFunction; // RISCV机器函数（机器指令、BB信息）
 
@@ -41,3 +43,5 @@ public:
 
   void print();
 };
+
+#endif // RISCV_LOWERING_CONTEXT_H

@@ -1,8 +1,14 @@
-#include "../../include/Backend/RISCVMIR.hpp"
+#pragma once
 #include "../../include/Backend/BackEndPass.hpp"
-#include "../../include/Backend/Liveness.hpp"
 #include "../../include/Backend/RISCVContext.hpp"
-
+#include "../../include/Backend/RISCVMIR.hpp"
+#include "../../include/Backend/RISCVMOperand.hpp"
+#include "../../include/Backend/RISCVRegister.hpp"
+#include "../../include/Backend/RISCVType.hpp"
+#include "../../include/Backend/RegAlloc.hpp"
+#include "../../include/lib/CFG.hpp"
+#include "../../include/lib/CFG.hpp"
+#include "../../util/my_stl.hpp"
 class BackendDCE : public Liveness, BackEndPass<RISCVFunction>
 {
 public:

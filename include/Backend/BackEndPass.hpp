@@ -1,3 +1,4 @@
+#pragma once
 #include "../../include/lib/CoreClass.hpp"
 template <typename T>
 class BackEndPass

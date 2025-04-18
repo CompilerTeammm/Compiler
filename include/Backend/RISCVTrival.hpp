@@ -1,3 +1,4 @@
+#pragma once
 #include "../../include/Backend/RISCVMIR.hpp"
 #include "../../include/Backend/RISCVRegister.hpp"
 

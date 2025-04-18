@@ -1,6 +1,7 @@
-
+#pragma once
 #include "../../include/Backend/BackEndPass.hpp"
 #include "../../include/Backend/RISCVContext.hpp"
+#include "../../include/Backend/RISCVMIR.hpp"
 
 class PhiElimination : public BackEndPass<Function>
 {

@@ -6,6 +6,7 @@ Legalize::Legalize(RISCVLoweringContext &_ctx) : ctx(_ctx) {}
 
 void Legalize::run()
 {
+    auto func = this->ctx.GetCurFunction();
     // 将load/store指令中的物理寄存器转化为栈寄存器
     {
         auto func = ctx.GetCurFunction();

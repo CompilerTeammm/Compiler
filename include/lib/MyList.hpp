@@ -97,28 +97,26 @@ class List
 {
   friend class Node<Manager, Staff>;
 
-  Staff *front = nullptr;
-  Staff *back = nullptr;
   int size = 0;
 
 public:
+  Staff *front = nullptr;
+  Staff *back = nullptr;
   virtual ~List() { clear(); }
 
-  Staff *GetFront() const { return front; }
-  Staff *GetBack() const { return back; }
+  Staff *GetFront() { return front; }
+  Staff *GetBack() { return back; }
 
   class iterator
   {
     Staff *ptr = nullptr;
-
-  public:
     using iterator_category = std::bidirectional_iterator_tag;
     using value_type = Staff *;
     using difference_type = std::ptrdiff_t;
     using pointer = Staff **;
     using reference = Staff *&;
 
-    iterator() = default;
+  public:
     iterator(Staff *node) : ptr(node) {}
 
     iterator &operator++()
@@ -135,7 +133,7 @@ public:
       return *this;
     }
 
-    value_type operator*() const { return ptr; }
+    value_type operator*() { return ptr; }
     bool operator==(const iterator &other) const { return ptr == other.ptr; }
     bool operator!=(const iterator &other) const { return ptr != other.ptr; }
 
@@ -177,7 +175,11 @@ public:
       return iterator(_node);
     }
   };
-
+  List()
+  {
+    this->head = nullptr;
+    this->tail = nullptr;
+  }
   iterator begin() { return iterator(front); }
   iterator end() { return iterator(nullptr); }
   iterator rbegin() { return iterator(back); }
