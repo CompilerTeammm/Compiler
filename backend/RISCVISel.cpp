@@ -562,7 +562,7 @@ void RISCVISel::InstLowering(BinaryInst *inst)
     bool onlyuser = inst->GetUserUseListSize() == 1; // only one user
 
     bool condinst = false;
-    for (auto us : inst->GetUserUseList()) // userlist in instruction
+    for (auto &us : inst->GetUserUseList()) // userlist in instruction
     {
       // If all users are CondInst, then condinst = true
       // If there is at least one user that is not a CondInst, then condinst may be false

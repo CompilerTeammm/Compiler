@@ -11,6 +11,8 @@ RISCVMOperand *&RISCVMIR::GetOperand(int ind)
   return operands[ind];
 }
 
+void RISCVMIR::SetDef(RISCVMOperand *def) { this->def = def; }
+
 void RISCVMIR::SetOperand(int ind, RISCVMOperand *op)
 {
   assert(0 <= ind && ind < operands.size() && "Range Assertion");

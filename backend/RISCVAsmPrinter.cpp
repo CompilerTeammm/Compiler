@@ -1,4 +1,5 @@
 #include "../include/Backend/RISCVAsmPrinter.hpp"
+#include "../include/Backend/RISCVMIR.hpp"
 
 SegmentType __oldtype = TEXT;
 SegmentType *oldtype = &__oldtype;
@@ -321,7 +322,7 @@ void dataSegment::LegalizeGloablVar(RISCVLoweringContext &ctx)
                             hi->AddOperand(hi_lareg);
                             it.InsertBefore(hi);
 
-                            RISCVMIR *lo = new RISCVMIR(RISCVISA::_addi);
+                            RISCVMIR *lo = new RISCVMIR(RISCVMIR::RISCVISA::_addi);
                             VirRegister *lo_vreg = ctx.createVReg(RISCVType::riscv_ptr);
                             frame->AddCantBeSpill(lo_vreg);
                             LARegister *lo_lareg = new LARegister(RISCVType::riscv_ptr, gvar->GetName(), LARegister::LAReg::lo);

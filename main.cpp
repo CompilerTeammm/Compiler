@@ -24,8 +24,10 @@
 #include <memory>
 // #include "PassManager.hpp"
 #include "include/IR/Opt/PassManager.hpp"
+#include "./include/Backend/RISCVLowering.hpp"
+
 #define OPT
-// #define backend
+#define backend
 extern FILE *yyin;
 extern int optind, opterr, optopt;
 extern char *optargi;
@@ -74,7 +76,7 @@ int main(int argc, char **argv)
    fflush(stdout);
    fclose(stdout);
 
-// 后端，使用前先定义backend，避免与中端测试冲突
+   // 后端，使用前先定义backend，避免与中端测试冲突
 
 #ifdef backend
 #include "./include/Backend/RISCVLowering.hpp"
@@ -83,7 +85,6 @@ int main(int argc, char **argv)
    RISCVModuleLowering RISCVAsm;
    RISCVAsm.run(&Singleton<Module>());
 #endif
-
 
    fflush(stdout);
    fclose(stdout);

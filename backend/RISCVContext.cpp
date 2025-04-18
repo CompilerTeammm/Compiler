@@ -12,9 +12,48 @@ void RISCVLoweringContext::operator()(RISCVFunction *mfunc)
   cur_func = mfunc;
 }
 
+void RISCVLoweringContext::operator()(RISCVMIR *minst)
+{
+  cur_mbb->push_back(minst);
+}
+
+void RISCVLoweringContext::operator()(RISCVBasicBlock *mbb)
+{
+  cur_func->push_back(mbb);
+  cur_mbb = mbb;
+}
+
 RISCVFunction *&RISCVLoweringContext::GetCurFunction()
 {
   return cur_func;
+}
+
+Value *RISCVLoweringContext::GetValue(RISCVMOperand *mop)
+{
+  for (const auto &pair : val2mop)
+  {
+    if (pair.second == mop)
+    {
+      return pair.first;
+    }
+  }
+  return nullptr;
+}
+
+std::vector<std::unique_ptr<RISCVFunction>> &RISCVLoweringContext::GetFunctions()
+{
+  return this->functions;
+}
+
+RISCVFunction *&RISCVLoweringContext::GetCurFunction() { return cur_func; }
+RISCVBasicBlock *&RISCVLoweringContext::GetCurBasicBlock() { return cur_mbb; }
+
+extern RISCVAsmPrinter *asmprinter;
+void RISCVLoweringContext::print()
+{
+  /// @todo print global variables
+  for (auto &mfunc : functions)
+    mfunc->printfull();
 }
 
 RISCVMOperand *RISCVLoweringContext::mapping(Value *val)
@@ -107,4 +146,15 @@ RISCVMOperand *RISCVLoweringContext::Create(Value *val)
 VirRegister *RISCVLoweringContext::createVReg(RISCVType type)
 {
   return new VirRegister(type);
+}
+
+void RISCVLoweringContext::change_mapping(RISCVMOperand *old, RISCVMOperand *new_mop)
+{
+  for (auto it = val2mop.begin(); it != val2mop.end(); it++)
+  {
+    if (it->second == old)
+    {
+      it->second = new_mop;
+    }
+  }
 }

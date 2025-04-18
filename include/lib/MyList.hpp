@@ -96,7 +96,8 @@ template <typename Manager, typename Staff>
 class List
 {
   friend class Node<Manager, Staff>;
-
+  Staff *head;
+  Staff *tail;
   int size = 0;
 
 public:
@@ -104,8 +105,8 @@ public:
   Staff *back = nullptr;
   virtual ~List() { clear(); }
 
-  Staff *GetFront() { return front; }
-  Staff *GetBack() { return back; }
+  Staff *GetFront() const { return front; }
+  Staff *GetBack() const { return back; }
 
   class iterator
   {
