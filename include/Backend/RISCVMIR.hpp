@@ -269,6 +269,8 @@ class RISCVFunction : public RISCVGlobalObject, public List<RISCVFunction, RISCV
   RISCVBasicBlock exit;
   size_t max_param_size = 0;
 
+  std::vector<int> param_need_spill;
+
 public:
   RISCVFunction(Value *);
   RISCVframe &GetFrame();                          // 获取栈帧

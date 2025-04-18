@@ -655,16 +655,16 @@ PhiInst::PhiInst(Instruction *BeforeInst) : oprandNum(0)
 void PhiInst::print()
 {
     int count = 0;
-    dynamic_cast<Value*> (this)->print();
+    dynamic_cast<Value *>(this)->print();
     std::cout << " = phi ";
     this->GetType()->print();
     std::cout << " ";
-    for(auto &[_1,value] : PhiRecord)
+    for (auto &[_1, value] : PhiRecord)
     {
         std::cout << "[";
         value.first->print();
         std::cout << ", ";
-        dynamic_cast<Value*>(value.second)->print();
+        dynamic_cast<Value *>(value.second)->print();
         std::cout << "]";
         if (count != PhiRecord.size() - 1)
             std::cout << ", ";
@@ -672,7 +672,7 @@ void PhiInst::print()
     }
     std::cout << "\n";
     return;
-} 
+}
 
 PhiInst *PhiInst::Create(Type *type)
 {
@@ -737,7 +737,7 @@ void PhiInst::addIncoming(Value *IncomingVal, BasicBlock *PreBB)
 
 BasicBlock *PhiInst::getIncomingBlock(int num)
 {
-    auto& [v, bb] = PhiRecord[num];
+    auto &[v, bb] = PhiRecord[num];
     return bb;
 }
 
@@ -761,19 +761,19 @@ std::vector<Value *> &PhiInst::RecordIncomingValsA_Blocks()
     return Incomings;
 }
 
-void PhiInst::PhiProp(Value* old,Value *val)
+void PhiInst::PhiProp(Value *old, Value *val)
 {
     // 标记是第几个 phi的分支
     int index;
-    std::vector<Value *> &comingVals =RecordIncomingValsA_Blocks();
+    std::vector<Value *> &comingVals = RecordIncomingValsA_Blocks();
     auto it = std::find(comingVals.begin(), comingVals.end(), old);
     if (it != comingVals.end())
     {
         index = std::distance(comingVals.begin(), it);
     }
-    BasicBlock* bb = getIncomingBlock(index);
+    BasicBlock *bb = getIncomingBlock(index);
     // 更改该位置下的值
-    PhiRecord[index] = std::make_pair(val,bb);
+    PhiRecord[index] = std::make_pair(val, bb);
 }
 
 bool PhiInst::IsReplaced()

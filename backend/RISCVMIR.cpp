@@ -410,6 +410,11 @@ Register *RISCVFunction::GetUsedGlobalMapping(RISCVMOperand *val)
   return usedGlobals[val];
 }
 
+std::vector<int> &RISCVFunction::GetParamNeedSpill()
+{
+  return this->param_need_spill;
+}
+
 void RISCVFrame::GenerateFrameHead()
 {
   // 初始化物理寄存器

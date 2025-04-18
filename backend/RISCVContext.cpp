@@ -45,7 +45,6 @@ std::vector<std::unique_ptr<RISCVFunction>> &RISCVLoweringContext::GetFunctions(
   return this->functions;
 }
 
-RISCVFunction *&RISCVLoweringContext::GetCurFunction() { return cur_func; }
 RISCVBasicBlock *&RISCVLoweringContext::GetCurBasicBlock() { return cur_mbb; }
 
 extern RISCVAsmPrinter *asmprinter;
