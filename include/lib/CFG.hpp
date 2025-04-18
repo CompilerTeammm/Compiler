@@ -335,8 +335,8 @@ public:
   BinaryInst(Type *_tp) : Instruction(_tp, Op::BinaryUnknown) {};
   BinaryInst(Operand _A, Operation __op, Operand _B, bool Atom = false);
   BinaryInst *clone(std::unordered_map<Operand, Operand> &) override;
-  
-  const Operation& GetOp() { return op; }
+
+  const Operation &GetOp() { return op; }
   void print() final
   {
     Value::print();
@@ -701,7 +701,7 @@ class PhiInst : public Instruction
 private:
   int oprandNum; // 记录操作数的数目
   std::vector<Value *> Incomings;
-  std::map<int, std::pair<Value *, BasicBlock *>> PhiRecord; // phi [val1,BB1] [val2,BB2]; phi语句类似如此 我要记录这个
+  // std::map<int, std::pair<Value *, BasicBlock *>> PhiRecord; // phi [val1,BB1] [val2,BB2]; phi语句类似如此 我要记录这个
   std::vector<BasicBlock *> IncomingBlocks;
   std::map<Use *, int> UseRecord;
 
@@ -709,6 +709,7 @@ public:
   PhiInst(Type *_tp);
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
+  std::map<int, std::pair<Value *, BasicBlock *>> PhiRecord;
   // 暂时使不报错
   PhiInst *clone(std::unordered_map<Operand, Operand> &) override
   {
@@ -729,7 +730,7 @@ public:
   bool IsReplaced();
 
   // 常量传播处理phi函数的,在RAUW里面做的处理
-  void PhiProp(Value* old,Value* val);
+  void PhiProp(Value *old, Value *val);
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构
@@ -757,7 +758,7 @@ public:
   // 获取当前基本块的指令
   // 这个东西没有实现，，，
   std::vector<InstPtr> &GetInsts();
-  int& GetIndex() { return index;}
+  int &GetIndex() { return index; }
   BasicBlock();          // 构造函数
   virtual ~BasicBlock(); // 析构函数
 
@@ -872,7 +873,7 @@ public:
   void InitBBs();
   void PushParam(std::string, Var *);
   void UpdateParam(Var *var) { params.emplace_back(var); }
-  int& GetSize() { return size_BB; }
+  int &GetSize() { return size_BB; }
 };
 
 class Module : public SymbolTable

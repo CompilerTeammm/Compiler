@@ -13,21 +13,19 @@
 // 定义 LLVM IR 到 RISCV 转换的类
 class RISCVModuleLowering : BackEndPass<Module>
 {
-public:
-  bool run(Module *) override;
-
-private:
   RISCVLoweringContext ctx;
   void LowerGlobalArgument(Module *);
+
+public:
+  bool run(Module *) override;
 };
 
 class RISCVFunctionLowering : BackEndPass<Function>
 {
-public:
-  bool run(Module *);
-  RISCVFunctionLowering(RISCVLoweringContext &ctx, RISCVAsmPrinter *&asmprinter);
-
-private:
   RISCVLoweringContext &ctx;
   RISCVAsmPrinter *&asmprinter;
+
+public:
+  bool run(Function *);
+  RISCVFunctionLowering(RISCVLoweringContext &ctx, RISCVAsmPrinter *&asmprinter);
 };

@@ -22,13 +22,13 @@ RISCVMOperand *RISCVLoweringContext::mapping(Value *val)
   // 全局变量
   if (val->isGlobal())
   {
-    assert(cur_func != nullptr && val2mop.find(val) != val2mop.end(val));
+    // assert(cur_func != nullptr && val2mop.find(val) != val2mop.end(val));
     return cur_func->GetUsedGlobalMapping(val2mop[val]);
   }
   // 浮点常量
   if (val->isConst() && val->GetType() == FloatType::NewFloatTypeGet())
   {
-    assert(cur_func != nullptr && val->as<ConstantData> != nullptr);
+    // assert(cur_func != nullptr && val->as<ConstantData> != nullptr);
     auto imm = Imm::GetImm(val->as<ConstantData>());
     return cur_func->GetUsedGlobalMapping(imm);
   }

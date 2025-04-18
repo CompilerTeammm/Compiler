@@ -1,12 +1,13 @@
 #include "../include/Backend/RISCVISel.hpp"
-#include "../include/Backend/RISCVContext.hpp"
-#include "../include/Backend/RISCVAsmPrinter.hpp"
 #include "../include/Backend/RISCVMIR.hpp"
-#include "../include/Backend/RISCVLowering.hpp"
-#include "../include/Backend/RISCVRegister.hpp"
+#include "../include/Backend/RISCVTrival.hpp"
+#include "../include/Backend/RISCVFrameContext.hpp"
+#include "../include/IR/Opt/AnalysisManager.hpp"
+#include "../include/Backend/RegAlloc.hpp"
 
-RISCVISel::RISCVISel(RISCVLoweringContext &_ctx, RISCVAsmPrinter *&asmprinter) : ctx(_ctx), asmprinter(asmprinter) : ctx(_ctx), asmprinter(asmprinter) {};
+RISCVISel::RISCVISel(RISCVLoweringContext &_ctx, RISCVAsmPrinter *&asmprinter) : ctx(_ctx), asmprinter(asmprinter) {}
 
+/*
 bool RISCVISel::run(Funciton *m)
 {
   // there are parameters in the function
@@ -25,8 +26,8 @@ bool RISCVISel::run(Funciton *m)
   }
 
   /// IR->Opt
-  auto AM = _AnalysisManager();
-  auto mdom = AM.get<dominance>(m);
+  auto AM = AnalysisManager();
+  auto mdom = AM.get<DominantTree>(m);
 
   for (auto i : mdom->DFG_Dom())
   {
@@ -38,7 +39,7 @@ bool RISCVISel::run(Funciton *m)
   }
 
   // other
-}
+}*/
 
 void RISCVISel::InstLowering(Instruction *inst)
 {
@@ -129,7 +130,7 @@ void RISCVISel::InstLowering(CallInst *inst)
     spillnodes = called_func->GetParamNeedSpill();
   }
 
-  if (!inst->Getuselist().empty())
+  if (!inst->GetUserUseList().empty())
   {
     int offset = 0;
     size_t local_param_size = 0;
@@ -179,21 +180,21 @@ void RISCVISel::InstLowering(CallInst *inst)
       store->AddOperand(sreg);
       ctx(store);
 
-      local_param_size += op->GetType()->get_size();
+      // local_param_size += op->GetType()->get_size();
     }
-
-    if ()
   }
 }
 
 void RISCVISel::InstLowering(StoreInst *inst)
 {
+  Operand op0 = inst->GetOperand(0);
+  Operand op1 = inst->GetOperand(1);
   if (inst->GetOperand(0)->GetType() == IntType::NewIntTypeGet())
   {
     if (ConstIRInt *IntConst = dynamic_cast<ConstIRInt *>(inst->GetOperand(0)))
     {
       auto minst = new RISCVMIR(RISCVMIR::_sw);
-      minst->AddOperand(ctx.GetCurFunction()->GetUsedGlobalMapping(Imm::GetImm(Intconst)));
+      minst->AddOperand(ctx.GetCurFunction()->GetUsedGlobalMapping(Imm::GetImm(IntConst)));
       minst->AddOperand(ctx.mapping(op1));
       ctx(minst);
     }
@@ -211,7 +212,7 @@ void RISCVISel::InstLowering(StoreInst *inst)
 void RISCVISel::InstLowering(RetInst *inst)
 {
   // If empty or undefined value
-  if (inst->GetUserUseList().empty() || inst->GetOperand(0)->inUndefval())
+  if (inst->GetUserUseList().empty() || inst->GetOperand(0)->IsUndefVal())
   {
     auto minst = new RISCVMIR(RISCVMIR::ret);
     ctx(minst); // Pass it into the new module
@@ -221,29 +222,31 @@ void RISCVISel::InstLowering(RetInst *inst)
   {
     if (inst->GetOperand(0)->isConst())
     {
-      ctx();
+      ctx(Builder(RISCVMIR::li, {PhyRegister::GetPhyReg(PhyRegister::PhyReg::a0), ctx.mapping(inst->GetOperand(0))}));
     }
     else
     {
-      ctx();
+      ctx(Builder(RISCVMIR::mv, {PhyRegister::GetPhyReg(PhyRegister::PhyReg::a0), ctx.mapping(inst->GetOperand(0))}));
     }
     auto minst = new RISCVMIR(RISCVMIR::ret);
-    minst->AddOperand(PhyRegister::GetPhyReg(PhyRegister::PhtReg::a0));
+    minst->AddOperand(PhyRegister::GetPhyReg(PhyRegister::PhyReg::a0));
     ctx(minst);
   }
 
   // float
   else if (inst->GetOperand(0) && inst->GetOperand(0)->GetType() == FloatType::NewFloatTypeGet())
   {
-    ctx();
+    ctx(Builder(RISCVMIR::_fmv_s, {PhyRegister::GetPhyReg(PhyRegister::PhyReg::fa0), ctx.mapping(inst->GetOperand(0))}));
+    auto minst = new RISCVMIR(RISCVMIR::ret);
+    minst->AddOperand(PhyRegister::GetPhyReg(PhyRegister::PhyReg::fa0));
+    ctx(minst);
   }
   else
   {
     auto minst = new RISCVMIR(RISCVMIR::ret);
-    minst->AddOperand(PhyRegister::GetPhyReg(PhyRegister::PhtReg::fa0));
+    minst->AddOperand(PhyRegister::GetPhyReg(PhyRegister::PhyReg::fa0));
     ctx(minst);
   }
-  else assert(0 && "Invalid return type");
 }
 
 void RISCVISel::InstLowering(CondInst *inst)
@@ -279,7 +282,7 @@ void RISCVISel::InstLowering(CondInst *inst)
         ctx(Builder_withoutDef(opcode, {ctx.mapping(cond->GetOperand(0)), ctx.mapping(cond->GetOperand(1)), ctx.mapping(inst->GetOperand(1))}));
         ctx(Builder_withoutDef(RISCVMIR::_j, {ctx.mapping(inst->GetOperand(2))}));
       };
-      swtch(opcode)
+      switch (opcode)
       {
       case BinaryInst::Op_L:
       {
@@ -296,7 +299,7 @@ void RISCVISel::InstLowering(CondInst *inst)
       case BinaryInst::Op_G:
       {
         // >
-        cond_opcodes(RISCVMIR::bgt);
+        cond_opcodes(RISCVMIR::_bgt);
         break;
       }
       case BinaryInst::Op_GE:
@@ -351,7 +354,7 @@ void RISCVISel::InstLowering(BinaryInst *inst)
   // Both operands cannot be constants
   assert(!(inst->GetOperand(0)->isConst()) && (inst->GetOperand(1)->isConst()));
   Operand temp = inst->GetOperand(0);
-  switch (inst->getoperation())
+  switch (inst->GetOp())
   {
   case BinaryInst::Op_Add:
   {
@@ -424,7 +427,7 @@ void RISCVISel::InstLowering(BinaryInst *inst)
     if (inst->GetType() == IntType::NewIntTypeGet() || inst->GetType() == Int64Type::NewInt64TypeGet())
     {
       // the second ：if int？
-      if (ConstIRInt *constint = dynamic_cast<CondInst *>(inst->GetOperand(1)))
+      if (ConstIRInt *constint = dynamic_cast<ConstIRInt *>(inst->GetOperand(1)))
       {
         auto i32val = constint->GetVal();
 
@@ -437,12 +440,13 @@ void RISCVISel::InstLowering(BinaryInst *inst)
         //%result = sub &a，2  %a和%result共用一个物理寄存器
         else if (i32val == 1)
         {
-          ctx.insert_val2mop(inst, ctx.mapping(inst->GetOperand(0)))
+          ctx.insert_val2mop(inst, ctx.mapping(inst->GetOperand(0)));
         }
         // Other optimizations
         else
         {
         }
+        RISCVMIR *minst = nullptr;
         // only int32
         if (inst->GetType() == IntType::NewIntTypeGet())
           minst = new RISCVMIR(RISCVMIR::_mulw);
@@ -543,7 +547,7 @@ void RISCVISel::InstLowering(BinaryInst *inst)
         else
           assert(0 && "Error Type!");
       }
-      else assert(0 && "Illegal!");
+      // else assert(0 && "Illegal!");
     }
   }
   case BinaryInst::Op_L:
@@ -553,12 +557,12 @@ void RISCVISel::InstLowering(BinaryInst *inst)
   case BinaryInst::Op_E:
   case BinaryInst::Op_NE:
   {
-    if (inst->GetUserlist().is_empty())
+    if (inst->GetUserUseList().empty())
       break;
-    bool onlyuser = inst->GetUserListSize() == 1; // only one user
+    bool onlyuser = inst->GetUserUseListSize() == 1; // only one user
 
     bool condinst = false;
-    for (auto us : inst->GetUserListSize()) // userlist in instruction
+    for (auto us : inst->GetUserUseList()) // userlist in instruction
     {
       // If all users are CondInst, then condinst = true
       // If there is at least one user that is not a CondInst, then condinst may be false
@@ -649,18 +653,18 @@ void RISCVISel::InstLowering(MaxInst *max)
     }
     else
     {
-      ctx();
+      ctx(Builder(RISCVMIR::_max, max));
     }
   }
   else if (max->GetType() == FloatType::NewFloatTypeGet())
-    ctx();
+    ctx(Builder(RISCVMIR::_fmax_s, max));
   else
     assert(0 && "Invalid type");
 }
 
-void RISCVISel::InstLowering(MinInst *)
+void RISCVISel::InstLowering(MinInst *min)
 {
-  assert(!(min->GetOperand(0)->isConst() && min->GetOperand(1)->isConst()));
+  // assert(!(min->GetOperand(0)->isConst() && min->GetOperand(1)->isConst()));
   if (min->GetType() == IntType::NewIntTypeGet())
   {
     if (ConstIRInt *constint = dynamic_cast<ConstIRInt *>(min->GetOperand(1)))
@@ -672,15 +676,15 @@ void RISCVISel::InstLowering(MinInst *)
       ctx(minst);
     }
     else
-      ctx();
+      ctx(Builder(RISCVMIR::_min, min));
   }
   else if (min->GetType() == FloatType::NewFloatTypeGet())
-    ctx();
+    ctx(Builder(RISCVMIR::_fmin_s, min));
   else
     assert(0 && "Invalid type");
 }
 
-void RISCVISel::InstLowering(SelectInst *)
+void RISCVISel::InstLowering(SelectInst *inst)
 {
   auto trueblock = RISCVBasicBlock::CreateRISCVBasicBlock();
   auto falseblock = RISCVBasicBlock::CreateRISCVBasicBlock();
@@ -709,16 +713,16 @@ void RISCVISel::InstLowering(SelectInst *)
 void RISCVISel::InstLowering(GepInst *inst)
 {
   int UserPtrs = inst->GetUserUseList().size(); // operands
-  auto hassubtype = dynamic_cast<HasSubType *>(inst->GerOperand(0)->GetType());
+  auto hassubtype = dynamic_cast<HasSubType *>(inst->GetOperand(0)->GetType());
   size_t offset = 0;
+  VirRegister *vreg = nullptr;
 
   for (int i = 1; i < UserPtrs; i++)
   {
     assert(hassubtype != nullptr && "hassubtype is null");
 
-    size_t size = hassubtype->GetSubType()->get_size();
+    size_t size = hassubtype->GetSubType()->GetSize();
     auto curoperand = inst->GetOperand(i);
-    VirRegister *vreg = nullptr;
 
     // 常量索引
     if (curoperand->isConst())
@@ -744,7 +748,7 @@ void RISCVISel::InstLowering(GepInst *inst)
           shift++;
         }
 
-        minst = Builder(RISCVMIR::_slli, {ctx.createVReg(RISCVType::riscv_ptr), M(index), Imm::GetImm(ConstIRInt::GetNewConstant(shift))});
+        minst = Builder(RISCVMIR::_slli, {ctx.createVReg(RISCVType::riscv_ptr), ctx.mapping(curoperand), Imm::GetImm(ConstIRInt::GetNewConstant(shift))});
         ctx(minst);
       }
       else
@@ -753,7 +757,7 @@ void RISCVISel::InstLowering(GepInst *inst)
         auto size_imm = Imm::GetImm(ConstIRInt::GetNewConstant(size));
         auto global_mapping = ctx.GetCurFunction()->GetUsedGlobalMapping(size_imm);
 
-        minst = Builder(RISCVMIR::_mul, {ctx.createVReg(RISCVType::riscv_ptr), M(index), global_mapping});
+        minst = Builder(RISCVMIR::_mul, {ctx.createVReg(RISCVType::riscv_ptr), ctx.mapping(curoperand), global_mapping});
         ctx(minst);
       }
 
@@ -809,7 +813,7 @@ void RISCVISel::InstLowering(FP2SIInst *inst)
 
 void RISCVISel::InstLowering(SI2FPInst *inst)
 {
-  ctx(RISCVMIR::_fcvt_s_w, inst);
+  ctx(Builder(RISCVMIR::_fcvt_s_w, inst));
 }
 
 void RISCVISel::InstLowering(PhiInst *inst)
@@ -817,11 +821,11 @@ void RISCVISel::InstLowering(PhiInst *inst)
   return;
 }
 
-RISCVMIR *Builder(RISCVMIR::RISCVISA _isa, Instruction *inst)
+RISCVMIR *RISCVISel::Builder(RISCVMIR::RISCVISA _isa, Instruction *inst)
 {
   auto minst = new RISCVMIR(_isa);
   minst->SetDef(ctx.mapping(inst));
-  for (int i = 0; i < inst->GetUserUseList.size(); i++)
+  for (int i = 0; i < inst->GetUserUseListSize(); i++)
   {
     minst->AddOperand(ctx.mapping(inst->GetOperand(i)));
   }
@@ -831,12 +835,12 @@ RISCVMIR *Builder(RISCVMIR::RISCVISA _isa, Instruction *inst)
 RISCVMIR *RISCVISel::Builder_withoutDef(RISCVMIR::RISCVISA _isa, Instruction *inst)
 {
   auto minst = new RISCVMIR(_isa);
-  for (int i = 0; i < inst->Getuselist().size(); i++)
+  for (int i = 0; i < inst->GetUserUseListSize(); i++)
     minst->AddOperand(ctx.mapping(inst->GetOperand(i)));
   return minst;
 }
 
-RISCVMIR *Builder(RISCVMIR::RISCVISA, std::initializer_list<RISCVMOperand *>)
+RISCVMIR *Builder(RISCVMIR::RISCVISA _isa, std::initializer_list<RISCVMOperand *> list)
 {
   auto minst = new RISCVMIR(_isa);
   minst->SetDef(list.begin()[0]);
@@ -911,107 +915,71 @@ void RISCVISel::LowerCallInstParallel(CallInst *inst)
     addi->AddOperand(Imm::GetImm(ConstIRInt::GetNewConstant(offset)));
     ctx(addi);
   };
-
   int offset = 0;
-  // 假设最多使用6个寄存器传参（a0-a5），超过部分用栈
-  const int MAX_REG_ARGS = 6;
-  PhyRegister::PhyRegisterId argRegs[MAX_REG_ARGS] = {
-      PhyRegister::a0, PhyRegister::a1, PhyRegister::a2,
-      PhyRegister::a3, PhyRegister::a4, PhyRegister::a5};
 
-  for (int i = 1, limi = inst->Getuselist().size(); i < limi; i++)
+  for (int i = 1, limi = inst->GetUserUseListSize(); i < limi; i++)
   {
-    auto *operand = inst->GetOperand(i);
-    auto *type = operand->GetType();
-    bool isFloat = (type == FloatType::NewFloatTypeGet());
-
-    // 寄存器传参（整型/指针优先用aX，浮点用fX）
-    if (i <= MAX_REG_ARGS)
+    if (i <= 2)
     {
-      if (!isFloat)
+      assert(inst->GetOperand(i)->GetType() == IntType::NewIntTypeGet());
+      offset += 4;
+      auto phyreg = (i == 1) ? PhyRegister::GetPhyReg(PhyRegister::a0) : PhyRegister::GetPhyReg(PhyRegister::a1);
+      if (inst->GetOperand(i)->isConst())
       {
-        // 整型/指针参数
-        auto phyreg = PhyRegister::GetPhyReg(argRegs[i - 1]);
-        if (operand->isConst())
-        {
-          createMir(phyreg, RISCVMIR::li, operand);
-        }
-        else
-        {
-          // 添加寄存器到寄存器移动优化
-          if (auto srcReg = dynamic_cast<VirRegister *>(ctx.mapping(operand)))
-          {
-            if (ctx.isPhysicalReg(srcReg))
-            {
-              createMir(phyreg, RISCVMIR::mv, operand);
-            }
-            else
-            {
-              // 如果源是虚拟寄存器，尝试合并分配
-              ctx.tryCoalesce(srcReg, phyreg);
-            }
-          }
-        }
+        createMir(phyreg, RISCVMIR::li, inst->GetOperand(i));
       }
       else
       {
-        // 浮点参数（使用fa0-fa7，这里示例用栈处理，实际可优化）
-        offset += 4;
-        store2place(RISCVMIR::_fsw, ctx.mapping(operand));
+        createMir(phyreg, RISCVMIR::mv, inst->GetOperand(i));
       }
     }
-    // 栈传参
     else
     {
-      auto op = ctx.mapping(operand);
-      RISCVMIR::RISCVISA opcode;
-      int size;
-
-      if (dynamic_cast<PointerType *>(type))
+      auto store2place = [&](RISCVMIR::RISCVISA _opcode, RISCVMOperand *mop)
       {
-        opcode = RISCVMIR::_sd;
-        size = 8;
+        mvaddress(offset);
+        auto mir = new RISCVMIR(_opcode);
+        mir->AddOperand(mop);
+        mir->AddOperand(addressreg);
+        ctx(mir);
+        offset = 0;
+      };
+      auto op = ctx.mapping(inst->GetOperand(i));
+      auto tp = inst->GetOperand(i)->GetType();
+      if (dynamic_cast<PointerType *>(tp))
+      {
+        // assert(tp->get_size() == 8);
+        store2place(RISCVMIR::_sd, op);
+        offset += tp->GetSize();
       }
-      else if (isFloat)
+      else if (tp == FloatType::NewFloatTypeGet())
       {
-        opcode = RISCVMIR::_fsw;
-        size = 4;
+        // assert(tp->get_size() == 4);
+        store2place(RISCVMIR::_fsw, op);
+        offset += tp->GetSize();
       }
       else
       {
-        opcode = RISCVMIR::_sw;
-        size = 4;
+        // assert(tp->get_size() == 4);
+        store2place(RISCVMIR::_sw, op);
+        offset += tp->GetSize();
       }
-
-      // 批量处理连续栈存储
-      if (offset % size != 0)
-      {
-        offset = (offset + size - 1) & ~(size - 1); // 对齐
-      }
-      store2place(opcode, op);
-      offset += size;
     }
   }
 
-  // 1. 使用三元运算符简化条件选择
-  auto NotifyWorker = func_called->CmpEqual ? BuildInFunction::GetBuildInFunction("buildin_NotifyWorkerLE") : BuildInFunction::GetBuildInFunction("buildin_NotifyWorkerLT");
-
-  // 2. 直接构造 call 指令，避免中间变量
-  auto *call = new RISCVMIR(RISCVMIR::call);
-  call->AddOperand(M(NotifyWorker));
-
-  // 3. 检查参数是否已正确设置，避免冗余寄存器传递
-  if (!ctx.isRegReady(PhyRegister::a0) || !ctx.isRegReady(PhyRegister::a1))
+  auto getNotifyWorker = [&]()
   {
-    ctx.loadArgsToRegs({PhyRegister::a0, PhyRegister::a1}); // 批量加载参数到寄存器
-  }
+    if (func_called->CmpEqual)
+      return BuiltinFunc::GetBuiltinFunc("buildin_NotifyWorkerLE");
+    else
+      return BuiltinFunc::GetBuiltinFunc("buildin_NotifyWorkerLT");
+  };
 
-  // 4. 添加调用约定要求的寄存器（a0, a1）
+  auto NotifyWorker = getNotifyWorker();
+  auto call = new RISCVMIR(RISCVMIR::call);
+  call->AddOperand(ctx.mapping(NotifyWorker));
   call->AddOperand(PhyRegister::GetPhyReg(PhyRegister::a0));
   call->AddOperand(PhyRegister::GetPhyReg(PhyRegister::a1));
-
-  // 5. 提交指令前检查函数是否存在
-  assert(NotifyWorker != nullptr && "NotifyWorker function not found");
   ctx(call);
 }
 
@@ -1020,8 +988,8 @@ void RISCVISel::LowerCallInstCacheLookUp(CallInst *inst)
   this->asmprinter->set_use_cachelookup(true);
   RISCVMIR *call = new RISCVMIR(RISCVMIR::call);
 
-  BuildInFunction *buildinfunc = BuildInFunction::GetBuildInFunction(inst->GetOperand(0)->GetName());
-  call->AddOperand(M(buildinfunc));
+  BuiltinFunc *buildinfunc = BuiltinFunc::GetBuiltinFunc(inst->GetOperand(0)->GetName());
+  call->AddOperand(ctx.mapping(buildinfunc));
 
   int regint = PhyRegister::PhyReg::a0;
   for (int index = 1; index < 3; index++)
@@ -1042,14 +1010,14 @@ void RISCVISel::LowerCallInstCacheLookUp(CallInst *inst)
     else if (RISCVTyper(op->GetType()) == riscv_i32 || RISCVTyper(op->GetType()) == riscv_ptr)
     {
       PhyRegister *preg = PhyRegister::GetPhyReg(static_cast<PhyRegister::PhyReg>(regint));
-      ctx(Builder(RISCVMIR::mv, {preg, M(op)}));
+      ctx(Builder(RISCVMIR::mv, {preg, ctx.mapping(op)}));
       call->AddOperand(preg);
       regint++;
     }
     else if (RISCVTyper(op->GetType()) == riscv_float32)
     {
       PhyRegister *reg = PhyRegister::GetPhyReg(static_cast<PhyRegister::PhyReg>(regint));
-      ctx(Builder(RISCVMIR::_fmv_x_w, {reg, M(op)}));
+      ctx(Builder(RISCVMIR::_fmv_x_w, {reg, ctx.mapping(op)}));
       call->AddOperand(reg);
       regint++;
     }
@@ -1067,8 +1035,8 @@ void RISCVISel::LowerCallInstCacheLookUp4(CallInst *inst)
   RISCVMIR *call = new RISCVMIR(RISCVMIR::call);
   // the call inst is: call CacheLookUp(int/float, int/float)
   // the size of uselist is 5, and the first use is called function
-  BuiltinFunc *buildinfunc = BuildInFunction::GetBuildInFunction(inst->GetOperand(0)->GetName());
-  call->AddOperand(M(buildinfunc)); // "CacheLookUp4"
+  BuiltinFunc *buildinfunc = BuiltinFunc::GetBuiltinFunc(inst->GetOperand(0)->GetName());
+  call->AddOperand(ctx.mapping(buildinfunc)); // "CacheLookUp4"
   int regint = PhyRegister::PhyReg::a0;
   for (int index = 1; index < 5; index++)
   {
@@ -1088,14 +1056,14 @@ void RISCVISel::LowerCallInstCacheLookUp4(CallInst *inst)
     else if (RISCVTyper(op->GetType()) == riscv_i32 || RISCVTyper(op->GetType()) == riscv_ptr)
     {
       PhyRegister *preg = PhyRegister::GetPhyReg(static_cast<PhyRegister::PhyReg>(regint));
-      ctx(Builder(RISCVMIR::mv, {preg, M(op)}));
+      ctx(Builder(RISCVMIR::mv, {preg, ctx.mapping(op)}));
       call->AddOperand(preg);
       regint++;
     }
     else if (RISCVTyper(op->GetType()) == riscv_float32)
     {
       PhyRegister *reg = PhyRegister::GetPhyReg(static_cast<PhyRegister::PhyReg>(regint));
-      ctx(Builder(RISCVMIR::_fmv_x_w, {reg, M(op)}));
+      ctx(Builder(RISCVMIR::_fmv_x_w, {reg, ctx.mapping(op)}));
       call->AddOperand(reg);
       regint++;
     }
@@ -1113,7 +1081,7 @@ void RISCVISel::condition_helper(BinaryInst *inst)
   assert(inst->GetOperand(0)->GetType() == inst->GetOperand(1)->GetType());
   assert(inst->GetOperand(0)->GetType() == BoolType::NewBoolTypeGet() || inst->GetOperand(0)->GetType() == IntType::NewIntTypeGet() || inst->GetOperand(1)->GetType() == FloatType::NewFloatTypeGet());
   bool isint = (inst->GetOperand(0)->GetType() != FloatType::NewFloatTypeGet());
-  switch (inst->getopration())
+  switch (inst->GetOp())
   {
   case BinaryInst::Op_E:
   {

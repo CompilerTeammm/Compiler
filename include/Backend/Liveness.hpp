@@ -54,6 +54,7 @@ public:
   bool Count(Register *op);
   Liveness(RISCVFunction *f) : m_func(f), BlockLivein{}, BlockLiveout{}, InstLive{}, reglist(RegisterList::GetPhyRegList()) {}
 };
+
 class LiveInterval : public Liveness
 {
   RISCVFunction *func; // 记录当前正在分析的RISCV目标函数

@@ -2,6 +2,7 @@
 #include "../../include/Backend/RISCVContext.hpp"
 #include "../../include/Backend/RISCVAsmPrinter.hpp"
 
+void LowerFormalArguments(Function *func, RISCVLoweringContext &ctx);
 class RISCVISel : public BackEndPass<Function>
 {
   RISCVLoweringContext &ctx;

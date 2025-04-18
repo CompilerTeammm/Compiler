@@ -15,3 +15,8 @@ Imm *Imm::GetImm(ConstantData *_data)
   }
   return mapping[_data].get();
 }
+
+void Imm::print()
+{
+  data->print();
+}

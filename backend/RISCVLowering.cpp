@@ -28,11 +28,11 @@ bool RISCVModuleLowering::run(Module *m)
     if (funclower.run(func.get())) // 这里的逻辑有待考察
     {
       func->print();
-      std::corr << "FUNC Lowering failed\n";
+      std::cerr << "FUNC Lowering failed\n";
     }
   }
 
-  asmprinter->printAsm();
+  asmprinter->PrintAsm();
 
   return false;
 }
@@ -41,7 +41,7 @@ bool RISCVModuleLowering::run(Module *m)
 bool RISCVFunctionLowering::run(Function *m)
 {
   // 判断是否为内置函数类型
-  if (m->GetTag() == Functin::BuildIn)
+  if (m->GetTag() == Function::BuildIn)
   {
     return false;
   }
@@ -82,7 +82,7 @@ bool RISCVFunctionLowering::run(Function *m)
 
   // ！！！！！寄存器分配！！！！！
   RegAllocImpl regalloc(mfunc, ctx);
-  regalloc.RunGCPass();
+  regalloc.RunGCpass();
 
   // std::cout << std::flush();考虑要不要
 
