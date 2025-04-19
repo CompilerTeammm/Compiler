@@ -12,16 +12,16 @@ Use::Use(User *_user, Value *_usee) : user(_user), usee(_usee)
 void Use::RemoveFromValUseList(User *_user)
 {
   assert(_user == user); // 必须是User
-  if(usee)
-      usee->GetValUseList().GetSize()--;
+  if (usee)
+    usee->GetValUseList().GetSize()--;
   if (*prev != nullptr)
     *prev = next;
   if (next != nullptr)
     next->prev = prev;
-  if(usee)
+  if (usee)
     if (usee->GetValUseList().GetSize() == 0 && next != nullptr)
       assert(0);
-  
+
   // all is nullptr cant't fullfill the operator++
   // user = nullptr;
   // usee = nullptr;
@@ -69,7 +69,7 @@ void ValUseList::push_front(Use *_use)
 bool ValUseList::is_empty()
 {
   // return head == nullptr;
-   return size == 0;
+  return size == 0;
 }
 
 Use *&ValUseList::front()
@@ -161,20 +161,21 @@ int Value::GetValUseListSize() { return valuselist.GetSize(); }
 // phi 的处理貌似没有做, sccp 的时候如果不做phi函数的处理会报错
 void Value::ReplaceAllUseWith(Value *value) // dh RAUW
 {
-    // auto list =  valuselist;
-    valuselist.GetSize() = 0;
+  // auto list =  valuselist;
+  valuselist.GetSize() = 0;
 
-    Use* &Head = valuselist.front();
-    while(Head) {
-        // PhiInst 需要专门去传播的原因是：它是在Incoming中使用的
-        // 这里面的替换都是在Inst中去替换
-        if (PhiInst* PInst = dynamic_cast<PhiInst*> (Head->GetUser()))
-              PInst->PhiProp(Head->GetValue(),value);      
-        Head->usee = value;
-        Use* tmp = Head->next;
-        value->valuselist.push_front(Head);
-        Head = tmp;
-    }
+  Use *&Head = valuselist.front();
+  while (Head)
+  {
+    // PhiInst 需要专门去传播的原因是：它是在Incoming中使用的
+    // 这里面的替换都是在Inst中去替换
+    if (PhiInst *PInst = dynamic_cast<PhiInst *>(Head->GetUser()))
+      PInst->PhiProp(Head->GetValue(), value);
+    Head->usee = value;
+    Use *tmp = Head->next;
+    value->valuselist.push_front(Head);
+    Head = tmp;
+  }
 }
 
 void Value::SetVersion(int new_version) { version = new_version; }
@@ -232,10 +233,9 @@ bool Value::isConstZero()
 
 bool Value::isConstOne()
 {
-  if(auto num = dynamic_cast<ConstIRInt*>(this)) 
+  if (auto num = dynamic_cast<ConstIRInt *>(this))
     return num->GetVal() == 1;
 }
-
 
 // User
 Value *User::GetDef() { return dynamic_cast<Value *>(this); }
@@ -329,27 +329,27 @@ bool Instruction::IsCastInst() const
 
 bool Instruction::IsCallInst() const
 {
-    return id == Op::Call;
+  return id == Op::Call;
 }
 
-bool Instruction:: IsGepInst() const
+bool Instruction::IsGepInst() const
 {
-    return id == Op::Gep;
+  return id == Op::Gep;
 }
 
 bool Instruction::IsMinInst() const
 {
-    return id == Op::Min;
+  return id == Op::Min;
 }
 
 bool Instruction::IsMaxInst() const
 {
-    return id == Op::Max;
+  return id == Op::Max;
 }
 
 bool Instruction::IsSelectInst() const
 {
-    return id == Op::Select;
+  return id == Op::Select;
 }
 
 void Instruction::add_use(Value *_value)
@@ -466,6 +466,13 @@ const char *Instruction::OpToString(Op op)
   default:
     return "Unknown";
   }
+}
+
+void Instruction::InstReplace(Instruction *inst)
+{
+  assert(inst->GetType() == this->GetType() && "Type not match!");
+  ReplaceAllUseWith(inst);
+  ReplaceNode(inst);
 }
 
 ConstantData::ConstantData(Type *_tp) : Value(_tp) {}
