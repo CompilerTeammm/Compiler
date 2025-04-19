@@ -28,7 +28,7 @@
 #define For_bb_In(function)                    \
   assert(dynamic_cast<Function *>(function) && \
          "incoing must be a function* type");  \
-  auto &BB = function->GetBasicBlock();        \
+  auto &BB = function->GetBBs();               \
   for (auto &bb : BB)
 
 /// @brief 遍历一个BB,每个inst是一个User*，
@@ -76,26 +76,26 @@ T PopBack(std::vector<T> &vec)
   return tmp;
 }
 // 遍历所有Function，清空BasicBlock并重新编号。
-#define PassChangedBegin(curfunc)             \
-  for (auto &func : module->GetFuncTion())    \
-  {                                           \
-    curfunc = func.get();                     \
-    curfunc->bb_num = 0;                      \
-    curfunc->GetBasicBlock().clear();         \
-    for (auto bb : *curfunc)                  \
-    {                                         \
-      bb->num = curfunc->bb_num++;            \
-      curfunc->GetBasicBlock().push_back(bb); \
-    }                                         \
+#define PassChangedBegin(curfunc)          \
+  for (auto &func : module->GetFuncTion()) \
+  {                                        \
+    curfunc = func.get();                  \
+    curfunc->bb_num = 0;                   \
+    curfunc->GetBBs().clear();             \
+    for (auto bb : *curfunc)               \
+    {                                      \
+      bb->num = curfunc->bb_num++;         \
+      curfunc->GetBBs().push_back(bb);     \
+    }                                      \
   }
 
-#define FunctionChange(curfunc)             \
-  curfunc->bb_num = 0;                      \
-  curfunc->GetBasicBlock().clear();         \
-  for (auto bb : *curfunc)                  \
-  {                                         \
-    bb->num = curfunc->bb_num++;            \
-    curfunc->GetBasicBlock().push_back(bb); \
+#define FunctionChange(curfunc)      \
+  curfunc->bb_num = 0;               \
+  curfunc->GetBBs().clear();         \
+  for (auto bb : *curfunc)           \
+  {                                  \
+    bb->num = curfunc->bb_num++;     \
+    curfunc->GetBBs().push_back(bb); \
   }
 // 运行指定pass
 #define RunLevelPass(PassName, curfunc, modified)        \
@@ -108,7 +108,7 @@ T PopBack(std::vector<T> &vec)
   }
 
 #define RunEntryFunc(PassName, modified) \
-  modified |= RunImpl<PassName>(module->GetMainFunction(), AM);
+  modified |= RunImpl<PassName>(module->GetMain(), AM);
 
 #define ContinueRunPassOnTest(PassName, curfunc) \
   bool modified = true;                          \

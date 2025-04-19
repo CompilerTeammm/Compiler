@@ -875,6 +875,8 @@ public:
   void PushParam(std::string, Var *);
   void UpdateParam(Var *var) { params.emplace_back(var); }
   int &GetSize() { return size_BB; }
+
+  int bb_num = 0;
 };
 
 class Module : public SymbolTable

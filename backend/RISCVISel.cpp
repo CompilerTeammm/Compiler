@@ -3,43 +3,54 @@
 #include "../include/Backend/RISCVTrival.hpp"
 #include "../include/Backend/RISCVFrameContext.hpp"
 #include "../include/IR/Opt/AnalysisManager.hpp"
+#include "../include/IR/Analysis/Dominant.hpp"
 #include "../include/Backend/RegAlloc.hpp"
 
 RISCVISel::RISCVISel(RISCVLoweringContext &_ctx, RISCVAsmPrinter *&asmprinter) : ctx(_ctx), asmprinter(asmprinter) {}
 
-/*
-bool RISCVISel::run(Funciton *m)
+bool RISCVISel::run(Function *m)
 {
-  // there are parameters in the function
   if (m->GetParams().size() != 0)
   {
     RISCVBasicBlock *entry = RISCVBasicBlock::CreateRISCVBasicBlock();
     RISCVLoweringContext &ctx = this->ctx;
     ctx(entry);
-
     LowerFormalArguments(m, ctx);
-    ///@todo
-    ctx.mapping(m->front())->as<RISCVBasicBlock>();
+    ctx.mapping(m->GetFront())->as<RISCVBasicBlock>();
     RISCVMIR *uncondinst = new RISCVMIR(RISCVMIR::RISCVISA::_j);
-    uncondinst->AddOperand(ctx.mapping(m->front())->as<RISCVBasicBlock>());
+    uncondinst->AddOperand(ctx.mapping(m->GetFront())->as<RISCVBasicBlock>());
     entry->push_back(uncondinst);
   }
-
-  /// IR->Opt
   auto AM = AnalysisManager();
-  auto mdom = AM.get<DominantTree>(m);
-
-  for (auto i : mdom->DFG_Dom())
+  FunctionChange(m) auto mdom = AM.get<DominantTree>(m);
+  for (auto i : mdom->DFS_Dom())
   {
     auto bb = i->thisBlock;
-    ctx(ctx->mapping(bb)->as<RISCVBasicBlock>());
-
+    ctx(ctx.mapping(bb)->as<RISCVBasicBlock>());
     for (auto inst : *bb)
       InstLowering(inst);
   }
 
-  // other
-}*/
+  /* /// @note get branch prob to fix terminator
+
+  auto loopinfo = AM.get<LoopAnalysis>(m, mdom, std::ref(DeleteLoop));
+  auto condprob = AM.get<ProbAnalysis>(m, loopinfo, mdom);
+  auto probedge = condprob->GetProb();
+
+  for (auto &edge : probedge)
+  {
+    auto pred = ctx.mapping(edge.Out)->as<RISCVBasicBlock>();
+    auto succ = ctx.mapping(edge.In)->as<RISCVBasicBlock>();
+    auto prob = edge.Prob;
+    auto terminator = pred->getTerminator();
+    assert(terminator.trueblock == succ || terminator.falseblock == succ);
+    if (terminator.falseblock == succ)
+      prob = 1 - prob;
+    terminator.SetProb(prob);
+  } */
+
+  return true;
+}
 
 void RISCVISel::InstLowering(Instruction *inst)
 {
@@ -840,7 +851,7 @@ RISCVMIR *RISCVISel::Builder_withoutDef(RISCVMIR::RISCVISA _isa, Instruction *in
   return minst;
 }
 
-RISCVMIR *Builder(RISCVMIR::RISCVISA _isa, std::initializer_list<RISCVMOperand *> list)
+RISCVMIR *RISCVISel::Builder(RISCVMIR::RISCVISA _isa, std::initializer_list<RISCVMOperand *> list)
 {
   auto minst = new RISCVMIR(_isa);
   minst->SetDef(list.begin()[0]);

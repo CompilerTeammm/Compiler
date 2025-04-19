@@ -13,6 +13,9 @@ RISCVMOperand *&RISCVMIR::GetOperand(int ind)
 
 void RISCVMIR::SetDef(RISCVMOperand *def) { this->def = def; }
 
+size_t RISCVFunction::GetMaxParamSize() { return max_param_size; }
+void RISCVFunction::SetMaxParamSize(size_t size) { max_param_size = size; }
+
 void RISCVMIR::SetOperand(int ind, RISCVMOperand *op)
 {
   assert(0 <= ind && ind < operands.size() && "Range Assertion");
@@ -85,28 +88,6 @@ void RISCVMIR::printfull()
     std::cout << ", rtz";
   }
   std::cout << '\n';
-}
-
-void Terminator::RotateCondition()
-{
-  assert(RISCVMIR::BeginBranch < branchinst->GetOpcode() && branchinst->GetOpcode() < RISCVMIR::EndBranch);
-  assert(branchinst->GetOpcode() != RISCVMIR::_j);
-
-  // 跳转条件取反
-  branchinst->SetMopcode(static_cast<RISCVMIR::RISCVISA>(branchinst->GetOpcode() ^ 1));
-  branchinst->SetOperand(2, falseblock);
-
-  // 获取分支指令的下一条指令
-  auto it = List<RISCVBasicBlock, RISCVMIR>::iterator(branchinst);
-  ++it;
-
-  assert(it != branchinst->GetParent()->end()); // 防止跳空
-
-  auto nxt_inst = *it;                           // 获取下一条指令
-  assert(nxt_inst->GetOpcode() == RISCVMIR::_j); // 确保是无条件跳转指令
-
-  nxt_inst->SetOperand(0, trueblock); // 将j指令的目标改为原来的trueblock
-  std::swap(trueblock, falseblock);   // 交换true/false块的记录
 }
 
 void Terminator::makeFallthrough(RISCVBasicBlock *cand)
@@ -410,9 +391,39 @@ Register *RISCVFunction::GetUsedGlobalMapping(RISCVMOperand *val)
   return usedGlobals[val];
 }
 
-std::vector<int> &RISCVFunction::GetParamNeedSpill()
+RISCVMIR *RISCVFunction::CreateSpecialUsageMIR(RISCVMOperand *val)
 {
-  return this->param_need_spill;
+  VirRegister *vreg = nullptr;
+  RISCVMIR *mir = nullptr;
+  // 常量
+  if (auto imm = val->as<Imm>())
+  {
+    if (imm->GetType() == riscv_float32)
+      vreg = new VirRegister(riscv_float32);
+    else
+      vreg = new VirRegister(imm->GetType(), 0, 2);
+    mir = new RISCVMIR(RISCVMIR::LoadImmReg);
+  }
+  // 局部变量(数组)
+  else if (val->as<RISCVFrameObject>())
+  {
+    vreg = new VirRegister(riscv_ptr, 0, 2);
+    mir = new RISCVMIR(RISCVMIR::LoadLocalAddr);
+  }
+  // 全局变量
+  else
+  {
+    vreg = new VirRegister(riscv_ptr, 0, 2);
+    mir = new RISCVMIR(RISCVMIR::LoadGlobalAddr);
+  }
+  if (vreg->GetType() != riscv_float32)
+    specialusage_remapping[vreg] = val;
+  // Push into the entry block
+  // FIXME: Currently we put it before the copy of the lowering local arguments.
+  mir->SetDef(vreg);
+  mir->AddOperand(val);
+
+  return mir;
 }
 
 void RISCVFrame::GenerateFrameHead()
@@ -529,6 +540,53 @@ void RISCVFrame::GenerateFrameTail()
   exit_bb->push_back(inst3);
 }
 
+void RISCVFunction::GenerateParamNeedSpill()
+{
+  using ParamPtr = std::unique_ptr<Value>;
+  BuiltinFunc *buildin;
+  if (buildin = dynamic_cast<BuiltinFunc *>(func))
+  {
+    param_need_spill = {};
+    return;
+  }
+  int IntMax = 8, FloatMax = 8;
+  Function *func = dynamic_cast<Function *>(this->func);
+  std::vector<ParamPtr> &params = func->GetParams();
+  int index = 0;
+  for (auto &i : params)
+  {
+    if (i->GetType() == FloatType::NewFloatTypeGet())
+    {
+      if (FloatMax)
+      {
+        FloatMax--;
+      }
+      else
+      {
+        this->param_need_spill.push_back(index);
+      }
+    }
+    // int & ptr type
+    else
+    {
+      if (IntMax)
+      {
+        IntMax--;
+      }
+      else
+      {
+        this->param_need_spill.push_back(index);
+      }
+    }
+    index++;
+  }
+}
+
+std::vector<int> &RISCVFunction::GetParamNeedSpill()
+{
+  return this->param_need_spill;
+}
+
 void RISCVFrame::AddCantBeSpill(RISCVMOperand *reg)
 {
   auto it = std::find(cantbespill.begin(), cantbespill.end(), reg);
@@ -544,4 +602,21 @@ bool RISCVFrame::CantBeSpill(RISCVMOperand *reg)
     return false;
   else
     return true;
+}
+
+void Terminator::RotateCondition()
+{
+  assert(RISCVMIR::BeginBranch < branchinst->GetOpcode() &&
+         branchinst->GetOpcode() < RISCVMIR::EndBranch &&
+         branchinst->GetOpcode() != RISCVMIR::_j && "Bro is definitely mad");
+  branchinst->SetMopcode(
+      static_cast<RISCVMIR::RISCVISA>(branchinst->GetOpcode() ^ 1));
+  branchinst->SetOperand(2, falseblock);
+  auto it = List<RISCVBasicBlock, RISCVMIR>::iterator(branchinst);
+  ++it;
+  assert(it != branchinst->GetParent()->end());
+  auto nxt_inst = *it;
+  assert(nxt_inst->GetOpcode() == RISCVMIR::_j);
+  nxt_inst->SetOperand(0, trueblock);
+  std::swap(trueblock, falseblock);
 }
