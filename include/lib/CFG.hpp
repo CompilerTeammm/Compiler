@@ -753,6 +753,7 @@ public:
   // 前驱&后续基本块列表
   std::vector<BasicBlock *> PredBlocks = {};
   std::vector<BasicBlock *> NextBlocks = {};
+  int num = 0;
 
 public:
   // 获取当前基本块的指令
