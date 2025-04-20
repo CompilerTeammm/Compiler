@@ -10,7 +10,7 @@
 class DCE :public _PassBase<DCE,Function>
 {
 public:
-    void run();
+    bool run();
     DCE(Function* func,AnalysisManager* AM) 
         : _AM(AM), _func(func) {}
     

@@ -12,7 +12,7 @@ class ConstantProp:public _PassBase<ConstantProp,Function>
 public:
     ConstantProp(Function* func)
                 :_func(func) {}   
-    void run() override;
+    bool run() override;
 
 private:
     ConstantFold* FoldManager;

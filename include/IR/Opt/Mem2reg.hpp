@@ -21,7 +21,7 @@ class Mem2reg:public _PassBase<Mem2reg, Function>
 public:
     Mem2reg(Function *function, DominantTree *_tree);
     ~Mem2reg() = default;
-    void run();
+    bool run();
 
     // could be Promoteable?  M-> R alloca 指令
     bool isAllocaPromotable(AllocaInst *AI);

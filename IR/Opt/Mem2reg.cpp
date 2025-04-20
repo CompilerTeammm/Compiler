@@ -85,16 +85,17 @@ bool Mem2reg::isAllocaPromotable(AllocaInst *AI)
     return true;
 }
 
-void Mem2reg::run()
+bool Mem2reg::run()
 {
     if (allocas.empty())
     {
         // 调试信息
         // std::cout << "Allocas is empty" << std::endl;
-        return;
+        return true;
     }
     // 通过构造临时对象去执行优化
     bool value = PromoteMem2Reg(func, tree, allocas).promoteMemoryToRegister();
     if (!value)
         std::cout << "promoteMemoryToRegister failed " << std::endl;
+    return true;
 }

@@ -8,7 +8,13 @@ class AnalysisManager:public _AnalysisBase<AnalysisManager,Function>
 
 public:
     void run();
-    void get();
+
+    template<typename Pass>
+    const auto& get()
+    {
+        
+    }
+
     AnalysisManager();
     ~AnalysisManager()= default;
 };

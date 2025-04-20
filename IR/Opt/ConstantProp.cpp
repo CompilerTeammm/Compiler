@@ -2,8 +2,9 @@
 #include "../../include/IR/Opt/ConstantProp.hpp"
 
 // 之后可能会把run()-> void -----> run() -> bool
-void ConstantProp::run()
+bool ConstantProp::run()
 {
+    bool hasChange = false;
     std::set<Instruction*> WorkList;
     for(BasicBlock* BB : *_func)
     {
@@ -22,6 +23,7 @@ void ConstantProp::run()
         {
             if(ConstantData* C = FoldManager->ConstFoldInstruction(I))
             {
+                hasChange = true;
                 for(Use* use : I->GetValUseList())
                 {
                     User* user = use->GetUser();
@@ -38,4 +40,6 @@ void ConstantProp::run()
             }
         }
     }
+
+    return hasChange;
 }

@@ -80,7 +80,7 @@ bool DCE::eliminateDeadCode(Function* func)
     return MadeChange;
 }
 
-void DCE::run()
+bool DCE::run()
 {
-    eliminateDeadCode(_func);
+    return eliminateDeadCode(_func);
 }
