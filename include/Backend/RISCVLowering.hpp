@@ -27,5 +27,5 @@ class RISCVFunctionLowering : BackEndPass<Function>
 
 public:
   bool run(Function *);
-  RISCVFunctionLowering(RISCVLoweringContext &ctx, RISCVAsmPrinter *&asmprinter);
+  RISCVFunctionLowering(RISCVLoweringContext &ctx, RISCVAsmPrinter *&asmprinter) : ctx(ctx), asmprinter(asmprinter) {};
 };

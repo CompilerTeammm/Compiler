@@ -21,15 +21,28 @@ bool RISCVISel::run(Function *m)
     uncondinst->AddOperand(ctx.mapping(m->GetFront())->as<RISCVBasicBlock>());
     entry->push_back(uncondinst);
   }
-  auto AM = AnalysisManager();
-  FunctionChange(m) auto mdom = AM.get<DominantTree>(m);
-  for (auto i : mdom->DFS_Dom())
+
+  DominantTree dominantTree(m);
+  dominantTree.BuildDominantTree();
+
+  for (auto bb : m->GetBBs())
   {
-    auto bb = i->thisBlock;
-    ctx(ctx.mapping(bb)->as<RISCVBasicBlock>());
-    for (auto inst : *bb)
-      InstLowering(inst);
+    auto node = dominantTree.getNode(bb.get()); // 获取对应的基本块节点
+    if (node)
+    {
+      std::cout << "BasicBlock: " << bb->GetName() << "\n";
+    }
   }
+  /*   auto AM = AnalysisManager();
+    FunctionChange(m) auto dominant_tree_func = AM.template get<DominantTree>;
+    auto mdom = dominant_tree_func(m);
+    for (auto i : mdom->DFS_Dom())
+    {
+      auto bb = i->thisBlock;
+      ctx(ctx.mapping(bb)->as<RISCVBasicBlock>());
+      for (auto inst : *bb)
+        InstLowering(inst);
+    } */
 
   /* /// @note get branch prob to fix terminator
 

@@ -3,7 +3,7 @@
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
 
-class AnalysisManager:public _AnalysisBase<AnalysisManager,Function>
+class AnalysisManager : public _AnalysisBase<AnalysisManager, Function>
 {
 
 public:
@@ -16,9 +16,5 @@ public:
     }
 
     AnalysisManager();
-    ~AnalysisManager()= default;
+    ~AnalysisManager() = default;
 };
-
-
-
-

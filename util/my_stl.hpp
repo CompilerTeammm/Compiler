@@ -89,13 +89,13 @@ T PopBack(std::vector<T> &vec)
     }                                      \
   }
 
-#define FunctionChange(curfunc)      \
-  curfunc->bb_num = 0;               \
-  curfunc->GetBBs().clear();         \
-  for (auto bb : *curfunc)           \
-  {                                  \
-    bb->num = curfunc->bb_num++;     \
-    curfunc->GetBBs().push_back(bb); \
+#define FunctionChange(curfunc)                                     \
+  curfunc->bb_num = 0;                                              \
+  curfunc->GetBBs().clear();                                        \
+  for (auto bb : *curfunc)                                          \
+  {                                                                 \
+    bb->num = curfunc->bb_num++;                                    \
+    curfunc->GetBBs().push_back(std::make_shared<BasicBlock>(*bb)); \
   }
 // 运行指定pass
 #define RunLevelPass(PassName, curfunc, modified)        \
