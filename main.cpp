@@ -27,7 +27,7 @@
 #include "./include/Backend/RISCVLowering.hpp"
 
 #define OPT
-#define backend
+// #define backend
 extern FILE *yyin;
 extern int optind, opterr, optopt;
 extern char *optargi;
@@ -84,9 +84,8 @@ int main(int argc, char **argv)
    freopen(asmoutput_path.c_str(), "w", stdout);
    RISCVModuleLowering RISCVAsm;
    RISCVAsm.run(&Singleton<Module>());
-#endif
-
    fflush(stdout);
    fclose(stdout);
+#endif
    return 0;
 }

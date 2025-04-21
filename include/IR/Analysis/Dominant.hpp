@@ -113,6 +113,8 @@ public:
         }
     } 
 
+    DominantTree()=default;
+
     TreeNode* getNode(BasicBlock* BB)
     {
         return BlocktoNode[BB];
