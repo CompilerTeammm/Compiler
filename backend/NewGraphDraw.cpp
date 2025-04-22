@@ -819,7 +819,7 @@ void GraphColor::RewriteProgram()
       }
       if ((mir->GetOpcode() == RISCVMIR::mv || mir->GetOpcode() == RISCVMIR::_fmv_s) && mir->GetDef() == mir->GetOperand(0))
       {
-        mirit = mbb->erase(mirit);
+        // mirit = mbb->erase(mirit);
         delete mir; // 删除死代码?哈哈哈
       }else{
         ++mirit;

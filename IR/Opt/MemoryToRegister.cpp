@@ -1,9 +1,8 @@
 
 #include "../../include/IR/Opt/MemoryToRegister.hpp"
-#include "Passbase.hpp"
 #include <memory>
 #include <set>
-#include"IDF.hpp"
+#include"../../include/IR/Analysis/IDF.hpp"
 
 // walk along the logic 
 //Todo: DomTree Pre DFS_order sdom->idom  DF 

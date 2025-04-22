@@ -1,4 +1,6 @@
 #include "../../include/IR/Opt/GVN.hpp"
+#include "../../include/lib/CoreClass.hpp"
+#include <utility>
 
 // 暴力实现思路，对每一个操作数进行一个编号
 // 记录sameInstructions，进行消除
@@ -7,28 +9,41 @@ bool GVN:: run()
     bool hasChange = false;
     int valNum = 0;
     // auto it = func->begin();
-    std::vector<Instruction*> sameInsts;
+    // std::vector<std::pair<Instruction*,>> sameInsts;
+    // std::pair<Value*,Value*> ops;
+
+    using Ops = std::pair<Value*,Value*>;
+    using property =std::pair<Instruction::Op,Ops>; 
+    // std::unordered_map<property,Instruction*> VNInsts;
+    std::map<property,Instruction*> VNInsts;
+    std::vector<std::pair<Instruction*,property>> sameInsts;
+
     for(auto BB : *func)
     {
         for(auto I : *BB)
         {
-            int flag = 0;
-            for(int i = 0; i < I->GetOperandNums(); i++)
+            if (I->IsBinary())
             {
-                Value* op = I->GetOperand(i);
-                if(ValTable.find(op) == ValTable.end()){
-                    ValTable[op] = valNum++;
-                    flag = 1;
+                Value* op1  = I->GetOperand(0);
+                Value* op2 = I->GetOperand(1);
+                auto property = std::make_pair(I->GetInstId(),
+                                std::make_pair(op1,op2));
+                if(VNInsts.find(property) == VNInsts.end())
+                    VNInsts.emplace(std::make_pair(property, I));
+                else {
+                    sameInsts.emplace_back(std::make_pair(I,property));
                 }
             }
-            
-            if(flag == 0)
-                sameInsts.push_back(I);
         }
     }
 
-    for(auto I : sameInsts)
-        delete I;
+    for(auto [val,proper] : sameInsts)
+    {
+        Value* repalce = VNInsts[proper];
+        val->ReplaceAllUseWith(repalce);
+        delete val;
+    }
+    
     return hasChange;
 }
 

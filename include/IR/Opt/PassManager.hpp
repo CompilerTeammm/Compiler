@@ -15,7 +15,7 @@
 
 #define dce
 #define sccp
-// #define gvn
+#define gvn
 
 enum PassName
 {

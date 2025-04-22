@@ -1,10 +1,9 @@
-#include "MemoryToRegister.hpp"
-#include "../Analysis/Dominant.hpp"
+#include "../../include/IR/Opt/MemoryToRegister.hpp"
+#include "../../include/IR/Analysis/Dominant.hpp"
 #include <vector>
-#include "./Passbase.hpp"
-#include "../../lib/CoreClass.hpp"
-#include "../../lib/CFG.hpp"
-#include "Mem2reg.hpp"
+#include "../../include/lib/CoreClass.hpp"
+#include "../../include/lib/CFG.hpp"
+#include "../../include/IR/Opt/Mem2reg.hpp"
 
 // 所有变量的alloca这一套都在入口的基本块处
 // 原来的实现存在问题，修改成 entryBB
