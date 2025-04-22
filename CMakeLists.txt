@@ -30,20 +30,18 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/DCE.cpp
   IR/Opt/ConstantFold.cpp
   IR/Opt/ConstantProp.cpp
+  IR/Opt/GVN.cpp
   IR/Opt/DealOps.cpp
 #   IR/*.cpp
-    backend/*.cpp
+  backend/*.cpp
   lib/*.cpp
   yacc/lex.yy.cpp       # 包含lex生成的代码
   yacc/parser.cpp       # 包含yacc生成的代码
 )
 
 list(REMOVE_ITEM ALL_HEADERS
-    include/IR/Opt/DCE.hpp
-    include/IR/Opt/ConstantFold.hpp
-    include/IR/Opt/ConstantProp.hpp
     include/IR/Opt/AnalysisManager.hpp
 )
 
-#add_executable(Compiler ${SOURCES})
-add_executable(test_program test/test.c)
+add_executable(Compiler ${SOURCES})
+#add_executable(test_program test/test.c)
