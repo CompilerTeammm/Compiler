@@ -356,7 +356,11 @@ attributes #4 = { nofree norecurse nounwind uwtable writeonly "correctly-rounded
 attributes #5 = { nofree nounwind }
 attributes #6 = { nounwind }
 attributes #7 = { cold }
+@.G.a = global i32 3
+@.G.b = global i32 5
 define i32 @main(){
-.0:
-  ret i32 3 
+.4:
+  %.8 = load i32, i32* @.G.b
+  %.9 = add i32 5, %.8
+  ret i32 %.9 
 }

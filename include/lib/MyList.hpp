@@ -105,7 +105,10 @@ public:
   Staff *back = nullptr;
   virtual ~List() { clear(); }
 
-  Staff *GetFront() const { return front; }
+  Staff *GetFront() const
+  {
+    return front;
+  }
   Staff *GetBack() const { return back; }
 
   class iterator
@@ -181,15 +184,10 @@ public:
     this->head = nullptr;
     this->tail = nullptr;
   }
-  /*   iterator begin() { return iterator(front); }
-    iterator end() { return iterator(nullptr); }
-    iterator rbegin() { return iterator(back); }
-    iterator rend() { return iterator(nullptr); } */
-
-  virtual iterator begin() { return iterator(this->head); }
-  virtual iterator end() { return iterator(nullptr); }
-  virtual iterator rbegin() { return iterator(this->tail); }
-  virtual iterator rend() { return iterator(nullptr); }
+  iterator begin() { return iterator(front); }
+  iterator end() { return iterator(nullptr); }
+  iterator rbegin() { return iterator(back); }
+  iterator rend() { return iterator(nullptr); }
 
   void CollectList(Staff *begin, Staff *end)
   {

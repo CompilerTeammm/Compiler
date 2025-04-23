@@ -914,11 +914,22 @@ void GraphColor::Print()
 // 对 CFG 做拓扑排序，得到 topu 顺序供重写程序使用
 void GraphColor::CaculateTopu(RISCVBasicBlock *mbb)
 {
-  if (!assist.insert(mbb).second)
+  if (!mbb || !assist.insert(mbb).second)
     return;
-  for (auto des : SuccBlocks[mbb])
+
+  /*    for (auto des : SuccBlocks[mbb])
+   {
+     CaculateTopu(des);
+   } */
+
+  auto it = SuccBlocks.find(mbb);
+  if (it != SuccBlocks.end())
   {
-    CaculateTopu(des);
+    for (auto des : it->second)
+    {
+      if (des)
+        CaculateTopu(des);
+    }
   }
   topu.push_back(mbb);
 }

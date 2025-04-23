@@ -45,5 +45,4 @@ list(REMOVE_ITEM ALL_HEADERS
     include/IR/Opt/AnalysisManager.hpp
 )
 
-#add_executable(Compiler ${SOURCES})
-add_executable(test_program test/test.c)
+add_executable(Compiler ${SOURCES})

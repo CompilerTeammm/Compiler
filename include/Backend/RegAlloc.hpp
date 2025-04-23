@@ -40,7 +40,9 @@ protected:
   GraphColor *gc; // 指向graphcolor
   int availble;
 };
+
 using MOperand = Register *;
+
 class GraphColor : public LiveInterval
 {
 public:

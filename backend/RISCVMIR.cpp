@@ -13,9 +13,13 @@ RISCVMOperand *&RISCVMIR::GetOperand(int ind)
 
 void RISCVMIR::SetDef(RISCVMOperand *def) { this->def = def; }
 
-size_t RISCVFunction::GetMaxParamSize() { return max_param_size; }
 void RISCVFunction::SetMaxParamSize(size_t size) { max_param_size = size; }
-
+size_t RISCVFunction::GetMaxParamSize()
+{
+  if (!this)
+    return 0;
+  return max_param_size;
+}
 void RISCVMIR::SetOperand(int ind, RISCVMOperand *op)
 {
   assert(0 <= ind && ind < operands.size() && "Range Assertion");
@@ -428,6 +432,11 @@ RISCVMIR *RISCVFunction::CreateSpecialUsageMIR(RISCVMOperand *val)
 
 void RISCVFrame::GenerateFrameHead()
 {
+  if (!parent || !parent->GetFront())
+  {
+    std::cerr << "Error: Invalid parent or empty function\n";
+    return;
+  }
   // 初始化物理寄存器
   using Phy = PhyRegister::PhyReg;
   using ISA = RISCVMIR::RISCVISA;
@@ -488,6 +497,11 @@ void RISCVFrame::GenerateFrameHead()
 
 void RISCVFrame::GenerateFrameTail()
 {
+  if (!parent || !parent->GetExit())
+  {
+    std::cerr << "Invalid function or exit block\n";
+    return;
+  }
   using PhyReg = PhyRegister::PhyReg;
   using ISA = RISCVMIR::RISCVISA;
   PhyRegister *sp = PhyRegister::GetPhyReg(PhyReg::sp);
@@ -619,4 +633,40 @@ void Terminator::RotateCondition()
   assert(nxt_inst->GetOpcode() == RISCVMIR::_j);
   nxt_inst->SetOperand(0, trueblock);
   std::swap(trueblock, falseblock);
+}
+
+void RISCVBasicBlock::erase(RISCVMIR *inst)
+{
+  // 空指针检查
+  if (!inst)
+  {
+    assert(false && "Cannot erase null instruction!");
+    return;
+  }
+
+  // 检查是否是终止指令
+  if (dynamic_cast<Terminator *>(inst))
+  {
+    assert(false && "Use setTerminator() to modify the terminator!");
+    return;
+  }
+
+  // 遍历查找并删除指令
+  bool found = false;
+  for (auto it = begin(); it != end(); ++it)
+  {
+    if (*it == inst)
+    {
+      // 调用基类的 erase 方法删除指令
+      this->List<RISCVBasicBlock, RISCVMIR>::erase(*it);
+      found = true;
+      break;
+    }
+  }
+
+  if (!found)
+  {
+    assert(false && "Instruction does not belong to this block!");
+    return;
+  }
 }

@@ -257,7 +257,8 @@ public:
   Terminator &getTerminator();                             // 获取基本块的终止指令
   void push_before_branch(RISCVMIR *);                     // 基本块终止指令前，插入新指令，比如cmp比较等，寄存器溢出
   void replace_succ(RISCVBasicBlock *, RISCVBasicBlock *); // 后继基本块更新
-  void printfull();                                        // 打印基本块的信息，验证
+  void printfull();
+  void erase(RISCVMIR *inst);
 };
 
 class RISCVFunction : public RISCVGlobalObject, public List<RISCVFunction, RISCVBasicBlock>

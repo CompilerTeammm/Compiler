@@ -111,11 +111,11 @@ public:
 class functionSegment
 {
 private:
-    int align;                  // 存储函数对齐方式
-    std::string name;           // 函数名
-    std::string ty = "funtion"; // 变量类型(function)
-    RISCVFunction *func;        // 指向RISCV低级ir形式的函数
-    int size;                   // 该函数占用的字节大小
+    int align;                   // 存储函数对齐方式
+    std::string name;            // 函数名
+    std::string ty = "function"; // 变量类型(function)
+    RISCVFunction *func;         // 指向RISCV低级ir形式的函数
+    int size;                    // 该函数占用的字节大小
 public:
     functionSegment(RISCVFunction *func);
     void PrintFuncSegment();
