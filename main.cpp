@@ -27,7 +27,7 @@
 #include "./include/Backend/RISCVLowering.hpp"
 
 #define OPT
-// #define backend
+#define backend
 extern FILE *yyin;
 extern int optind, opterr, optopt;
 extern char *optargi;
