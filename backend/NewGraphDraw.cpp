@@ -757,14 +757,15 @@ void GraphColor::RewriteProgram()
     for (auto mirit = mbb->begin(); mirit != mbb->end();)
     {
       auto mir = *mirit;
-      ++mirit;
+      // ++mirit;
       // 忽略call
       if (mir->GetOpcode() == RISCVMIR::call)
       {
+        ++mirit;
         continue;
       }
       // 替换定义的寄存器（Def）
-      if (mir->GetDef() != nullptr && dynamic_cast<VirRegister *>(mir->GetDef()))
+      if (mir->GetDef() && dynamic_cast<VirRegister *>(mir->GetDef()))
       {
         if (color.find(dynamic_cast<MOperand>(mir->GetDef())) == color.end())
           assert(0);
@@ -780,7 +781,7 @@ void GraphColor::RewriteProgram()
       {
         auto operand = mir->GetOperand(i);
         // 普通寄存器，直接替换为物理寄存器
-        if (dynamic_cast<VirRegister *>(operand))
+        if (auto vreg= dynamic_cast<VirRegister *>(operand))
         {
           if (color.find(dynamic_cast<MOperand>(operand)) == color.end())
           {
@@ -818,7 +819,10 @@ void GraphColor::RewriteProgram()
       }
       if ((mir->GetOpcode() == RISCVMIR::mv || mir->GetOpcode() == RISCVMIR::_fmv_s) && mir->GetDef() == mir->GetOperand(0))
       {
+        // mirit = mbb->erase(mirit);
         delete mir; // 删除死代码?哈哈哈
+      }else{
+        ++mirit;
       }
     }
   }

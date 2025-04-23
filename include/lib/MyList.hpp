@@ -187,7 +187,16 @@ public:
   iterator begin() { return iterator(front); }
   iterator end() { return iterator(nullptr); }
   iterator rbegin() { return iterator(back); }
+<<<<<<< HEAD
   iterator rend() { return iterator(nullptr); }
+=======
+  iterator rend() { return iterator(nullptr); } 
+
+  // virtual iterator begin() { return iterator(this->head); }
+  // virtual iterator end() { return iterator(nullptr); }
+  // virtual iterator rbegin() { return iterator(this->tail); }
+  // virtual iterator rend() { return iterator(nullptr); }
+>>>>>>> 06abbcb2698362b0d5939c3fb55e7f78b166ae0c
 
   void CollectList(Staff *begin, Staff *end)
   {

@@ -1,6 +1,7 @@
 #pragma once
 #include "Passbase.hpp"
 #include "AnalysisManager.hpp"
+#include <unordered_map>
 
 
 // C++17 正式引入 [[nodiscard]] 通过编译时检查强制开发者处理关键返回值
@@ -10,11 +11,15 @@
 
 class GVN:public _PassBase<GVN,Module>
 {
-    GVN(AnalysisManager* _AM,Function*_func)
-        :AM(_AM),func(_func) {}
+public:
+    GVN(Function*_func,DominantTree* _tree)
+        :tree(_tree),func(_func) {}
 
-    bool run() override ;
+    bool run() override;
+
 private:
-    AnalysisManager* AM;
+    // AnalysisManager* AM;
     Function* func;
+    DominantTree* tree;
+    std::unordered_map<Value*,int> ValTable;
 };

@@ -1,4 +1,5 @@
 #pragma once
+#include "GVN.hpp"
 #include"Passbase.hpp"
 #include "Mem2reg.hpp"
 #include "MemoryToRegister.hpp"
@@ -10,9 +11,11 @@
 #include"DCE.hpp"
 #include"AnalysisManager.hpp"
 #include"ConstantProp.hpp"
+#include"GVN.hpp"
 
 #define dce
 #define sccp
+#define gvn
 
 enum PassName
 {
@@ -80,6 +83,16 @@ void PassManager:: RunOnTest()
         auto fun = function.get();
         AnalysisManager *AM;
         ConstantProp(fun).run();
+    }
+#endif
+#ifdef gvn
+    for(auto& function : funcVec)
+    {
+        // Function;
+        auto fun = function.get();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        GVN(fun,&tree).run();
     }
 #endif
 }
