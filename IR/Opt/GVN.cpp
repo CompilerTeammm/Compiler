@@ -70,6 +70,7 @@ bool GVN::run()
     // unordered_map 实现是哈希，key必须可以提供哈希值
     std::unordered_map<Value*,uint32_t> valueNumber;
 
+    // 对valueNumber进行操作
     const auto getValueFromVN = [&](Value* value)
     {
         const auto iter = valueNumber.find(value);
@@ -85,10 +86,12 @@ bool GVN::run()
 
     //函数包装器，将​​任何可调用对象​
     //​（如普通函数、Lambda表达式、函数对象等）封装成统一类型
+    // 可以包装 getValueFromVN 函数
     std::function<uint32_t(Value*)> getNumber;
     
     // 存储Inst指令，与编号
     std::unordered_map<const Instruction*,size_t> cachedHash;
+
 
     GlobalInstHasher InstHasher{cachedHash,getNumber};
     GlobalInstEqual InstEqual {getNumber};
@@ -117,6 +120,7 @@ bool GVN::run()
         val.emplace_back(id,std::unordered_set<Instruction*> {inst});
         return id;
     };
+
 
     // need to fixed
     getNumber = [&](Value* value) 
@@ -162,8 +166,11 @@ bool GVN::run()
                 block = inst->GetParent();
             else
             {
-                if(!tree->dominates(block,inst->GetParent()))
+                BasicBlock* tmpBB = inst->GetParent();
+                if(!tree->dominates(block,tmpBB))
                     block = inst->GetParent();
+                if(!tree->dominates(block,tmpBB) && !tree->dominates(tmpBB,block))
+                    block = nullptr;
             }
         }
 

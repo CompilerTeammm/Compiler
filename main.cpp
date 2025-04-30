@@ -1,33 +1,15 @@
-///// for test
-// #include <memory>
-// #include <bits/unique_ptr.h>
-// #include "./include/IR/Opt/PassManager.hpp"
-// #include "MemoryToRegister.hpp"
 
-// class Mem2Reg;
-// int main()
-// {
-//    auto func = Get();
-//    auto passManager = std::make_unique<PassManager>();
-//    passManager->addPass(mem2reg);
-//    passManager->RunImpl<Mem2Reg, Function>(func);
-// }
 #include "./include/lib/CoreClass.hpp"
-// #include "../include/ir/opt/New_passManager.hpp"
 #include "./yacc/parser.hpp"
-// #include "IR/Opt/PassManager.hpp"
-// #include "./include/Backend/RISCVLowering.hpp"
-// // #include "./include/Backend/RISCVLowering.hpp"
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
 #include <memory>
-// #include "PassManager.hpp"
 #include "include/IR/Opt/PassManager.hpp"
-#include "./include/Backend/RISCVLowering.hpp"
 
 #define OPT
-#define backend
+// #define backend
+
 extern FILE *yyin;
 extern int optind, opterr, optopt;
 extern char *optargi;

@@ -96,8 +96,6 @@ template <typename Manager, typename Staff>
 class List
 {
   friend class Node<Manager, Staff>;
-  Staff *head;
-  Staff *tail;
   int size = 0;
 
 public:
@@ -181,8 +179,8 @@ public:
   };
   List()
   {
-    this->head = nullptr;
-    this->tail = nullptr;
+    // this->head = nullptr;
+    // this->tail = nullptr;
   }
   iterator begin() { return iterator(front); }
   iterator end() { return iterator(nullptr); }

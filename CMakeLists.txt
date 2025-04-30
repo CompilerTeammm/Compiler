@@ -9,14 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # 指定编译类型（可选）
 set(CMAKE_BUILD_TYPE Debug)
 
+
 # 包含头文件目录
 include_directories(
   include
-  #include/Backend
-  ${PROJECT_SOURCE_DIR}/include/Backend
   include/IR/Analysis
   include/IR/Opt/
-#   include/RISCVSupport
   include/lib
   include/lib/ast
   yacc           # 包含parser.hpp所在目录
@@ -32,8 +30,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/ConstantProp.cpp
   IR/Opt/GVN.cpp
   IR/Opt/DealOps.cpp
-#   IR/*.cpp
-  backend/*.cpp
+
   lib/*.cpp
   yacc/lex.yy.cpp       # 包含lex生成的代码
   yacc/parser.cpp       # 包含yacc生成的代码
@@ -45,5 +42,3 @@ list(REMOVE_ITEM ALL_HEADERS
 
 add_executable(Compiler ${SOURCES})
 
-
-#add_executable(test_program test/test.c)

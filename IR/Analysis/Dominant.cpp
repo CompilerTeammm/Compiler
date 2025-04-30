@@ -4,10 +4,9 @@
 
 void DominantTree::InitNodes()
 {
-
-
     //   pair <BasicBlock* , TreeNode*>
     for (int i = 0; i < BasicBlocks.size(); i++){
+        // 内存泄漏了
         Nodes[i] = new TreeNode();
         BlocktoNode[BasicBlocks[i]] = Nodes[i]; // map
         // auto e = BasicBlocks[i];
