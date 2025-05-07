@@ -3,6 +3,7 @@
 #pragma once
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
+#include "SSAPRE.hpp"
 #include <numeric>
 #include <utility>
 #include <vector>
@@ -29,6 +30,7 @@ using BBPtr = std::shared_ptr<BasicBlock>;
 class DominantTree
 {
     friend class IDFCalculator;
+    friend class SSAPRE;
 private:
     // 输入的应该是func，func->BBs 
     // Node 要和 BasicBlock一一对应
