@@ -13,6 +13,9 @@
 #include "ConstantProp.hpp"
 #include "GVN.hpp"
 #include "LoopUnrolling.hpp"
+#include"../../lib/Singleton.hpp"
+#include "SSAPRE.hpp"
+
 
 #define dce
 #define sccp
@@ -106,4 +109,12 @@ void PassManager::RunOnTest()
         LoopUnrolling(fun, AM).run();
     }
 #endif
+#ifdef pre
+    for(auto& function : funcVec){
+        auto fun = function.get();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        SSAPRE(fun,&tree).run();
+    }
+#endif 
 }
