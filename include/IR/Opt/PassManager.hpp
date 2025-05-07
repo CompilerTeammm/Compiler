@@ -1,21 +1,25 @@
 #pragma once
 #include "GVN.hpp"
-#include"Passbase.hpp"
+#include "Passbase.hpp"
 #include "Mem2reg.hpp"
 #include "MemoryToRegister.hpp"
-#include<queue>
+#include <queue>
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
 #include <memory>
-#include"../../lib/Singleton.hpp"
-#include"DCE.hpp"
-#include"AnalysisManager.hpp"
-#include"ConstantProp.hpp"
-#include"GVN.hpp"
+#include "../../lib/Singleton.hpp"
+#include "DCE.hpp"
+#include "AnalysisManager.hpp"
+#include "ConstantProp.hpp"
+#include "GVN.hpp"
+#include "LoopUnrolling.hpp"
 
 #define dce
 #define sccp
 // #define gvn
+
+// 循环优化
+#define Loop_Unrolling
 
 enum PassName
 {
@@ -25,12 +29,13 @@ enum PassName
 };
 
 // PassManager 用来管理Passes
-class PassManager :_PassBase<PassManager,Function>
-{   
+class PassManager : _PassBase<PassManager, Function>
+{
 private:
     std::queue<PassName> Passque;
-    Function* _func;
-    Module* _mod;
+    Function *_func;
+    Module *_mod;
+
 public:
     void addPass(PassName pass) { Passque.emplace(pass); }
     PassName pushPass()
@@ -39,26 +44,24 @@ public:
         Passque.pop();
         return pass;
     }
-    // 我这里从前端获取到内存形式的 M-SSA 
+    // 我这里从前端获取到内存形式的 M-SSA
     PassManager() { _mod = &Singleton<Module>(); }
     void RunOnTest();
-    bool run() override 
+    bool run() override
     {
-
     }
 };
 
-
-void PassManager:: RunOnTest()
+void PassManager::RunOnTest()
 {
-    auto& funcVec = _mod->GetFuncTion();
-    for(auto& function : funcVec)
+    auto &funcVec = _mod->GetFuncTion();
+    for (auto &function : funcVec)
     {
         // Function;
         auto fun = function.get();
         fun->GetSize() = 0;
         fun->GetBBs().clear();
-        for(auto bb : *fun)
+        for (auto bb : *fun)
         {
             // BasicBlock
             bb->index = fun->GetSize()++;
@@ -67,14 +70,14 @@ void PassManager:: RunOnTest()
         }
         DominantTree tree(fun);
         tree.BuildDominantTree();
-        Mem2reg(fun,&tree).run();
+        Mem2reg(fun, &tree).run();
     }
 #ifdef dce
-    for(auto& function : funcVec)
+    for (auto &function : funcVec)
     {
         auto fun = function.get();
-        AnalysisManager* AM;
-        DCE(fun,AM).run();
+        AnalysisManager *AM;
+        DCE(fun, AM).run();
     }
 #endif
 #ifdef sccp
@@ -86,13 +89,21 @@ void PassManager:: RunOnTest()
     }
 #endif
 #ifdef gvn
-    for(auto& function : funcVec)
+    for (auto &function : funcVec)
     {
         // Function;
         auto fun = function.get();
         DominantTree tree(fun);
         tree.BuildDominantTree();
-        GVN(fun,&tree).run();
+        GVN(fun, &tree).run();
+    }
+#endif
+#ifdef Loop_Unrolling
+    for (auto &function : funcVec)
+    {
+        auto fun = function.get();
+        AnalysisManager *AM;
+        LoopUnrolling(fun, AM).run();
     }
 #endif
 }
