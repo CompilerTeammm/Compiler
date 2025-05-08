@@ -757,8 +757,8 @@ public:
 
 public:
   // 获取当前基本块的指令
-  // 这个东西没有实现，，，
-  std::vector<InstPtr> &GetInsts();
+  // 这个东西没有实现，，，是之前的结构，获取Insts要走链表的迭代器迭代
+  // std::vector<InstPtr> &GetInsts();
   int &GetIndex() { return index; }
   BasicBlock();          // 构造函数
   virtual ~BasicBlock(); // 析构函数
