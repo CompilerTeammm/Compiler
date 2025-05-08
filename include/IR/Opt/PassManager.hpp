@@ -20,7 +20,7 @@
 #define dce
 #define sccp
 // #define gvn
-
+#define pre
 // 循环优化
 #define Loop_Unrolling
 
