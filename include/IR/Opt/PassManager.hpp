@@ -16,13 +16,13 @@
 #include"../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 
-
+//互不影响，完全没问题再放出来
 #define dce
 #define sccp
 // #define gvn
 #define pre
-// 循环优化
-#define Loop_Unrolling
+// 循环优化 
+// #define Loop_Unrolling
 
 enum PassName
 {
