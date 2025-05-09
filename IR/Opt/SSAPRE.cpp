@@ -1,17 +1,20 @@
 #include "../../include/IR/Opt/SSAPRE.hpp"
 #include <unordered_map>
 
+bool SSAPRE::BeginToChange(){
+    for(auto& [key,occurList]:exprToOccurList){
+        //找出所有使用该表达式的块
+        std::set<BasicBlock*> blocksWithExpr;
+        for(auto* inst:occurList){
+            blocksWithExpr.insert(inst->GetParent());
+        }
+        
+    }
+}
 bool SSAPRE::PartialRedundancyElimination(Function* func){
-    bool change =false;
-    // tree->BuildDominantTree();
-
-    // dh: fixed
     BasicBlock* entryBB = func->GetFront();
 
-    // BasicBlock* entryBB=func->GetBBs()[0].get();//入口块,感觉是个很蠢的寻找方式,先这样吧
     auto* entryNode= tree->getNode(entryBB);//拿到了支配树起始节点
-    std::unordered_map<std::string, bool> exprSeen;//储存instruction
-    using ExprKey = std::string;
     std::unordered_map<ExprKey, std::vector<Instruction*>> occurList;
     std::function<void(DominantTree::TreeNode*)> traverse;
     traverse=[&](DominantTree::TreeNode* node){
@@ -37,12 +40,17 @@ bool SSAPRE::PartialRedundancyElimination(Function* func){
         }        
     };
     traverse(entryNode);
-    for(auto& [key,instList]:occurList){
-        if(instList.size()>=2){
-            std::cout << "候选冗余表达式: " << key << " 出现于 " << instList.size() << " 个位置\n";
+    bool hasRedundancy = false;
+    for (auto& [key, instList] : occurList) {
+        if (instList.size() >= 2) {
+            hasRedundancy = true;
         }
     }
-    return change;
+    if (hasRedundancy) {
+        exprToOccurList = std::move(occurList);//occurlist的内容转移到exprToOccurList
+        return BeginToChange();
+    }
+    return false;
 }
 bool SSAPRE::run(){
     return PartialRedundancyElimination(func);
