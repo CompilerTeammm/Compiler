@@ -68,7 +68,11 @@
     "queue": "cpp",
     "bitset": "cpp",
     "stack": "cpp",
-    "regex": "cpp"
+    "regex": "cpp",
+    "charconv": "cpp",
+    "format": "cpp",
+    "span": "cpp",
+    "text_encoding": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",
   "C_Cpp_Runner.cppCompilerPath": "g++",

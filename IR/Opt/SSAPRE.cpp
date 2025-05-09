@@ -3,7 +3,7 @@
 
 bool SSAPRE::PartialRedundancyElimination(Function* func){
     bool change =false;
-    tree->BuildDominantTree();
+    // tree->BuildDominantTree();
 
     // dh: fixed
     BasicBlock* entryBB = func->GetFront();
