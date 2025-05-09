@@ -6,6 +6,7 @@
 class Loop
 {
 public:
+  // friend class DominantTree;
   Loop() = default;
   Loop(BasicBlock *_Header) : Header(_Header) { BBs.push_back(_Header); }
   Loop(BasicBlock *_Header, BasicBlock *_Latch) : Header(_Header), Latch(_Latch) { BBs.push_back(_Header); }
@@ -88,5 +89,60 @@ private:
 class LoopInfoAnalysis : public _PassBase<LoopInfoAnalysis, Function>
 {
 public:
+  enum Flag
+  {
+    Strict,
+    Loose,
+  };
+  LoopInfoAnalysis(Function *func, DominantTree *dom, std::vector<Loop *> &deleteLoop) : _func(func), _dom(dom), _deleteloop(deleteLoop)
+  {
+    setBBs();
+    // setDest();
+  }
+  void setBBs() { _BBs = &_func->GetBBs(); }
+  // void setDest(){Dest = &_dom->GetDest();}
+
+  // run
+  void runAnalysis();
+
+  // 数据获取、判断
+  bool ContainsBlockByIndex(Loop *Loop, int index);
+  bool ContainsBlock(Loop *loop, BasicBlock *BB);
+  bool isLoopExiting(Loop *loop, BasicBlock *BB);
+  void getLoopDepth(Loop *loop, int depth);
+
+  // 获取循环头、前继
+  BasicBlock *getPreHeader(Loop *loop, Flag flag = Strict);
+  BasicBlock *getLoopHeader(BasicBlock *bb);
+
+  // 跳出与退出
+  std::vector<BasicBlock *> getExitingBlocks(Loop *loop);
+  std::vector<BasicBlock *> getOverBlocks(Loop *loop);
+
+  // 删除
+  void deleteLoop(Loop *loop);
+  void deleteBB(BasicBlock *bb);
+
+  // 功能
+  void newBB(BasicBlock *oldBB, BasicBlock *newBB);
+  bool canBeOpte() { return loops.size() != 0; }
+
+  ~LoopInfoAnalysis()
+  {
+    for (auto loop : loops)
+    {
+      delete loop;
+    }
+    loops.clear();
+  }
+
 private:
+  Function *_func;
+  DominantTree *_dom;
+  std::vector<Loop *> &_deleteloop;
+  std::vector<Loop *> loops; // 存储所有循环
+  std::vector<BBPtr> *_BBs;  // 存储所有基本块的引用
+  // std::vector<std::vector<int>> *Dest; // CFG中的后继
+  int depth = 0;
+  int index = 0;
 };
