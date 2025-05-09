@@ -23,6 +23,7 @@ bool SSAPRE::PartialRedundancyElimination(Function* func){
                 //不过需要注意,这里并未考虑a+b和b+a也是冗余的情况,后面修复
                 if(exprSeen[exprKey]){
                     std::cout<<"冗余"<<exprKey<<"在基本块:"<<bb->GetName()<<"\n";
+                    return change;
                 }else{
                     exprSeen[exprKey]=true;
                 }
@@ -33,7 +34,6 @@ bool SSAPRE::PartialRedundancyElimination(Function* func){
         }        
     };
     traverse(entryNode);
-    return change;
 }
 bool SSAPRE::run(){
     return PartialRedundancyElimination(func);
