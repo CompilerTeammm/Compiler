@@ -189,3 +189,28 @@ bool DominantTree::dominates(BasicBlock *bb1, BasicBlock *bb2)
 
     return false;
 }
+
+
+std::vector<BasicBlock*> DominantTree::getPredBBs(BasicBlock* bb)
+{
+    TreeNode* TNode = getNode(bb);
+    std::vector<BasicBlock*> vec;
+    for(auto e : TNode->predNodes)
+    {
+        vec.push_back(e->curBlock);
+    }
+
+    return std::move(vec);
+}
+
+std::vector<BasicBlock*> DominantTree::getSuccBBs(BasicBlock* bb)
+{
+    TreeNode* TNode = getNode(bb);
+    std::vector<BasicBlock*> vec;
+    for(auto e : TNode->succNodes)
+    {
+        vec.push_back(e->curBlock);
+    }
+
+    return std::move(vec);
+}

@@ -116,6 +116,10 @@ public:
 
     DominantTree()=default;
 
+    // 获得bb的前驱和后继
+    std::vector<BasicBlock*> getPredBBs(BasicBlock* bb);
+    std::vector<BasicBlock*> getSuccBBs(BasicBlock* bb);
+
     TreeNode* getNode(BasicBlock* BB)
     {
         return BlocktoNode[BB];
@@ -128,8 +132,7 @@ public:
     // 这个遍历也只是可以找到他们的孩子了
     void buildTree();
 
-    void InitIdom();
-
+    void InitIdom();    
 
     // 我把DSU和Nodes也建立了联系
     // Nodes.dfs_num = DSU 的序号 1，2，3，4
