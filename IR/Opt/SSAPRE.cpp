@@ -37,9 +37,10 @@ bool SSAPRE::BeginToChange(){
         std::unordered_map<BasicBlock*, Operand> insertPointToNewValue;
         for(auto* bb:insertPoints){
             auto newInst=new BinaryInst(lhs,op,rhs);
-            auto* insertPos=bb->GetFront();
-            insertPos->InsertBefore(newInst);
-            insertPointToNewValue[bb]=newInst->GetName();
+            auto i=bb->begin();
+            i.InsertBefore(newInst);
+            auto result=newInst->GetDef();
+            insertPointToNewValue[bb]=result;
         }
         //替换冗余表达式
         
