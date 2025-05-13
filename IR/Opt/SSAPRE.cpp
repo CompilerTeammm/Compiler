@@ -1,5 +1,16 @@
 #include "../../include/IR/Opt/SSAPRE.hpp"
 
+Instruction* findExpressionInBlock(BasicBlock* bb, const ExprKey& key) {
+    auto it = exprToOccurList.find(key);
+    if (it == exprToOccurList.end()) return nullptr;
+
+    for (auto* inst : it->second) {
+        if (inst->GetParent() == bb)
+            return inst;
+    }
+    return nullptr;
+}
+
 std::set<BasicBlock*> ComputeInsertPoints(DominantTree* tree,const std::set<BasicBlock*>& blocksWithExpr){
     IDFCalculator idfCalc(*tree);
     std::set<BasicBlock*> defBlocks = blocksWithExpr;
@@ -10,11 +21,6 @@ std::set<BasicBlock*> ComputeInsertPoints(DominantTree* tree,const std::set<Basi
 
     return std::set<BasicBlock*>(IDFBlocks.begin(),IDFBlocks.end());
 }
-// Instruction* SSAPRE::InsertExprAt(BasicBlock* bb, Instruction::Op op, Value* lhs, Value* rhs) {
-//     auto* newInst = new BinaryInst(lhs,op, rhs);
-//     bb->InsertFront(newInst);
-//     return newInst;
-// }
 bool SSAPRE::BeginToChange(){
     for(auto& [key,occurList]:exprToOccurList){
         //找出所有使用该表达式的块
@@ -33,16 +39,44 @@ bool SSAPRE::BeginToChange(){
         Operand lhs = firstInst->GetOperand(0);  // 第一个操作数
         Operand rhs = firstInst->GetOperand(1);  // 第二个操作数
         auto op = firstInst->GetOp(); //运算类型
+        auto tp=firstInst->GetType(); 
         //记录插入点及其对应的新定义值（为后续替换做准备）
         std::unordered_map<BasicBlock*, Operand> insertPointToNewValue;
         for(auto* bb:insertPoints){
-            auto newInst=new BinaryInst(lhs,op,rhs);
-            auto* insertPos=bb->GetFront();
-            insertPos->InsertBefore(newInst);
-            insertPointToNewValue[bb]=newInst->GetName();
+            // auto newInst=new BinaryInst(lhs,op,rhs);
+            // auto i=bb->begin();
+            // i.InsertBefore(newInst);
+            // auto result=newInst->GetDef();
+            // insertPointToNewValue[bb]=result;
+            //得插入phi函数,因为已经是ssa形式了
+            auto* phi=new PhiInst(tp);//新建一个phi函数
+            for(auto* pred:bb->GetPredBlocks()){
+                Operand val;
+                Instruction* found=findExpressionInBlock(pred,key);
+                if(found){
+                    val=found->GetDef();
+                }else if(insertPointToNewValue.count(pred)){
+                    val=insertPointToNewValue[pred];
+                }else{
+                    val=UndefValue::Get(tp);
+                }
+                phi->addIncoming(val, pred);
+            }
+            auto i=bb->begin();
+            i.InsertBefore(phi);
+            auto result=phi->GetDef();
+            insertPointToNewValue[bb]=result;
         }
         //替换冗余表达式
-        
+        for(auto* inst:occurList){
+            for(auto& use: inst->GetUserUseList()){
+                if(use->GetValue()==inst){
+                    // use->SetValue(insertPointToNewValue[inst->GetParent()]);
+                    Value* newVal=insertPointToNewValue[inst->GetParent()];
+                    use->SetValue(newVal);
+                }
+            }
+        }
     }
 }
 bool SSAPRE::PartialRedundancyElimination(Function* func){
