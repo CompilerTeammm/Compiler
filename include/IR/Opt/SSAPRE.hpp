@@ -21,6 +21,6 @@ public:
     bool PartialRedundancyElimination(Function* func);
     //实际上只是检测是否有部分冗余，接下来交给BeginToChange
     bool BeginToChange();
-    std::set<BasicBlock*> ComputeInsertPoints(std::set<BasicBlock*>);
+    std::set<BasicBlock*> ComputeInsertPoints(DominantTree* ,std::set<BasicBlock*>);
     Instruction* findExpressionInBlock(BasicBlock*, const ExprKey&);
 };

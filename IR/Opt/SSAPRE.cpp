@@ -30,7 +30,7 @@ bool SSAPRE::BeginToChange(){
         }
 
         //计算DF支配边界,找到插入点
-        std::set<BasicBlock*> insertPoints=ComputeInsertPoints(blocksWithExpr);
+        std::set<BasicBlock*> insertPoints=ComputeInsertPoints(tree,blocksWithExpr);
 
         //在插入点插入表达式,生成新的SSA临时变量
         assert(!occurList.empty());
