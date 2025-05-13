@@ -72,8 +72,9 @@ bool SSAPRE::BeginToChange(){
             for(auto& use: inst->GetUserUseList()){
                 if(use->GetValue()==inst){
                     // use->SetValue(insertPointToNewValue[inst->GetParent()]);
-                    Value* newVal=insertPointToNewValue[inst->GetParent()];
-                    use->SetValue(newVal);
+                    // Value* newVal=insertPointToNewValue[inst->GetParent()];
+                    // use->SetValue(newVal);
+                    inst->ReplaceAllUseWith(insertPointToNewValue[inst->GetParent()]);
                 }
             }
         }
