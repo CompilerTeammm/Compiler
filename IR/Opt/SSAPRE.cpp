@@ -1,6 +1,6 @@
 #include "../../include/IR/Opt/SSAPRE.hpp"
 
-Instruction* findExpressionInBlock(BasicBlock* bb, const ExprKey& key) {
+Instruction* SSAPRE::findExpressionInBlock(BasicBlock* bb, const ExprKey& key) {
     auto it = exprToOccurList.find(key);
     if (it == exprToOccurList.end()) return nullptr;
 
@@ -11,7 +11,7 @@ Instruction* findExpressionInBlock(BasicBlock* bb, const ExprKey& key) {
     return nullptr;
 }
 
-std::set<BasicBlock*> ComputeInsertPoints(DominantTree* tree,const std::set<BasicBlock*>& blocksWithExpr){
+std::set<BasicBlock*> SSAPRE::ComputeInsertPoints(DominantTree* tree,const std::set<BasicBlock*>& blocksWithExpr){
     IDFCalculator idfCalc(*tree);
     std::set<BasicBlock*> defBlocks = blocksWithExpr;
     idfCalc.setDefiningBlocks(defBlocks);
