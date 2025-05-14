@@ -23,4 +23,5 @@ public:
     bool BeginToChange();
     std::set<BasicBlock*> ComputeInsertPoints(DominantTree* ,const std::set<BasicBlock*>&);
     Instruction* findExpressionInBlock(BasicBlock*, const ExprKey&);
+
 };

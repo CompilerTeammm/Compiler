@@ -2,7 +2,7 @@
 
 Instruction* SSAPRE::findExpressionInBlock(BasicBlock* bb, const ExprKey& key) {
     auto it = exprToOccurList.find(key);
-    if (it == exprToOccurList.end()) return nullptr;
+    if (it == exprToOccurList.end()||it->second.empty()) return nullptr;
 
     for (auto* inst : it->second) {
         if (inst->GetParent() == bb)
@@ -22,6 +22,7 @@ std::set<BasicBlock*> SSAPRE::ComputeInsertPoints(DominantTree* tree,const std::
     return std::set<BasicBlock*>(IDFBlocks.begin(),IDFBlocks.end());
 }
 bool SSAPRE::BeginToChange(){
+    bool changed=false;
     for(auto& [key,occurList]:exprToOccurList){
         //找出所有使用该表达式的块
         std::set<BasicBlock*> blocksWithExpr;
@@ -36,6 +37,12 @@ bool SSAPRE::BeginToChange(){
         assert(!occurList.empty());
         auto* firstInst=dynamic_cast<BinaryInst*>(occurList[0]);
         if(!firstInst) continue;
+        //调试信息
+        if (!occurList[0]) {
+            std::cerr << "nullptr in occurList for key: " << key << "\n";
+            continue;
+        }
+
         Operand lhs = firstInst->GetOperand(0);  // 第一个操作数
         Operand rhs = firstInst->GetOperand(1);  // 第二个操作数
         auto op = firstInst->GetOp(); //运算类型
@@ -51,20 +58,39 @@ bool SSAPRE::BeginToChange(){
             //得插入phi函数,因为已经是ssa形式了
             auto* phi=new PhiInst(tp);//新建一个phi函数
             for(auto* pred:bb->GetPredBlocks()){
-                Operand val;
+                // Operand val;
+                // Instruction* found=findExpressionInBlock(pred,key);
+                // if(found){
+                //     val=found->GetDef();
+                // }else if(insertPointToNewValue.count(pred)){
+                //     val=insertPointToNewValue[pred];
+                // }else{
+                //     val=UndefValue::Get(tp);
+                // }
+                if(!pred){
+                    std::cerr<<"Invalid predecessor block.\n";
+                    continue;
+                }
+                Operand val=UndefValue::Get(tp);
                 Instruction* found=findExpressionInBlock(pred,key);
                 if(found){
                     val=found->GetDef();
-                }else if(insertPointToNewValue.count(pred)){
-                    val=insertPointToNewValue[pred];
-                }else{
-                    val=UndefValue::Get(tp);
+                }else{//递归查找pred块的插入点
+                    auto it=insertPointToNewValue.find(pred);
+                    if(it!=insertPointToNewValue.end()){
+                        val=it->second;
+                    }
                 }
                 phi->addIncoming(val, pred);
             }
             auto i=bb->begin();
             i.InsertBefore(phi);
             auto result=phi->GetDef();
+            if (!result) {
+            std::cerr << "phi->GetDef() returned nullptr at insert point.\n";
+            continue;
+            }
+
             insertPointToNewValue[bb]=result;
         }
         //替换冗余表达式
@@ -74,17 +100,30 @@ bool SSAPRE::BeginToChange(){
                     // use->SetValue(insertPointToNewValue[inst->GetParent()]);
                     // Value* newVal=insertPointToNewValue[inst->GetParent()];
                     // use->SetValue(newVal);
-                    inst->ReplaceAllUseWith(insertPointToNewValue[inst->GetParent()]);
+                    // inst->ReplaceAllUseWith(insertPointToNewValue[inst->GetParent()]);
+                    //调试信息
+                    auto it=insertPointToNewValue.find(inst->GetParent());
+                    if(it!=insertPointToNewValue.end()){
+                        inst->ReplaceAllUseWith(it->second);
+                    }else{
+                        std::cerr<< "No replacement value for inst in "<<inst->GetParent()->GetName()<<"\n";
+                    }
                 }
             }
         }
+        changed=true;
     }
+    return changed;
 }
 bool SSAPRE::PartialRedundancyElimination(Function* func){
     BasicBlock* entryBB = func->GetFront();
 
     auto* entryNode= tree->getNode(entryBB);//拿到了支配树起始节点
-    std::unordered_map<ExprKey, std::vector<Instruction*>> occurList;
+
+
+    std::unordered_map<ExprKey, std::vector<Instruction*>> occurList{};//需要显式初始化？
+
+
     std::function<void(DominantTree::TreeNode*)> traverse;
     traverse=[&](DominantTree::TreeNode* node){
         BasicBlock* bb=node->curBlock;
@@ -97,10 +136,17 @@ bool SSAPRE::PartialRedundancyElimination(Function* func){
                 ExprKey leftName=lhs->GetName();
                 ExprKey rightName=rhs->GetName();
                 //或许可以封装一个IsCommutative（）
-                if(op==Instruction::Op::Add||op==Instruction::Op::Mul&&leftName>rightName){
+                bool IsCommutative = (op == Instruction::Op::Add || op == Instruction::Op::Mul);
+                if(IsCommutative&&leftName>rightName){
                     std::swap(leftName,rightName);
                 }
                 ExprKey exprKey=leftName+Instruction::OpToString(op)+rightName;
+                //调试信息
+                if (leftName.empty() || rightName.empty()) {
+                    std::cerr << "Empty operand name in expression: " << inst->GetName()<< "\n";
+                    continue;
+                }
+
                 occurList[exprKey].push_back(inst);
             }
         }
