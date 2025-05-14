@@ -156,3 +156,40 @@ BasicBlock *LoopInfoAnalysis::getPreHeader(Loop *loop, Flag flag)
     loop->setPreHeader(preheader);
   return preheader;
 }
+
+BasicBlock *LoopInfoAnalysis::getLoopHeader(BasicBlock *bb)
+{
+  auto iter = Loops.find(bb);
+  if (iter == Loops.end())
+    return nullptr;
+  return iter->second->getHeader();
+}
+
+std::vector<BasicBlock *> LoopInfoAnalysis::getOverBlocks(Loop *loop)
+{
+  std::vector<BasicBlock *> workList;
+  for (auto bb : loop->getLoopBody())
+  {
+    for (auto curbb : _dom->getSuccBBs(bb))
+    {
+      if (!ContainsBlock(loop, curbb))
+        PushVecSingleVal(workList, curbb);
+    }
+  }
+  return workList;
+}
+
+std::vector<BasicBlock *> LoopInfoAnalysis::getExitingBlocks(Loop *loop)
+{
+  std::vector<BasicBlock *> exit = getOverBlocks(loop);
+  std::vector<BasicBlock *> exiting;
+  for (auto bb : exit)
+  {
+    for (auto rev : _dom->getPredBBs(bb))
+    {
+      if (ContainsBlock(loop, rev))
+        PushVecSingleVal(exiting, rev);
+    }
+  }
+  return exiting;
+}

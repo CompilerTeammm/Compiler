@@ -117,16 +117,16 @@ public:
   BasicBlock *getPreHeader(Loop *loop, Flag flag = Strict);
   BasicBlock *getLoopHeader(BasicBlock *bb);
 
-  // 跳出与退出
-  std::vector<BasicBlock *> getExitingBlocks(Loop *loop);
+  // 循环退出、循环跳转
   std::vector<BasicBlock *> getOverBlocks(Loop *loop);
+  std::vector<BasicBlock *> getExitingBlocks(Loop *loop);
 
   // 删除
-  void deleteLoop(Loop *loop);
-  void deleteBB(BasicBlock *bb);
+  // void deleteLoop(Loop *loop);
+  // void deleteBB(BasicBlock *bb);
 
   // 功能
-  void newBB(BasicBlock *oldBB, BasicBlock *newBB);
+  // void newBB(BasicBlock *oldBB, BasicBlock *newBB);
   bool canBeOpte() { return loops.size() != 0; }
 
   ~LoopInfoAnalysis()
