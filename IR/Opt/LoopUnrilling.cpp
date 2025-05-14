@@ -2,4 +2,5 @@
 
 bool LoopUnrolling::run()
 {
+  return true;
 }

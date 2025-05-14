@@ -13,16 +13,16 @@
 #include "ConstantProp.hpp"
 #include "GVN.hpp"
 #include "LoopUnrolling.hpp"
-#include"../../lib/Singleton.hpp"
+#include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 
-//互不影响，完全没问题再放出来
+// 互不影响，完全没问题再放出来
 #define dce
 #define sccp
 // #define gvn
-#define pre
-// 循环优化 
-// #define Loop_Unrolling
+// #define pre
+// 循环优化
+#define Loop_Unrolling
 
 enum PassName
 {
@@ -110,11 +110,12 @@ void PassManager::RunOnTest()
     }
 #endif
 #ifdef pre
-    for(auto& function : funcVec){
+    for (auto &function : funcVec)
+    {
         auto fun = function.get();
         DominantTree tree(fun);
         tree.BuildDominantTree();
-        SSAPRE(fun,&tree).run();
+        SSAPRE(fun, &tree).run();
     }
-#endif 
+#endif
 }

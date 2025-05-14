@@ -33,6 +33,7 @@ public:
   void addLoopsBody(Loop *signalLoop) { Loops.push_back(signalLoop); }
 
   void addLoopsDepth(int depth) { LoopsDepth += depth; }
+  Loop *GetLoopsHeader() { return LoopsHeader; }
   int getLoopsDepth() { return LoopsDepth; }
   int getLoopsSize() { return Loops.size(); }
 
@@ -100,15 +101,16 @@ public:
     // setDest();
   }
   void setBBs() { _BBs = &_func->GetBBs(); }
-  void setDest(BasicBlock *bb) { Dest = &_dom->getSuccBBs(bb); }
+  // void setDest(BasicBlock *bb) { Dest = &_dom->getSuccBBs(bb); }
 
   // run
-  void runAnalysis();
+  void runAnalysis(Function &F, AnalysisManager &AM);
 
+  void PostOrderDT(BasicBlock *bb);
   // 数据获取、判断
-  bool ContainsBlockByIndex(Loop *Loop, int index);
-  bool ContainsBlock(Loop *loop, BasicBlock *BB);
-  bool isLoopExiting(Loop *loop, BasicBlock *BB);
+  // bool ContainsBlockByIndex(Loop *Loop, int index);
+  bool ContainsBlock(Loop *loop, BasicBlock *bb);
+  bool isLoopExiting(Loop *loop, BasicBlock *bb);
   void getLoopDepth(Loop *loop, int depth);
 
   // 获取循环头、前继
@@ -140,9 +142,11 @@ private:
   Function *_func;
   DominantTree *_dom;
   std::vector<Loop *> &_deleteloop;
-  std::vector<Loop *> loops;       // 存储所有循环
-  std::vector<BBPtr> *_BBs;        // 存储所有基本块的引用
-  std::vector<BasicBlock *> *Dest; // CFG中的后继
+  std::vector<Loop *> loops;            // 存储所有循环
+  std::vector<BBPtr> *_BBs;             // 存储所有基本块的引用
+  std::vector<BasicBlock *> PostOrder;  // 存储后序遍历的基本块
+  std::map<BasicBlock *, Loop *> Loops; // 基本块与循环的映射
+  // std::vector<BasicBlock *> *Dest; // CFG中的后继
   int depth = 0;
   int index = 0;
 };

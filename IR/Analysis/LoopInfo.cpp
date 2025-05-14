@@ -4,7 +4,7 @@ bool Loop::ContainBB(BasicBlock *bb)
 {
   if (bb == Header)
     return true;
-  return std::find(BBs.begin(), BBs.end(), bb) != BBs.end();
+  return std::find(this->BBs.begin(), this->BBs.end(), bb) != this->BBs.end();
 }
 
 bool Loop::ContainLoop(Loop *loop)
@@ -91,4 +91,68 @@ void LoopInfoAnalysis::PostOrderDT(BasicBlock *bb)
     PostOrderDT(block);
   }
   PostOrder.push_back(bb);
+}
+
+bool LoopInfoAnalysis::ContainsBlock(Loop *loop, BasicBlock *bb)
+{
+  const auto &blocks = loop->getLoopBody();
+  return std::find(blocks.begin(), blocks.end(), bb) != blocks.end();
+}
+
+bool LoopInfoAnalysis::isLoopExiting(Loop *loop, BasicBlock *bb)
+{
+  return std::find(getExitingBlocks(loop).begin(), getExitingBlocks(loop).end(), bb) != getExitingBlocks(loop).end();
+}
+
+void LoopInfoAnalysis::getLoopDepth(Loop *loop, int depth)
+{
+  if (loop->GetLoopsHeader() == nullptr)
+    return;
+  if (loop->isVisited())
+    return;
+
+  loop->setVisited();
+  loop->addLoopsDepth(depth);
+  for (auto l : loop->getLoops())
+  {
+    getLoopDepth(l, depth + 1);
+  }
+}
+
+BasicBlock *LoopInfoAnalysis::getPreHeader(Loop *loop, Flag flag)
+{
+  if (loop->getPreHeader() != nullptr)
+    return loop->getPreHeader();
+
+  BasicBlock *Header = loop->getHeader();
+  BasicBlock *preheader = nullptr;
+  for (auto pred : _dom->getPredBBs(Header))
+  {
+    // 出现前驱不属于这个循环的情况
+    if (!ContainsBlock(loop, pred))
+    {
+      if (preheader == nullptr)
+      {
+        preheader = pred;
+        continue;
+      }
+      if (preheader != pred)
+      {
+        preheader = nullptr;
+        return preheader;
+      }
+    }
+  }
+  if (preheader && flag == Strict)
+  {
+    for (auto des : _dom->getSuccBBs(preheader))
+      if (des != Header)
+      {
+        preheader = nullptr;
+        return preheader;
+      }
+  }
+  if (preheader != nullptr)
+    loop->setPreHeader(preheader);
+  return preheader;
 }
