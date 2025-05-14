@@ -100,7 +100,7 @@ public:
     // setDest();
   }
   void setBBs() { _BBs = &_func->GetBBs(); }
-  // void setDest(){Dest = &_dom->GetDest();}
+  void setDest(BasicBlock *bb) { Dest = &_dom->getSuccBBs(bb); }
 
   // run
   void runAnalysis();
@@ -140,9 +140,9 @@ private:
   Function *_func;
   DominantTree *_dom;
   std::vector<Loop *> &_deleteloop;
-  std::vector<Loop *> loops; // 存储所有循环
-  std::vector<BBPtr> *_BBs;  // 存储所有基本块的引用
-  // std::vector<std::vector<int>> *Dest; // CFG中的后继
+  std::vector<Loop *> loops;       // 存储所有循环
+  std::vector<BBPtr> *_BBs;        // 存储所有基本块的引用
+  std::vector<BasicBlock *> *Dest; // CFG中的后继
   int depth = 0;
   int index = 0;
 };
