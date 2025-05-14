@@ -235,6 +235,7 @@ bool Value::isConstOne()
 {
   if (auto num = dynamic_cast<ConstIRInt *>(this))
     return num->GetVal() == 1;
+  return false;
 }
 
 // User
