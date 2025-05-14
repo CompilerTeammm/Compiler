@@ -2,6 +2,7 @@
 .vscode/task.json
 .vscode/tasks.json
 .vscode/launch.json
+.vscode/settings.json
 dh_test
 testcases
 testcase
