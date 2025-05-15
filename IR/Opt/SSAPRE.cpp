@@ -13,7 +13,7 @@ Instruction* SSAPRE::FindExpressionInBlock(BasicBlock* bb, const ExprKey& key) {
         if(bin->GetInstId()!=key.op) continue;
         bool match=(l==key.lhs&&r==key.rhs);
         if(!match&&IsCommutative(key.op)){
-            match=(l==key.lhs&&r==key.rhs);
+            match=(l==key.rhs&&r==key.lhs);
             if(match) return bin;
         }
     }
@@ -78,47 +78,72 @@ bool SSAPRE::PartialRedundancyElimination(Function* func){
             i.InsertBefore(newInst);
             insertValueMap[bb]=newInst->GetDef();
         }
+        //为所有出现位置查找可替换的value
+        for(auto* inst:occurList){
+            auto* bb=inst->GetParent();
+            Value* replacement=nullptr;
+
+            if(insertValueMap.count(bb)){
+                replacement=insertValueMap[bb];
+            }else if(auto* existing =FindExpressionInBlock(bb,key)){
+                replacement=existing->GetDef();
+            }
+            if(!replacement) continue;
+            inst->ReplaceAllUseWith(replacement);
+        }
         //多前驱插phi
         for(auto* bb:insertPoints){
             if(bb->GetPredBlocks().size()<=1) continue;
-            //检查是否已有该phi
-            bool alreadyPhi=false;
-            for(auto* inst:*bb){
-                if(inst->GetInstId()==Instruction::Phi){
-                    auto* phi=static_cast<PhiInst*>(inst);
-                    if(phi->GetValUseListSize()!=bb->GetPredBlocks().size()) continue;
+            // //检查是否已有该phi
+            // bool alreadyPhi=false;
+            // for(auto* inst:*bb){
+            //     if(inst->GetInstId()==Instruction::Phi){
+            //         auto* phi=static_cast<PhiInst*>(inst);
+            //         if(phi->GetValUseListSize()!=bb->GetPredBlocks().size()) continue;
 
-                    alreadyPhi=true;break;
-                }
-            }
-            if(alreadyPhi) continue;
+            //         alreadyPhi=true;break;
+            //     }
+            // }
+            // if(alreadyPhi) continue;
 
             std::vector<std::pair<BasicBlock*,Value*>> preds;
-            bool allPredOK=true;
+            // bool allPredOK=true;
+            bool valid=true;
             for(auto* pred:bb->GetPredBlocks()){
-                Instruction* existing=FindExpressionInBlock(pred,key);
-                if(existing){
-                    preds.emplace_back(pred,existing->GetDef());
-                }else if(insertValueMap.count(pred)){
-                    preds.emplace_back(pred,insertValueMap[pred]);
-                }else{
-                    allPredOK=false;
+                // Instruction* existing=FindExpressionInBlock(pred,key);
+                // if(existing){
+                //     preds.emplace_back(pred,existing->GetDef());
+                // }else if(insertValueMap.count(pred)){
+                //     preds.emplace_back(pred,insertValueMap[pred]);
+                // }else{
+                //     allPredOK=false;
+                //     break;
+                // }
+                if (insertValueMap.count(pred)) {
+                    preds.emplace_back(pred, insertValueMap[pred]);
+                } else if (auto* existing = FindExpressionInBlock(pred, key)) {
+                    preds.emplace_back(pred, existing->GetDef());
+                } else {
+                    valid = false;
                     break;
                 }
             }
-            if(!allPredOK) continue;
+            if(!valid) continue;
+            // if(!allPredOK) continue;
             Type* type=key.lhs->GetType();
             auto* phi=new PhiInst(type);
             for(auto& [p,v]:preds){
                 phi->addIncoming(v,p);
+                
+            }
                 auto i=bb->begin();
                 i.InsertBefore(phi);
                 insertValueMap[bb]=phi->GetDef();
-            }
             for(auto* inst:occurList){
                 auto* bb=inst->GetParent();
-                if(!insertValueMap.count(bb)) continue;
+                if(insertValueMap.count(bb)){
                 inst->ReplaceAllUseWith(insertValueMap[bb]);
+                }
             }
         }
     }
