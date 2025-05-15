@@ -24,6 +24,10 @@ std::set<BasicBlock*> SSAPRE::ComputeInsertPoints(DominantTree* tree,const std::
 bool SSAPRE::BeginToChange(){
     bool changed=false;
     for(auto& [key,occurList]:exprToOccurList){
+        if(occurList.empty()){
+            std::cerr<<"Empty occurList for key: " << key << "\n";
+            continue;
+        }
         //找出所有使用该表达式的块
         std::set<BasicBlock*> blocksWithExpr;
         for(auto* inst:occurList){
@@ -34,7 +38,6 @@ bool SSAPRE::BeginToChange(){
         std::set<BasicBlock*> insertPoints=ComputeInsertPoints(tree,blocksWithExpr);
 
         //在插入点插入表达式,生成新的SSA临时变量
-        assert(!occurList.empty());
         auto* firstInst=dynamic_cast<BinaryInst*>(occurList[0]);
         if(!firstInst) continue;
         //调试信息
@@ -50,23 +53,21 @@ bool SSAPRE::BeginToChange(){
         //记录插入点及其对应的新定义值（为后续替换做准备）
         std::unordered_map<BasicBlock*, Operand> insertPointToNewValue;
         for(auto* bb:insertPoints){
-            // auto newInst=new BinaryInst(lhs,op,rhs);
-            // auto i=bb->begin();
-            // i.InsertBefore(newInst);
-            // auto result=newInst->GetDef();
-            // insertPointToNewValue[bb]=result;
-            //得插入phi函数,因为已经是ssa形式了
-            auto* phi=new PhiInst(tp);//新建一个phi函数
+            auto* newExprInst=new BinaryInst(lhs,op,rhs);
+            auto i=bb->begin();
+            i.InsertBefore(newExprInst);
+            insertPointToNewValue[bb]=newExprInst->GetDef();
+            changed=true;
+        }
+        //在有多个前驱的块中插入phi，合并来自前驱的表达式
+        for(auto* bb:insertPoints){
+            if(bb->GetPredBlocks().size()<=1) continue;
+            //如果没有前驱块，跳过
+            //检查是否所有前驱都有可用表达式
+            bool allPredsAvailable=true;
+            std::vector<std::pair<Operand,BasicBlock*>> incoming;
+            // auto* phi=new PhiInst(tp);//新建一个phi函数
             for(auto* pred:bb->GetPredBlocks()){
-                // Operand val;
-                // Instruction* found=findExpressionInBlock(pred,key);
-                // if(found){
-                //     val=found->GetDef();
-                // }else if(insertPointToNewValue.count(pred)){
-                //     val=insertPointToNewValue[pred];
-                // }else{
-                //     val=UndefValue::Get(tp);
-                // }
                 if(!pred){
                     std::cerr<<"Invalid predecessor block.\n";
                     continue;
@@ -75,12 +76,22 @@ bool SSAPRE::BeginToChange(){
                 Instruction* found=findExpressionInBlock(pred,key);
                 if(found){
                     val=found->GetDef();
-                }else{//递归查找pred块的插入点
-                    auto it=insertPointToNewValue.find(pred);
-                    if(it!=insertPointToNewValue.end()){
-                        val=it->second;
-                    }
+                }else if(insertPointToNewValue.count(pred)){//递归查找pred块的插入点
+                    // auto it=insertPointToNewValue.find(pred);
+                    // if(it!=insertPointToNewValue.end()){
+                    //     val=it->second;
+                    // }
+                    val=insertPointToNewValue[pred];
+                }else{
+                    allPredsAvailable=false;
+                    break;
                 }
+                // phi->addIncoming(val, pred);
+                incoming.emplace_back(val, pred);
+            }
+            if(!allPredsAvailable) continue;
+            auto* phi=new PhiInst(tp);
+            for(auto& [val,pred]:incoming){
                 phi->addIncoming(val, pred);
             }
             auto i=bb->begin();
@@ -92,26 +103,15 @@ bool SSAPRE::BeginToChange(){
             }
 
             insertPointToNewValue[bb]=result;
+            changed=true;
         }
-        //替换冗余表达式
         for(auto* inst:occurList){
-            for(auto& use: inst->GetUserUseList()){
-                if(use->GetValue()==inst){
-                    // use->SetValue(insertPointToNewValue[inst->GetParent()]);
-                    // Value* newVal=insertPointToNewValue[inst->GetParent()];
-                    // use->SetValue(newVal);
-                    // inst->ReplaceAllUseWith(insertPointToNewValue[inst->GetParent()]);
-                    //调试信息
-                    auto it=insertPointToNewValue.find(inst->GetParent());
-                    if(it!=insertPointToNewValue.end()){
-                        inst->ReplaceAllUseWith(it->second);
-                    }else{
-                        std::cerr<< "No replacement value for inst in "<<inst->GetParent()->GetName()<<"\n";
-                    }
-                }
+            BasicBlock* bb=inst->GetParent();
+            if(insertPointToNewValue.count(bb)){
+                inst->ReplaceAllUseWith(insertPointToNewValue[bb]);
             }
+            changed=true;
         }
-        changed=true;
     }
     return changed;
 }
@@ -135,7 +135,6 @@ bool SSAPRE::PartialRedundancyElimination(Function* func){
                 //解决a+b，a*b的问题
                 ExprKey leftName=lhs->GetName();
                 ExprKey rightName=rhs->GetName();
-                //或许可以封装一个IsCommutative（）
                 bool IsCommutative = (op == Instruction::Op::Add || op == Instruction::Op::Mul);
                 if(IsCommutative&&leftName>rightName){
                     std::swap(leftName,rightName);
