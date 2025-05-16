@@ -22,7 +22,9 @@ include_directories(
 
 file(GLOB_RECURSE SOURCES
   main.cpp
-  IR/Analysis/*.cpp
+  IR/Analysis/IDF.cpp
+  IR/Analysis/Dominant.cpp
+  # IR/Analysis/IDF.cpp
   IR/Opt/Mem2reg.cpp
   IR/Opt/MemoryToRegister.cpp
   IR/Opt/DCE.cpp

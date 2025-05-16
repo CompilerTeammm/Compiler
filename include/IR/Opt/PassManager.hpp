@@ -20,9 +20,13 @@
 #define dce
 #define sccp
 // #define gvn
-// #define pre
+#define pre
 // 循环优化
+<<<<<<< HEAD
 // #define Loop_Unrolling
+=======
+//#define Loop_Unrolling
+>>>>>>> 642e2bf856524b56aee6698b1af9d5279ca3b509
 
 enum PassName
 {
@@ -52,6 +56,7 @@ public:
     void RunOnTest();
     bool run() override
     {
+        return true;
     }
 };
 

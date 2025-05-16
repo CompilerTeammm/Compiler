@@ -19,9 +19,9 @@ public:
         return nullptr;
     }
 
-    DominantTree& getTree()
+    DominantTree* getTree()
     {
-        
+        return nullptr;
     }
 
     AnalysisManager();
