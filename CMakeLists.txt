@@ -31,6 +31,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/GVN.cpp
   IR/Opt/DealOps.cpp
   IR/Opt/SSAPRE.cpp
+  IR/Opt/LoopUnrolling.cpp
 
 
   lib/*.cpp
