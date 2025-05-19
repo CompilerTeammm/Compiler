@@ -119,4 +119,13 @@ void PassManager::RunOnTest()
         SSAPRE(fun, &tree).run();
     }
 #endif
+#ifdef SCFG
+    for (auto &function : funcVec)
+    {
+        auto fun = function.get();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        SCFG(fun, &tree).run();
+    }
+#endif
 }

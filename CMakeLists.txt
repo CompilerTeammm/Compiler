@@ -33,7 +33,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/GVN.cpp
   IR/Opt/DealOps.cpp
   IR/Opt/SSAPRE.cpp
-
+  IR/Opt/SimplifyCFG.cpp
 
   lib/*.cpp
   yacc/lex.yy.cpp       # 包含lex生成的代码
