@@ -14,22 +14,19 @@ bool Loop::ContainLoop(Loop *loop)
   return std::find(Loops.begin(), Loops.end(), loop) != Loops.end();
 }
 
-void LoopInfoAnalysis::runAnalysis(Function &F, AnalysisManager &AM)
+void LoopInfoAnalysis::runAnalysis()
 {
-  // ½¨Á¢Ò»ÏÂÖ§ÅäÊ÷
-  DominantTree dt(&F);
-  dt.BuildDominantTree();
-  // Í¨¹ıºóĞø±éÀúCFG£¬À´»ñÈ¡Ã¿¸ö»ù±¾¿éµÄºóĞò±éÀú
-  // È»ºóÍ¨¹ıÖ§ÅäÊ÷À´²éÕÒÃ¿¸ö»ù±¾¿éµÄÇ°Çı£¬Í¨¹ıforÑ­»·²éÕÒ£¬À´ÅĞ¶ÏÇ°ÇıÖĞÄÄĞ©ÊÇÖ§ÅäÕâ¸ö»ù±¾¿é
-  // Èç¹ûÕÒµ½Ç°Çı£¬ÄÇ¾Í½«curbb´æ´¢ÔÚlatchÖĞ£¬Ò²¾ÍÊÇÄ¿Ç°ÕıÔÚ±éÀúµÄ»ù±¾¿é
-  // Í¨¹ıÕâÖÖ·½·¨£¬¹¹½¨²»Í¬µÄlatchÇ°ÇıĞòÁĞ
+  // é€šè¿‡åç»­éå†CFGï¼Œæ¥è·å–æ¯ä¸ªåŸºæœ¬å—çš„ååºéå†
+  // ç„¶åé€šè¿‡æ”¯é…æ ‘æ¥æŸ¥æ‰¾æ¯ä¸ªåŸºæœ¬å—çš„å‰é©±ï¼Œé€šè¿‡forå¾ªç¯æŸ¥æ‰¾ï¼Œæ¥åˆ¤æ–­å‰é©±ä¸­å“ªäº›æ˜¯æ”¯é…è¿™ä¸ªåŸºæœ¬å—
+  // å¦‚æœæ‰¾åˆ°å‰é©±ï¼Œé‚£å°±å°†curbbå­˜å‚¨åœ¨latchä¸­ï¼Œä¹Ÿå°±æ˜¯ç›®å‰æ­£åœ¨éå†çš„åŸºæœ¬å—
+  // é€šè¿‡è¿™ç§æ–¹æ³•ï¼Œæ„å»ºä¸åŒçš„latchå‰é©±åºåˆ—
   //
   for (auto curbb : PostOrder)
   {
-    std::vector<BasicBlock *> latch;            // »Ø±ßÁĞ±í
-    for (auto succbb : _dom->getPredBBs(curbb)) // ²éÕÒÃ¿¸ö»ù±¾¿éµÄÇ°Çı
+    std::vector<BasicBlock *> latch;            // å›è¾¹åˆ—è¡¨
+    for (auto succbb : _dom->getPredBBs(curbb)) // æŸ¥æ‰¾æ¯ä¸ªåŸºæœ¬å—çš„å‰é©±
     {
-      if (_dom->dominates(curbb, succbb)) // Èç¹ûcurbbÖ§Åäsuccbb
+      if (_dom->dominates(curbb, succbb)) // å¦‚æœcurbbæ”¯é…succbb
       {
         latch.push_back(succbb);
       }
@@ -46,10 +43,10 @@ void LoopInfoAnalysis::runAnalysis(Function &F, AnalysisManager &AM)
         WorkList.pop_back();
         auto node = _dom->getNode(bb);
 
-        // ²éÕÒÕâ¸ö»ù±¾¿é£¬ÊÇ·ñ»¹ÓĞ±ğµÄÑ­»·
+        // æŸ¥æ‰¾è¿™ä¸ªåŸºæœ¬å—ï¼Œæ˜¯å¦è¿˜æœ‰åˆ«çš„å¾ªç¯
         if (auto iter = Loops.find(bb); iter != Loops.end())
         {
-          // ÕÒµ½Ç¶Ì×Ñ­»·µÄ×îÍâ²ã
+          // æ‰¾åˆ°åµŒå¥—å¾ªç¯çš„æœ€å¤–å±‚
           auto tmp = iter->second;
           while (tmp->GetLoopsHeader() != nullptr)
           {
@@ -128,7 +125,7 @@ BasicBlock *LoopInfoAnalysis::getPreHeader(Loop *loop, Flag flag)
   BasicBlock *preheader = nullptr;
   for (auto pred : _dom->getPredBBs(Header))
   {
-    // ³öÏÖÇ°Çı²»ÊôÓÚÕâ¸öÑ­»·µÄÇé¿ö
+    // å‡ºç°å‰é©±ä¸å±äºè¿™ä¸ªå¾ªç¯çš„æƒ…å†µ
     if (!ContainsBlock(loop, pred))
     {
       if (preheader == nullptr)
@@ -192,4 +189,21 @@ std::vector<BasicBlock *> LoopInfoAnalysis::getExitingBlocks(Loop *loop)
     }
   }
   return exiting;
+}
+BasicBlock *LoopInfoAnalysis::getLatch(Loop *loop)
+{
+  auto header = loop->getHeader();
+  auto preheader = getPreHeader(loop);
+  BasicBlock *latch = nullptr;
+  for (auto rev : _dom->getPredBBs(header))
+  {
+    if (rev != preheader && loop->ContainBB(rev))
+    {
+      if (!latch)
+        latch = rev;
+      else
+        break;
+    }
+  }
+  return latch;
 }

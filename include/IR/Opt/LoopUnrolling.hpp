@@ -10,7 +10,24 @@ public:
   LoopUnrolling(Function *func, AnalysisManager *AM) : _AM(AM), _func(func) {}
   bool run();
 
+  ~LoopUnrolling()
+  {
+    for (auto l : DeleteLoop)
+      delete l;
+  }
+
 private:
   Function *_func;
   AnalysisManager *_AM;
+  DominantTree *_dom;
+  LoopInfoAnalysis *loopAnalysis;
+  std::vector<Loop *> DeleteLoop;
+  const int MaxInstCost_Before = 200;
+  const int MaxInstCost = 2000;
+  const int MaxInstCost_After = 5000;
+
+  bool CanBeUnroll(Loop *loop);
+  CallInst *GetLoopBody(Loop *loop);
+  BasicBlock *Unroll(Loop *loop, CallInst *UnrollBody);
+  int CaculatePrice(std::vector<BasicBlock *> body, Function *curfunc, int Lit_count);
 };

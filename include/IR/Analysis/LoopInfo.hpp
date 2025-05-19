@@ -2,6 +2,36 @@
 #include "Dominant.hpp"
 #include "../../../util/my_stl.hpp"
 #include "../Opt/AnalysisManager.hpp"
+#include <cmath>
+// 这一坨就直接加了
+struct LoopTrait
+{
+  // for(int i=0;i<N;i+=step)的循环特性
+  //  主要是为了在LoopInfoAnalysis中使用
+  BasicBlock *head = nullptr; // 循环头块
+  Value *boundary = nullptr;  // 循环终止边界值（如 i < N 中的 N）
+  Value *initial = nullptr;   // 初始值（如 i = 0）
+  int step = 0;               // 步长（如 i += step 中的 step）
+  PhiInst *indvar = nullptr;  // 循环变量本身（如 i）
+  User *change = nullptr;     // 修改循环变量的操作（如 i += step）
+  PhiInst *res = nullptr;     // 可能是某种结果Phi节点
+  CallInst *call = nullptr;   // 调用指令（可能在判断循环特性时有用）
+  BinaryInst *cmp = nullptr;  // 控制循环的比较操作（如 i < N）
+  bool CmpEqual = false;      // 是否包含等于（如 i <= N）
+  void Init()
+  {
+    head = nullptr;
+    boundary = nullptr;
+    initial = nullptr;
+    step = 0;
+    indvar = nullptr;
+    change = nullptr;
+    res = nullptr;
+    call = nullptr;
+    CmpEqual = false;
+  }
+};
+
 /// 单个循环的结构
 class Loop
 {
@@ -53,10 +83,6 @@ public:
   std::vector<BasicBlock *>::iterator end() { return BBs.end(); }
   std::vector<BasicBlock *>::reverse_iterator rbegin() { return BBs.rbegin(); }
   std::vector<BasicBlock *>::reverse_iterator rend() { return BBs.rend(); }
-  std::vector<Loop *>::iterator loopsBegin() { return Loops.begin(); }
-  std::vector<Loop *>::iterator loopsEnd() { return Loops.end(); }
-  std::vector<Loop *>::reverse_iterator loopsRbegin() { return Loops.rbegin(); }
-  std::vector<Loop *>::reverse_iterator loopsRend() { return Loops.rend(); }
 
   // 获取前驱头
   void setPreHeader(BasicBlock *bb) { PreHeader = bb; }
@@ -68,6 +94,7 @@ public:
     PreHeader = nullptr;
     LoopsDepth = 0;
   }
+  LoopTrait trait;
 
 private:
   // 单个循环
@@ -103,8 +130,12 @@ public:
   void setBBs() { _BBs = &_func->GetBBs(); }
   // void setDest(BasicBlock *bb) { Dest = &_dom->getSuccBBs(bb); }
 
+  virtual bool run() override
+  {
+    runAnalysis(); // 委托给现有的runAnalysis
+  }
   // run
-  void runAnalysis(Function &F, AnalysisManager &AM);
+  void runAnalysis();
 
   void PostOrderDT(BasicBlock *bb);
   // 数据获取、判断
@@ -116,6 +147,7 @@ public:
   // 获取循环头、前继
   BasicBlock *getPreHeader(Loop *loop, Flag flag = Strict);
   BasicBlock *getLoopHeader(BasicBlock *bb);
+  BasicBlock *getLatch(Loop *loop);
 
   // 循环退出、循环跳转
   std::vector<BasicBlock *> getOverBlocks(Loop *loop);
@@ -128,6 +160,11 @@ public:
   // 功能
   // void newBB(BasicBlock *oldBB, BasicBlock *newBB);
   bool canBeOpte() { return loops.size() != 0; }
+
+  std::vector<Loop *>::const_iterator loopsBegin() { return loops.begin(); }
+  std::vector<Loop *>::const_iterator loopsEnd() { return loops.end(); }
+  std::vector<Loop *>::const_reverse_iterator loopsRbegin() { return loops.rbegin(); }
+  std::vector<Loop *>::const_reverse_iterator loopsRend() { return loops.rend(); }
 
   ~LoopInfoAnalysis()
   {
