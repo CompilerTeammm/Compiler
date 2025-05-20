@@ -148,3 +148,39 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
 bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
     
 }
+bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
+    bool changed=false;
+
+    //遍历当前基本块中所有指令
+    for(auto it=bb->begin();it!=bb->end();){
+        Instruction* inst=*it;
+
+        //isphi?
+        if(inst->id==Instruction::Op::Phi){
+            Value* same=nullptr;
+            bool all_same=true;
+
+            //遍历所有phi的输入值
+            for(size_t i=0;i<inst->GetOperandNums();i+=2){
+                Value* val=inst->GetOperand(i);
+                if(!same){
+                    same=val;
+                }else if(val!=same){
+                    all_same=false;
+                    break;
+                }
+            }
+
+            //所有输入值相同,可以替换
+            if(all_same&&same){
+                inst->ReplaceAllUseWith(same);
+                ++it;
+                inst->EraseFromManager();
+                changed=true;
+                continue;
+            }
+        }
+        ++it;
+    }
+    return changed;
+}
