@@ -5,6 +5,8 @@
 #include "../../lib/CFG.hpp"
 #include "../../IR/Analysis/IDF.hpp"
 
+#include <stack>
+#include <unordered_set>
 class SimplifyCFG:public _PassBase<SimplifyCFG, Function>{
 private:
     Function* func;
