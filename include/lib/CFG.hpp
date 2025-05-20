@@ -738,7 +738,6 @@ public:
 // 使用的时候根据自己要实现的功能选择合适的数据结构
 class BasicBlock : public Value, public List<BasicBlock, Instruction>, public Node<Function, BasicBlock>
 {
-  // 原来是public
 public:
   int index;         // 基本块序号
   int LoopDepth = 0; // 嵌套深度
@@ -770,25 +769,22 @@ public:
 
   virtual void print();
 
-  // 获取后继基本块列表
+  // 操作前驱/后继数组
   std::vector<BasicBlock *> GetNextBlocks() const;
-
-  // 获取前驱基本块
   const std::vector<BasicBlock *> &GetPredBlocks() const;
-
-  // 添加后继基本块
   void AddNextBlock(BasicBlock *block);
-
-  // 添加前驱基本块
   void AddPredBlock(BasicBlock *pre);
-
-  // 移除前驱基本块
   void RemovePredBlock(BasicBlock *pre);
+  void RemoveNextBlock(BasicBlock *pre);
 
+  // 操作链表，待完善
+  void RemovePredBB(BasicBlock *pre);
+
+  // 注释了
   bool is_empty_Insts() const; // 判断指令是否为空
 
   // 获取基本块的最后一条指令
-  // 这个也没有实现
+  // 链表最后
   Instruction *GetLastInsts() const;
 
   // 替换后继块中的某个基本块
@@ -797,7 +793,6 @@ public:
   // 替换前驱块中的某个基本块
   void ReplacePreBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
 
-  // 暂未实现，只有声明
   Operand GenerateBinaryInst(Operand _A, BinaryInst::Operation op, Operand _B);
   static Operand GenerateBinaryInst(BasicBlock *, Operand, BinaryInst::Operation, Operand);
   Operand GenerateSI2FPInst(Operand _A);

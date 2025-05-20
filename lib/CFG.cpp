@@ -978,6 +978,82 @@ void BasicBlock::RemovePredBlock(BasicBlock *pre)
         PredBlocks.end());
 }
 
+void BasicBlock::RemoveNextBlock(BasicBlock *next)
+{
+    NextBlocks.erase(
+        std::remove(NextBlocks.begin(), NextBlocks.end(), next),
+        NextBlocks.end());
+}
+
+// void BasicBlock::RemovePredBB(BasicBlock *pre)
+// {
+//     if (pre == this)
+//     {
+//         for (auto iter = pre->begin();
+//              iter != pre->end() && dynamic_cast<PhiInst *>(*iter);)
+//         {
+//             auto phi = dynamic_cast<PhiInst *>(*iter);
+//             ++iter;
+//             phi->EraseRecordByBlock(pre);
+//             if (phi->PhiRecord.size() == 1)
+//             {
+//                 BasicBlock *b = phi->PhiRecord.begin()->second.second;
+//                 if (b == this)
+//                 {
+//                     phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+//                     delete phi;
+//                 }
+//                 else
+//                 {
+//                     Value *repl = (*(phi->PhiRecord.begin())).second.first;
+//                     if (repl == phi)
+//                         phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+//                     phi->ReplaceAllUseWith(repl);
+//                     delete phi;
+//                 }
+//             }
+//         }
+//         return;
+//     }
+//     for (auto iter = this->begin(); iter != this->end(); ++iter)
+//     {
+//         auto inst = *iter;
+//         if (auto phi = dynamic_cast<PhiInst *>(this->front()))
+//         {
+//             auto tmp = std::find_if(
+//                 phi->PhiRecord.begin(), phi->PhiRecord.end(),
+//                 [pre](const std::pair<int, std::pair<Value *, BasicBlock *>> &ele)
+//                 {
+//                     return ele.second.second == pre;
+//                 });
+//             if (tmp != phi->PhiRecord.end())
+//             {
+//                 phi->Del_Incomes(tmp->first);
+//                 phi->FormatPhi();
+//             }
+//             if (phi->PhiRecord.size() == 1)
+//             {
+//                 BasicBlock *b = phi->PhiRecord.begin()->second.second;
+//                 if (b == this)
+//                 {
+//                     phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+//                     delete phi;
+//                 }
+//                 else
+//                 {
+//                     Value *repl = (*(phi->PhiRecord.begin())).second.first;
+//                     if (repl == phi)
+//                         phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+//                     phi->ReplaceAllUseWith(repl);
+//                     delete phi;
+//                 }
+//             }
+//         }
+//         else
+//             return;
+//     }
+// }
+
 // bool BasicBlock::is_empty_Insts() const
 // {
 //     return instructions.empty();
