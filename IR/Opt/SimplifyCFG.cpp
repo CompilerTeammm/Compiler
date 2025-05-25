@@ -56,6 +56,20 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
     for(auto it=BBList.begin();it!=BBList.end();){
         BasicBlock* bb=it->get();
         if(reachable.count(bb)==0){
+            //移除phi中引用到这个bb的分支
+            for(auto succ:bb->GetNextBlocks()){
+                for(auto it=succ->begin();it!=succ->end();++it){
+                    if(auto phi=dynamic_cast<PhiInst*>(*it)){
+                        phi->removeIncomingForBlock();//好像没找到实现对应功能的方法?
+                    }else{
+                        break;
+                    }
+                }
+            }
+            //需要清除指令和use链吗
+            // for(auto i=bb->begin();i!=bb->end();++i){
+                
+            // }
             for(auto pred:bb->GetPredBlocks()){
                 pred->RemoveNextBlock(bb);
             }
@@ -98,8 +112,6 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
             commonRet->AddPredBlock(pred);//加入新前驱
         }
 
-        //清理phi对redundant的引用,如果有的话
-        //我觉得按照我们phi函数生成的逻辑应该没有,先不加了
         func->RemoveBBs(redundant);
     }
     return true;
@@ -128,7 +140,7 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     }
     while(succ->Size()!=0){
         Instruction *inst=succ->GetFront();
-        inst->EraseFromManager();
+        succ->erase(inst);
         bb->push_back(inst);
     }
     //更新CFG
@@ -136,7 +148,8 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     bb->RemoveNextBlock(succ);
     succ->RemovePredBlock(bb);
     //succ的后继接到bb上
-    for(auto succsucc:succ->GetNextBlocks()){
+    auto nexts=succ->GetNextBlocks();
+    for(auto succsucc:nexts){
         succsucc->RemovePredBlock(succ);
         succsucc->AddPredBlock(bb);
         bb->AddNextBlock(succsucc);
@@ -146,8 +159,47 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
 }
 
 bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
-    
+    if(bb->Size()==0){
+        return false;
+    }
+    //获取基本块最后一条指令
+    Instruction* lastInst=bb->GetBack();
+
+    //判断是否条件跳转指令
+    bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
+    if(!is_cond_branch){
+        return false;
+    }
+    //获取条件操作数和两个基本块
+    Value* cond=lastInst->GetOperand(0);
+    BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(1));
+    BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
+    //确认`目标基本块合法
+    if(!trueBlock||!falseBlock){
+        return false;
+    }
+    //判断条件是否是常量函数
+    ConstIRInt* c=dynamic_cast<ConstIRInt*>(cond);
+    if(!c){
+        return false;
+    }
+    BasicBlock* targetBlock=nullptr;
+    if(c->isConstOne()){
+        targetBlock=trueBlock;
+    }else if(c->isConstZero()){
+        targetBlock=falseBlock;
+    }else{
+        return false;
+    }
+    //创建无条件跳转指令,替换原条件跳转指令
+    auto oldInst=bb->GetLastInsts();
+    bb->erase(oldInst);
+    Instruction* uncondBr=new UnCondInst(targetBlock);
+    bb->push_back(uncondBr);
+
+    return true;
 }
+//消除无意义phi
 bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
     bool changed=false;
 
@@ -174,8 +226,11 @@ bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
             //所有输入值相同,可以替换
             if(all_same&&same){
                 inst->ReplaceAllUseWith(same);
+                
+                auto to_erase=it;
                 ++it;
-                inst->EraseFromManager();
+                bb->erase(*to_erase);
+                
                 changed=true;
                 continue;
             }
