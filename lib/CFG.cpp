@@ -1590,3 +1590,63 @@ UndefValue *UndefValue::Get(Type *_ty)
         UnVal = new UndefValue(_ty);
     return UnVal;
 }
+
+
+void PhiInst::removeIncomingFrom(BasicBlock *fromBB) {
+    std::vector<int> indicesToRemove;
+
+    // 找出要删除的 idx
+    for (const auto &[idx, pair] : PhiRecord) {
+        if (pair.second == fromBB) {
+            indicesToRemove.push_back(idx);
+        }
+    }
+    if (indicesToRemove.empty()) return;
+
+    // 倒序方便操作
+    std::sort(indicesToRemove.rbegin(), indicesToRemove.rend());
+
+    // 删除 use 和 UseRecord 中对应项
+    for (int idx : indicesToRemove) {
+        // 找到对应的 Use*
+        Use *targetUse = nullptr;
+        for (auto &[usePtr, useIdx] : UseRecord) {
+            if (useIdx == idx) {
+                targetUse = usePtr;
+                break;
+            }
+        }
+
+        if (targetUse) {
+            // 从 useruselist 中删掉
+            auto it = std::find_if(useruselist.begin(), useruselist.end(),
+                                   [&](const Use &u) { return &u == targetUse; });
+            if (it != useruselist.end()) {
+                useruselist.erase(it);
+            }
+            UseRecord.erase(targetUse);
+        }
+
+        PhiRecord.erase(idx);
+    }
+
+    // 重建新的 PhiRecord 下标（UseRecord 下标也要更新）
+    std::map<int, std::pair<Value *, BasicBlock *>> newPhiRecord;
+    std::map<Use *, int> newUseRecord;
+
+    int newIdx = 0;
+    auto useIt = useruselist.begin();
+    for (const auto &[_, pair] : PhiRecord) {
+        if (useIt == useruselist.end()) break;
+
+        newPhiRecord[newIdx] = pair;
+        newUseRecord[&(*useIt)] = newIdx;
+        ++useIt;
+        ++newIdx;
+    }
+
+    PhiRecord = std::move(newPhiRecord);
+    UseRecord = std::move(newUseRecord);
+    oprandNum = newIdx;
+}
+
