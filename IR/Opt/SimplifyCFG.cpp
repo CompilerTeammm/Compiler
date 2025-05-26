@@ -87,33 +87,42 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
 
 //合并空返回块(no phi)
 bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
-    auto& BBs=func->GetBBs();
-    std::vector<BasicBlock*> returnBlocks;
+    // auto& BBs=func->GetBBs();
+    // std::vector<BasicBlock*> returnBlocks;
 
-    //收集所有空ret块
-    for(auto& bbPtr:BBs){
-        BasicBlock* bb=bbPtr.get();
-        if(bb->Size()==1&&bb->front->id==Instruction::Op::Ret){
-            returnBlocks.push_back(bb);
-        }
-    }
-    //合并空ret块
-    if(returnBlocks.size()<=1){
-        return false;
-    }
-    //选定第一个作为公共返回块
-    BasicBlock* commonRet=returnBlocks.front();
+    // //收集所有空ret块
+    // for(auto& bbPtr:BBs){
+    //     BasicBlock* bb=bbPtr.get();
+    //     if(bb->Size()==1){
+    //         Instruction* lastInst=bb->GetLastInsts();
+    //         if(lastInst&&lastInst->id==Instruction::Op::Ret){
+    //             RetInst* retInst=dynamic_cast<RetInst*>(lastInst);
+    //             if(retInst){
+    //                 //判断是否为无返回值ret
+    //                 if(retInst->GetUserUseList().empty()){
+    //                     returnBlocks.push_back(bb);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    // //合并空ret块
+    // if(returnBlocks.size()<=1){
+    //     return false;
+    // }
+    // //选定第一个作为公共返回块
+    // BasicBlock* commonRet=returnBlocks.front();
 
-    //重定向其他返回块的前驱到commonRet,并清理phi
-    for(size_t i=1;i<returnBlocks.size();++i){
-        BasicBlock* redundant=returnBlocks[i];
-        for(auto* pred: redundant->GetPredBlocks()){
-            pred->ReplaceNextBlock(redundant,commonRet);//替换后继
-            commonRet->AddPredBlock(pred);//加入新前驱
-        }
-
-        func->RemoveBBs(redundant);
-    }
+    // //重定向其他返回块的前驱到commonRet,并清理phi
+    // for(size_t i=1;i<returnBlocks.size();++i){
+    //     BasicBlock* redundant=returnBlocks[i];
+    //     for(auto* pred: redundant->GetPredBlocks()){
+    //         pred->ReplaceNextBlock(redundant,commonRet);//替换后继
+    //         commonRet->AddPredBlock(pred);//加入新前驱
+    //     }
+    //     //从函数中移除
+    //     func->RemoveBBs(redundant);
+    // }
     return true;
 }
 
