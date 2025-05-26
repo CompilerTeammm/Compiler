@@ -729,13 +729,12 @@ public:
   std::vector<Value *> &RecordIncomingValsA_Blocks();
   bool IsReplaced();
 
-
-  //hu1 do it
-  //删去phiinst的一个引用块实现
-  // %r = phi i32 [ %a, %bb ], [ %b, %bb2 ]
-  // ↓
-  // %r = phi i32 [ %b, %bb2 ]
-  //但需要注意,如果删完了之后是空phi了,需要自己删除掉这条指令
+  // hu1 do it
+  // 删去phiinst的一个引用块实现
+  //  %r = phi i32 [ %a, %bb ], [ %b, %bb2 ]
+  //  ↓
+  //  %r = phi i32 [ %b, %bb2 ]
+  // 但需要注意,如果删完了之后是空phi了,需要自己删除掉这条指令
   void removeIncomingFrom(BasicBlock *fromBB);
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
@@ -785,7 +784,7 @@ public:
   void RemovePredBlock(BasicBlock *pre);
   void RemoveNextBlock(BasicBlock *pre);
 
-  // 操作链表，待完善
+  // 操作链表，待完善 / 或者mylist中去找erase方法实现逻辑
   void RemovePredBB(BasicBlock *pre);
 
   // 注释了

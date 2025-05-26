@@ -187,7 +187,6 @@ public:
   iterator rbegin() { return iterator(back); }
   iterator rend() { return iterator(nullptr); }
 
-
   void CollectList(Staff *begin, Staff *end)
   {
     assert(!front && !back && "List must be empty for collection");
@@ -261,6 +260,56 @@ public:
       front = _node;
     }
     size++;
+  }
+
+  // 前弹出并返回
+  Staff *pop_front()
+  {
+    if (!front)
+      return nullptr;
+
+    Staff *node = front;
+    front = front->next;
+    if (front)
+    {
+      front->prev = nullptr;
+    }
+    else
+    {
+      back = nullptr;
+    }
+
+    node->next = nullptr;
+    node->prev = nullptr;
+    node->SetManager(nullptr);
+
+    size--;
+    return node;
+  }
+
+  // 后弹出并返回
+  Staff *pop_back()
+  {
+    if (!back)
+      return nullptr;
+
+    Staff *node = back;
+    back = back->prev;
+    if (back)
+    {
+      back->next = nullptr;
+    }
+    else
+    {
+      front = nullptr;
+    }
+
+    node->next = nullptr;
+    node->prev = nullptr;
+    node->SetManager(nullptr);
+
+    size--;
+    return node;
   }
 
   void ReplaceList(Staff *begin, Staff *end, std::list<Staff *> &sequence)
