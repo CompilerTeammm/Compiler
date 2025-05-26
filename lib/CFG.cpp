@@ -1593,60 +1593,46 @@ UndefValue *UndefValue::Get(Type *_ty)
 
 
 void PhiInst::removeIncomingFrom(BasicBlock *fromBB) {
-    std::vector<int> indicesToRemove;
+    //要移除的索引集合
+    std::vector<int> toEraseIndices;
 
-    // 找出要删除的 idx
-    for (const auto &[idx, pair] : PhiRecord) {
-        if (pair.second == fromBB) {
-            indicesToRemove.push_back(idx);
+    //找出所有与BB匹配的索引
+    for(const auto &entry:PhiRecord){
+        int idx=entry.first;
+        BasicBlock *curBB=entry.second.second;
+        if(curBB==fromBB){
+            toEraseIndices.push_back(idx);
         }
     }
-    if (indicesToRemove.empty()) return;
+    //反向排序，确保删除顺序不会影响vector索引
+    std::sort(toEraseIndices.rbegin(), toEraseIndices.rend());
 
-    // 倒序方便操作
-    std::sort(indicesToRemove.rbegin(), indicesToRemove.rend());
+    for(int idx:toEraseIndices){
+        //从UseRecord中移除相应的Use*
+        auto val=PhiRecord[idx].first;
 
-    // 删除 use 和 UseRecord 中对应项
-    for (int idx : indicesToRemove) {
-        // 找到对应的 Use*
-        Use *targetUse = nullptr;
-        for (auto &[usePtr, useIdx] : UseRecord) {
-            if (useIdx == idx) {
-                targetUse = usePtr;
-                break;
+        //找到UseRecord中对应的Use*
+        for(auto it=UseRecord.begin();it!=UseRecord.end();){
+            if(it->second==idx){
+                Use *usePtr=it->first;
+                //从useruselist中移除对应的shared_ptr
+                auto uit=std::find_if(useruselist.begin(), useruselist.end(),
+                    [usePtr](const std::shared_ptr<Use> &p) { return p.get() == usePtr; });
+                if (uit != useruselist.end()) {
+                    useruselist.erase(uit);
+                }
+                it=UseRecord.erase(it);
+            }else{
+                ++it;
             }
         }
-
-        if (targetUse) {
-            // 从 useruselist 中删掉
-            auto it = std::find_if(useruselist.begin(), useruselist.end(),
-                                   [&](const Use &u) { return &u == targetUse; });
-            if (it != useruselist.end()) {
-                useruselist.erase(it);
-            }
-            UseRecord.erase(targetUse);
-        }
-
+        //从PhiRecord中移除对应的记录
         PhiRecord.erase(idx);
+        oprandNum--;
     }
-
-    // 重建新的 PhiRecord 下标（UseRecord 下标也要更新）
-    std::map<int, std::pair<Value *, BasicBlock *>> newPhiRecord;
-    std::map<Use *, int> newUseRecord;
-
-    int newIdx = 0;
-    auto useIt = useruselist.begin();
-    for (const auto &[_, pair] : PhiRecord) {
-        if (useIt == useruselist.end()) break;
-
-        newPhiRecord[newIdx] = pair;
-        newUseRecord[&(*useIt)] = newIdx;
-        ++useIt;
-        ++newIdx;
+    //如果删完了，oprandNum归零
+    if(PhiRecord.empty()){
+        oprandNum=0;
     }
-
-    PhiRecord = std::move(newPhiRecord);
-    UseRecord = std::move(newUseRecord);
-    oprandNum = newIdx;
+    //如果PhiRecord为空，可能需要删除PhiInst(自己后续删吧，不在这里写了)
 }
-
