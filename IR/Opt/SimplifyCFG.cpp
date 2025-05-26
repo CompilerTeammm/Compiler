@@ -60,7 +60,7 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
             for(auto succ:bb->GetNextBlocks()){
                 for(auto it=succ->begin();it!=succ->end();++it){
                     if(auto phi=dynamic_cast<PhiInst*>(*it)){
-                        phi->removeIncomingForBlock();//好像没找到实现对应功能的方法?
+                        phi->removeIncomingFrom(bb);//好像没找到实现对应功能的方法?
                     }else{
                         break;
                     }
