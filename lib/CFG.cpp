@@ -1617,7 +1617,7 @@ void PhiInst::removeIncomingFrom(BasicBlock *fromBB) {
                 Use *usePtr=it->first;
                 //从useruselist中移除对应的shared_ptr
                 auto uit=std::find_if(useruselist.begin(), useruselist.end(),
-                    [usePtr](const std::shared_ptr<Use> &p) { return p.get() == usePtr; });
+                    [usePtr](const std::unique_ptr<Use> &p) { return p.get() == usePtr; });
                 if (uit != useruselist.end()) {
                     useruselist.erase(uit);
                 }

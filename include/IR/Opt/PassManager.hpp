@@ -126,7 +126,7 @@ void PassManager::RunOnTest()
         auto fun = function.get();
         DominantTree tree(fun);
         tree.BuildDominantTree();
-        SCFG(fun, &tree).run();
+        SimplifyCFG(fun, &tree).run();
     }
 #endif
 }
