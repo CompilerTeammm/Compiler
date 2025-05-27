@@ -15,6 +15,7 @@
 #include "LoopUnrolling.hpp"
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
+#include "SimplifyCFG.hpp"
 
 // 互不影响，完全没问题再放出来
 #define dce

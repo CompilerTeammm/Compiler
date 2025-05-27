@@ -35,7 +35,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/SSAPRE.cpp
   IR/Opt/SimplifyCFG.cpp
   IR/Opt/LoopUnrolling.cpp
-
+  IR/Analysis/LoopInfo.cpp
 
 
   lib/*.cpp
