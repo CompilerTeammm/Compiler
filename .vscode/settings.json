@@ -1,4 +1,13 @@
 {
+  "cmake.generator": "Ninja",
+  "cmake.preferredGenerators": ["Ninja"],
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+  "cmake.configureOnOpen": true,
+  "cmake.cmakePath": "/usr/bin/cmake",
+
+  "C_Cpp.default.compilerPath": "/usr/bin/clang++",
+  "C_Cpp.default.intelliSenseMode": "linux-clang-x64",
+  "C_Cpp.default.cppStandard": "c++17",
   "files.associations": {
     "array": "cpp",
     "atomic": "cpp",
@@ -74,7 +83,7 @@
     "span": "cpp",
     "text_encoding": "cpp"
   },
-  "C_Cpp_Runner.cCompilerPath": "usr/bin/gcc",
+  "C_Cpp_Runner.cCompilerPath": "/usr/bin/gcc",
   "C_Cpp_Runner.cppCompilerPath": "g++",
   "C_Cpp_Runner.debuggerPath": "gdb",
   "C_Cpp_Runner.cStandard": "",
