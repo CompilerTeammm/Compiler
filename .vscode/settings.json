@@ -1,13 +1,4 @@
 {
-  "cmake.generator": "Ninja",
-  "cmake.preferredGenerators": ["Ninja"],
-  "cmake.buildDirectory": "${workspaceFolder}/build",
-  "cmake.configureOnOpen": true,
-  "cmake.cmakePath": "/usr/bin/cmake",
-
-  "C_Cpp.default.compilerPath": "/usr/bin/clang++",
-  "C_Cpp.default.intelliSenseMode": "linux-clang-x64",
-  "C_Cpp.default.cppStandard": "c++17",
   "files.associations": {
     "array": "cpp",
     "atomic": "cpp",
