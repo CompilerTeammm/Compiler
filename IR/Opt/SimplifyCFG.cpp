@@ -88,124 +88,124 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
 
 //合并空返回块(no phi)
 bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
-    auto& BBs=func->GetBBs();
-    std::vector<BasicBlock*> returnBlocks;
+    // auto& BBs=func->GetBBs();
+    // std::vector<BasicBlock*> returnBlocks;
 
-    //收集所有空ret块
-    for(auto& bbPtr:BBs){
-        BasicBlock* bb=bbPtr.get();
-        if(bb->Size()==1){
-            Instruction* lastInst=bb->GetLastInsts();
-            if(lastInst&&lastInst->id==Instruction::Op::Ret){
-                RetInst* retInst=dynamic_cast<RetInst*>(lastInst);
-                if(retInst){
-                    //判断是否为无返回值ret
-                    if(retInst->GetUserUseList().empty()){
-                        returnBlocks.push_back(bb);
-                    }
-                }
-            }
-        }
-    }
-    //合并空ret块
-    if(returnBlocks.size()<=1){
-        return false;
-    }
-    //选定第一个作为公共返回块
-    BasicBlock* commonRet=returnBlocks.front();
+    // //收集所有空ret块
+    // for(auto& bbPtr:BBs){
+    //     BasicBlock* bb=bbPtr.get();
+    //     if(bb->Size()==1){
+    //         Instruction* lastInst=bb->GetLastInsts();
+    //         if(lastInst&&lastInst->id==Instruction::Op::Ret){
+    //             RetInst* retInst=dynamic_cast<RetInst*>(lastInst);
+    //             if(retInst){
+    //                 //判断是否为无返回值ret
+    //                 if(retInst->GetUserUseList().empty()){
+    //                     returnBlocks.push_back(bb);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    // //合并空ret块
+    // if(returnBlocks.size()<=1){
+    //     return false;
+    // }
+    // //选定第一个作为公共返回块
+    // BasicBlock* commonRet=returnBlocks.front();
 
-    //重定向其他返回块的前驱到commonRet,并清理phi
-    for(size_t i=1;i<returnBlocks.size();++i){
-        BasicBlock* redundant=returnBlocks[i];
-        for(auto* pred: redundant->GetPredBlocks()){
-            pred->ReplaceNextBlock(redundant,commonRet);//替换后继
-            commonRet->AddPredBlock(pred);//加入新前驱
-        }
-        //从函数中移除
-        func->RemoveBBs(redundant);
-    }
+    // //重定向其他返回块的前驱到commonRet,并清理phi
+    // for(size_t i=1;i<returnBlocks.size();++i){
+    //     BasicBlock* redundant=returnBlocks[i];
+    //     for(auto* pred: redundant->GetPredBlocks()){
+    //         pred->ReplaceNextBlock(redundant,commonRet);//替换后继
+    //         commonRet->AddPredBlock(pred);//加入新前驱
+    //     }
+    //     //从函数中移除
+    //     func->RemoveBBs(redundant);
+    // }
     return true;
 }
 
 //合并基本块(no phi)
 bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
-    //获取后继块
-    if(bb->GetNextBlocks().size()!=1){
-        return false;
-    }
-    auto succ=bb->GetNextBlocks()[0];
-    //后继不能是自身,避免死循环
-    if(succ==bb){
-        return false;
-    }
-    //判断succ是否只有bb一个前驱
-    if(succ->GetPredBlocks().size()!=1||succ->GetPredBlocks()[0]!=bb){
-        return false;
-    }
+    // //获取后继块
+    // if(bb->GetNextBlocks().size()!=1){
+    //     return false;
+    // }
+    // auto succ=bb->GetNextBlocks()[0];
+    // //后继不能是自身,避免死循环
+    // if(succ==bb){
+    //     return false;
+    // }
+    // //判断succ是否只有bb一个前驱
+    // if(succ->GetPredBlocks().size()!=1||succ->GetPredBlocks()[0]!=bb){
+    //     return false;
+    // }
 
-    //ok,那满足条件,合并
-    //移除bb中的terminator指令(一般是br)
-    if(bb->Size()!=0 && bb->GetBack()->IsTerminateInst()){
-        bb->GetBack()->EraseFromManager();
-    }
-    while(succ->Size()!=0){
-        Instruction *inst=succ->GetFront();
-        succ->erase(inst);
-        bb->push_back(inst);
-    }
-    //更新CFG
-    //断开bb与succ
-    bb->RemoveNextBlock(succ);
-    succ->RemovePredBlock(bb);
-    //succ的后继接到bb上
-    auto nexts=succ->GetNextBlocks();
-    for(auto succsucc:nexts){
-        succsucc->RemovePredBlock(succ);
-        succsucc->AddPredBlock(bb);
-        bb->AddNextBlock(succsucc);
-    }
-    succ->EraseFromManager();
+    // //ok,那满足条件,合并
+    // //移除bb中的terminator指令(一般是br)
+    // if(bb->Size()!=0 && bb->GetBack()->IsTerminateInst()){
+    //     bb->GetBack()->EraseFromManager();
+    // }
+    // while(succ->Size()!=0){
+    //     Instruction *inst=succ->GetFront();
+    //     succ->erase(inst);
+    //     bb->push_back(inst);
+    // }
+    // //更新CFG
+    // //断开bb与succ
+    // bb->RemoveNextBlock(succ);
+    // succ->RemovePredBlock(bb);
+    // //succ的后继接到bb上
+    // auto nexts=succ->GetNextBlocks();
+    // for(auto succsucc:nexts){
+    //     succsucc->RemovePredBlock(succ);
+    //     succsucc->AddPredBlock(bb);
+    //     bb->AddNextBlock(succsucc);
+    // }
+    // succ->EraseFromManager();
     return true;
 }
 
 bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
-    if(bb->Size()==0){
-        return false;
-    }
-    //获取基本块最后一条指令
-    Instruction* lastInst=bb->GetBack();
+    // if(bb->Size()==0){
+    //     return false;
+    // }
+    // //获取基本块最后一条指令
+    // Instruction* lastInst=bb->GetBack();
 
-    //判断是否条件跳转指令
-    bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
-    if(!is_cond_branch){
-        return false;
-    }
-    //获取条件操作数和两个基本块
-    Value* cond=lastInst->GetOperand(0);
-    BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(1));
-    BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
-    //确认`目标基本块合法
-    if(!trueBlock||!falseBlock){
-        return false;
-    }
-    //判断条件是否是常量函数
-    ConstIRInt* c=dynamic_cast<ConstIRInt*>(cond);
-    if(!c){
-        return false;
-    }
-    BasicBlock* targetBlock=nullptr;
-    if(c->isConstOne()){
-        targetBlock=trueBlock;
-    }else if(c->isConstZero()){
-        targetBlock=falseBlock;
-    }else{
-        return false;
-    }
-    //创建无条件跳转指令,替换原条件跳转指令
-    auto oldInst=bb->GetLastInsts();
-    bb->erase(oldInst);
-    Instruction* uncondBr=new UnCondInst(targetBlock);
-    bb->push_back(uncondBr);
+    // //判断是否条件跳转指令
+    // bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
+    // if(!is_cond_branch){
+    //     return false;
+    // }
+    // //获取条件操作数和两个基本块
+    // Value* cond=lastInst->GetOperand(0);
+    // BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(1));
+    // BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
+    // //确认`目标基本块合法
+    // if(!trueBlock||!falseBlock){
+    //     return false;
+    // }
+    // //判断条件是否是常量函数
+    // ConstIRInt* c=dynamic_cast<ConstIRInt*>(cond);
+    // if(!c){
+    //     return false;
+    // }
+    // BasicBlock* targetBlock=nullptr;
+    // if(c->isConstOne()){
+    //     targetBlock=trueBlock;
+    // }else if(c->isConstZero()){
+    //     targetBlock=falseBlock;
+    // }else{
+    //     return false;
+    // }
+    // //创建无条件跳转指令,替换原条件跳转指令
+    // auto oldInst=bb->GetLastInsts();
+    // bb->erase(oldInst);
+    // Instruction* uncondBr=new UnCondInst(targetBlock);
+    // bb->push_back(uncondBr);
 
     return true;
 }
