@@ -573,7 +573,7 @@ bool PromoteMem2Reg::promoteMemoryToRegister()
         
         // Iterating over NewPhiNodes is deterministic, so it is safe to simplify and RAUW
         // If the phiInst merges one value and/or undefs,get the value
-        for(auto I = NewPhiNodes.begin(),E = NewPhiNodes.end(); I !=E ; I++)
+        for(auto I = NewPhiNodes.begin(),E = NewPhiNodes.end(); I !=E ;I++)
         {
             PhiInst* PInst = I->second;
             if(PInst->IsReplaced())
@@ -583,6 +583,8 @@ bool PromoteMem2Reg::promoteMemoryToRegister()
                 NewPhiNodes.erase(I++);
                 IsEliminated = true;
             }
+            if(NewPhiNodes.empty())
+                break;
         }   
     }
 
