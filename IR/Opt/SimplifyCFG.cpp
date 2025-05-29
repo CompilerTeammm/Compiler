@@ -89,40 +89,88 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
 //合并空返回块(no phi)(实际上是合并所有返回相同常量值的返回块)
 bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
     auto& BBs=func->GetBBs();
-    std::vector<BasicBlock*> returnBlocks;
-
-    //收集所有空ret块
+    std::vector<BasicBlock*> ReturnBlocks;
+    std::optional<int> commonRetVal;//optional用于标识一个值要么存在要么不存在(可选值)
+    //记录目标常量返回值
+    //收集所有返回指令,返回值需要是整数常量且值相同的块
     for(auto& bbPtr:BBs){
         BasicBlock* bb=bbPtr.get();
-        if(bb->Size()==1){
+        if(bb->Size()==1){//基本块内只有一条指令(ret)
             Instruction* lastInst=bb->GetLastInsts();
             if(lastInst&&lastInst->id==Instruction::Op::Ret){
                 RetInst* retInst=dynamic_cast<RetInst*>(lastInst);
                 if(retInst){
-                    //判断是否为无返回值ret
-                    if(retInst->GetUserUseList().empty()){
-                        returnBlocks.push_back(bb);
+                    Value* retVal=retInst->GetOperand(0);//假设这个是返回值
+
+                    //判断返回值是否整数常量
+                    if(auto c=dynamic_cast<ConstIRInt*>(retVal)){
+                        int val=c->GetVal();
+                        if(!commonRetVal.has_value()){
+                            //记录第一个返回常量值
+                            commonRetVal=val;
+                            ReturnBlocks.push_back(bb);
+                        }else if(commonRetVal.value()==val){
+                            //只收集返回值相同的返回块
+                            ReturnBlocks.push_back(bb);
+                        }
                     }
                 }
             }
         }
     }
     //合并空ret块
-    if(returnBlocks.size()<=1){
+    if(ReturnBlocks.size()<=1){
+        std::cerr << "No or only one return block with common return value found.\n";
         return false;
     }
-    //选定第一个作为公共返回块
-    BasicBlock* commonRet=returnBlocks.front();
+    std::cerr<<"Found"<<ReturnBlocks.size()<<" return blocks with common return value: "<<commonRetVal.value()<<"\n";
 
-    //重定向其他返回块的前驱到commonRet,并清理phi
-    for(size_t i=1;i<returnBlocks.size();++i){
-        BasicBlock* redundant=returnBlocks[i];
+    //选定第一个作为公共返回块
+    BasicBlock* commonRet=ReturnBlocks.front();
+
+    //重定向其他返回块的前驱到commonRet
+    for(size_t i=1;i<ReturnBlocks.size();++i){
+        BasicBlock* redundant=ReturnBlocks[i];
+        std::cerr << "Removed redundant return block: " << redundant->GetName() << "\n";
+        //重定向所有前驱块的后继指针从redundant到commonRet
         for(auto* pred: redundant->GetPredBlocks()){
-            pred->ReplaceNextBlock(redundant,commonRet);//替换后继
+            if(pred->Size()==0) continue;
+            auto term=pred->GetBack();
+            // //处理CondInst
+            // if(auto *cond=dynamic_cast<CondInst *>(term)){
+            //     for(auto &use:cond->GetUserUseList()){
+            //         if(auto *target=dynamic_cast<BasicBlock*>(use->GetValue())){
+            //             if(target==redundant){
+            //                 use->SetValue() = commonRet;
+            //             }
+            //         }
+            //     }
+            // }
+            // //处理UnCondInst
+            // else if(auto *uncond=dynamic_cast<UnCondInst *>(term)){
+            //     for(auto &use:uncond->GetUserUseList()){
+            //         if(auto *target=dynamic_cast<BasicBlock*>(use->GetValue())){
+            //             if(target==redundant){
+            //                 use->SetValue()=commonRet;
+            //             }
+            //         }
+            //     }
+            // }
+
+            for (auto& use : term->GetUserUseList()) {
+                if (auto* target = dynamic_cast<BasicBlock*>(use->GetValue())) {
+                    if (target == redundant) {
+                        use->SetValue() = commonRet;
+                    }
+                }
+            }
+
             commonRet->AddPredBlock(pred);//加入新前驱
         }
         //从函数中移除
+        std::cerr<< "Removed redundant return block: "<<redundant->GetName()<<"\n";
         func->RemoveBBs(redundant);
+        
     }
     return true;
 }

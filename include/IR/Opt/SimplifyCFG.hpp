@@ -7,6 +7,7 @@
 
 #include <stack>
 #include <unordered_set>
+#include <optional>
 class SimplifyCFG:public _PassBase<SimplifyCFG, Function>{
 private:
     Function* func;
