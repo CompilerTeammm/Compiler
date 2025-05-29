@@ -169,44 +169,46 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
 }
 
 bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
-    // if(bb->Size()==0){
-    //     return false;
-    // }
-    // //获取基本块最后一条指令
-    // Instruction* lastInst=bb->GetBack();
+    if(bb->Size()==0){
+        return false;
+    }
+    //获取基本块最后一条指令
+    Instruction* lastInst=bb->GetBack();
 
-    // //判断是否条件跳转指令
-    // bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
-    // if(!is_cond_branch){
-    //     return false;
-    // }
-    // //获取条件操作数和两个基本块
-    // Value* cond=lastInst->GetOperand(0);
-    // BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(1));
-    // BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
-    // //确认`目标基本块合法
-    // if(!trueBlock||!falseBlock){
-    //     return false;
-    // }
-    // //判断条件是否是常量函数
-    // ConstIRInt* c=dynamic_cast<ConstIRInt*>(cond);
-    // if(!c){
-    //     return false;
-    // }
-    // BasicBlock* targetBlock=nullptr;
-    // if(c->isConstOne()){
-    //     targetBlock=trueBlock;
-    // }else if(c->isConstZero()){
-    //     targetBlock=falseBlock;
-    // }else{
-    //     return false;
-    // }
-    // //创建无条件跳转指令,替换原条件跳转指令
-    // auto oldInst=bb->GetLastInsts();
-    // bb->erase(oldInst);
-    // Instruction* uncondBr=new UnCondInst(targetBlock);
-    // bb->push_back(uncondBr);
+    //判断是否条件跳转指令
+    bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
+    if(!is_cond_branch){
+        return false;
+    }
+    //获取条件操作数和两个基本块
+    Value* cond=lastInst->GetOperand(0);
+    BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(1));
+    BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
+    //确认`目标基本块合法
+    if(!trueBlock||!falseBlock){
+        return false;
+    }
+    //判断条件是否是常量函数
+    auto* c=dynamic_cast<ConstIRBoolean*>(cond);
+    if(!c){
+        std::cerr << "Not a constant condition\n";
+        return false;
+    }
+    BasicBlock* targetBlock=c->GetVal() ? trueBlock:falseBlock;
+    //创建无条件跳转指令,替换原条件跳转指令
+    auto oldInst=bb->GetLastInsts();
+    bb->erase(oldInst);
+    Instruction* uncondBr=new UnCondInst(targetBlock);
+    bb->push_back(uncondBr);
 
+    //更新CFG
+    bb->RemoveNextBlock(trueBlock);
+    bb->RemovePredBlock(falseBlock);
+    targetBlock->RemovePredBlock(bb);
+    bb->AddNextBlock(targetBlock);
+    targetBlock->AddPredBlock(bb);
+
+    std::cerr << "Simplified to: br label %" << targetBlock->GetName() << "\n";
     return true;
 }
 //消除无意义phi
