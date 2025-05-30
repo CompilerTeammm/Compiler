@@ -95,12 +95,15 @@ public:
     LoopsDepth = 0;
   }
   LoopTrait trait;
+  // 扩展
+  Loop *GetParent() { return Parent; }
 
 private:
   // 单个循环
   std::vector<BasicBlock *> BBs; // 一个循环重写成“基本块列表”
   BasicBlock *Header = nullptr;  // 单个循环头
   BasicBlock *Latch = nullptr;   // 单个循环尾
+  Loop *Parent = nullptr;
 
   // 嵌套循环
   std::vector<Loop *> Loops;   // 嵌套循环列表
@@ -155,16 +158,20 @@ public:
 
   // 删除
   // void deleteLoop(Loop *loop);
-  // void deleteBB(BasicBlock *bb);
+  void deleteBB(BasicBlock *bb);
 
   // 功能
-  // void newBB(BasicBlock *oldBB, BasicBlock *newBB);
+  void newBB(BasicBlock *oldBB, BasicBlock *newBB);
   bool canBeOpte() { return loops.size() != 0; }
 
   std::vector<Loop *>::const_iterator loopsBegin() { return loops.begin(); }
   std::vector<Loop *>::const_iterator loopsEnd() { return loops.end(); }
   std::vector<Loop *>::const_reverse_iterator loopsRbegin() { return loops.rbegin(); }
   std::vector<Loop *>::const_reverse_iterator loopsRend() { return loops.rend(); }
+
+  Loop *LookUp(BasicBlock *bb);
+  // 扩展
+  void setLoop(BasicBlock *bb, Loop *loop);
 
   ~LoopInfoAnalysis()
   {

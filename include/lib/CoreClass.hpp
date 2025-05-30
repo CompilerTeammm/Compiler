@@ -181,9 +181,10 @@ public:
   bool isConstZero();
   bool isConstOne();
 
-  // 后端要用的，文姐(╥╯^╰╥)
   template <typename T>
   T *as() { return dynamic_cast<T *>(this); }
+  // UNROLLING要用
+  void RAUW(Value *val);
 };
 
 class User : public Value
@@ -230,6 +231,13 @@ public:
 
   bool is_empty() const;
   size_t GetUserUseListSize() const;
+  User *CloneInst();
+  void Use2Value(Use *u, Operand val)
+  {
+    u->RemoveFromValUseList(this);
+    u->usee = val;
+    val->add_use(u);
+  }
 };
 
 class Instruction : public User, public Node<BasicBlock, Instruction>

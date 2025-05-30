@@ -698,6 +698,11 @@ Operand ToInt(Operand op, BasicBlock *block);
 /// dh 来实现这个
 class PhiInst : public Instruction
 {
+  using UsePtr = std::unique_ptr<Use>;
+
+protected:
+  std::vector<UsePtr> uselist;
+
 private:
   int oprandNum; // 记录操作数的数目
   std::vector<Value *> Incomings;
@@ -729,6 +734,10 @@ public:
   std::vector<Value *> &RecordIncomingValsA_Blocks();
   bool IsReplaced();
 
+  // unrolling
+  Value *ReturnValIn(BasicBlock *bb);
+  void Del_Incomes(int CurrentNum);
+  void FormatPhi();
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
 };

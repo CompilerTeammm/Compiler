@@ -735,6 +735,78 @@ void PhiInst::addIncoming(Value *IncomingVal, BasicBlock *PreBB)
     oprandNum++;
 }
 
+Value *PhiInst::ReturnValIn(BasicBlock *bb)
+{
+    auto it = std::find_if(
+        PhiRecord.begin(), PhiRecord.end(),
+        [bb](const std::pair<const int, std::pair<Value *, BasicBlock *>> &ele)
+        {
+            return ele.second.second == bb;
+        });
+    if (it == PhiRecord.end())
+        return nullptr;
+    return it->second.first;
+}
+
+void PhiInst::Del_Incomes(int CurrentNum)
+{
+    if (PhiRecord.find(CurrentNum) != PhiRecord.end())
+    {
+        auto iter = std::find_if(
+            uselist.begin(), uselist.end(), [=](const std::unique_ptr<Use> &ele)
+            { return ele->GetValue() == PhiRecord[CurrentNum].first; });
+        auto &vec = GetUserUseList();
+        // (*iter)->RemoveFromUserList((*iter)->GetUser());
+        for (int i = 0; i < vec.size(); i++)
+            if (vec[i].get() == (*iter).get())
+                vec.erase(std::remove(vec.begin(), vec.end(), (*iter)));
+        PhiRecord.erase(CurrentNum);
+        auto i = std::find_if(
+            UseRecord.begin(), UseRecord.end(),
+            [CurrentNum](auto &ele)
+            { return ele.second == CurrentNum; });
+        if (i != UseRecord.end())
+        {
+            UseRecord.erase(i);
+        }
+    }
+    else
+        std::cerr << "No such PhiRecord" << std::endl;
+}
+
+void PhiInst::FormatPhi()
+{
+    std::vector<std::pair<int, std::pair<Value *, BasicBlock *>>> assist;
+    std::queue<std::pair<Value *, BasicBlock *>> defend;
+    UseRecord.clear();
+    oprandNum = 0;
+    for (auto &[_1, v] : PhiRecord)
+    {
+        assist.push_back(std::make_pair(_1, v));
+        // defend.push(std::make_pair(v.first, v.second));
+    }
+    std::sort(assist.begin(), assist.end(),
+              [](const auto &p1, const auto &p2)
+              { return p1.first < p2.first; });
+    PhiRecord.clear();
+    for (int i = 0; i < assist.size(); i++)
+    {
+        defend.push(
+            std::make_pair(assist[i].second.first, assist[i].second.second));
+    }
+    while (!defend.empty())
+    {
+        auto &[v_fir, v_sec] = defend.front();
+        defend.pop();
+        PhiRecord[oprandNum++] = std::make_pair(v_fir, v_sec);
+    }
+    int tmp = 0;
+    for (auto &use : uselist)
+    {
+        UseRecord[use.get()] = tmp++;
+    }
+}
+
 BasicBlock *PhiInst::getIncomingBlock(int num)
 {
     auto &[v, bb] = PhiRecord[num];

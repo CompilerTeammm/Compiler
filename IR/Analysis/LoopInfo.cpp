@@ -207,3 +207,42 @@ BasicBlock *LoopInfoAnalysis::getLatch(Loop *loop)
   }
   return latch;
 }
+
+Loop *LoopInfoAnalysis::LookUp(BasicBlock *bb)
+{
+  auto iter = Loops.find(bb);
+  if (iter != Loops.end())
+    return iter->second;
+  return nullptr;
+}
+void LoopInfoAnalysis::deleteBB(BasicBlock *bb)
+{
+  auto loop = LookUp(bb);
+  if (!loop)
+    return;
+  while (loop)
+  {
+    loop->deleteBB(bb);
+    loop = loop->GetParent();
+  }
+}
+
+void LoopInfoAnalysis::newBB(BasicBlock *Old, BasicBlock *New)
+{
+  auto loop = LookUp(Old);
+  if (!loop)
+    return;
+  while (loop)
+  {
+    loop->deleteBB(Old);
+    loop->addLoopBody(New);
+    loop = loop->GetParent();
+  }
+}
+
+void LoopInfoAnalysis::setLoop(BasicBlock *bb, Loop *loop)
+{
+  if (Loops.find(bb) != Loops.end())
+    return;
+  Loops.emplace(bb, loop);
+}
