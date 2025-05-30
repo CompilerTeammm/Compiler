@@ -22,6 +22,7 @@ private:
   DominantTree *_dom;
   LoopInfoAnalysis *loopAnalysis;
   std::vector<Loop *> DeleteLoop;
+  BasicBlock *prehead = nullptr;
   const int MaxInstCost_Before = 200;
   const int MaxInstCost = 2000;
   const int MaxInstCost_After = 5000;
