@@ -734,10 +734,20 @@ public:
   std::vector<Value *> &RecordIncomingValsA_Blocks();
   bool IsReplaced();
 
+<<<<<<< HEAD
   // unrolling
   Value *ReturnValIn(BasicBlock *bb);
   void Del_Incomes(int CurrentNum);
   void FormatPhi();
+=======
+  // hu1 do it
+  // 删去phiinst的一个引用块实现
+  //  %r = phi i32 [ %a, %bb ], [ %b, %bb2 ]
+  //  ↓
+  //  %r = phi i32 [ %b, %bb2 ]
+  // 但需要注意,如果删完了之后是空phi了,需要自己删除掉这条指令
+  void removeIncomingFrom(BasicBlock *fromBB);
+>>>>>>> c2ea852e28d9745e1203986b31db90a18d381b90
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
 };
@@ -747,7 +757,6 @@ public:
 // 使用的时候根据自己要实现的功能选择合适的数据结构
 class BasicBlock : public Value, public List<BasicBlock, Instruction>, public Node<Function, BasicBlock>
 {
-  // 原来是public
 public:
   int index;         // 基本块序号
   int LoopDepth = 0; // 嵌套深度
@@ -779,25 +788,22 @@ public:
 
   virtual void print();
 
-  // 获取后继基本块列表
+  // 操作前驱/后继数组
   std::vector<BasicBlock *> GetNextBlocks() const;
-
-  // 获取前驱基本块
   const std::vector<BasicBlock *> &GetPredBlocks() const;
-
-  // 添加后继基本块
   void AddNextBlock(BasicBlock *block);
-
-  // 添加前驱基本块
   void AddPredBlock(BasicBlock *pre);
-
-  // 移除前驱基本块
   void RemovePredBlock(BasicBlock *pre);
+  void RemoveNextBlock(BasicBlock *pre);
 
+  // 操作链表，待完善 / 或者mylist中去找erase方法实现逻辑
+  void RemovePredBB(BasicBlock *pre);
+
+  // 注释了
   bool is_empty_Insts() const; // 判断指令是否为空
 
   // 获取基本块的最后一条指令
-  // 这个也没有实现
+  // 链表最后
   Instruction *GetLastInsts() const;
 
   // 替换后继块中的某个基本块
@@ -806,7 +812,6 @@ public:
   // 替换前驱块中的某个基本块
   void ReplacePreBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
 
-  // 暂未实现，只有声明
   Operand GenerateBinaryInst(Operand _A, BinaryInst::Operation op, Operand _B);
   static Operand GenerateBinaryInst(BasicBlock *, Operand, BinaryInst::Operation, Operand);
   Operand GenerateSI2FPInst(Operand _A);

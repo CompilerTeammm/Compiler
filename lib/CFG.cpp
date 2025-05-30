@@ -1050,6 +1050,82 @@ void BasicBlock::RemovePredBlock(BasicBlock *pre)
         PredBlocks.end());
 }
 
+void BasicBlock::RemoveNextBlock(BasicBlock *next)
+{
+    NextBlocks.erase(
+        std::remove(NextBlocks.begin(), NextBlocks.end(), next),
+        NextBlocks.end());
+}
+
+// void BasicBlock::RemovePredBB(BasicBlock *pre)
+// {
+//     if (pre == this)
+//     {
+//         for (auto iter = pre->begin();
+//              iter != pre->end() && dynamic_cast<PhiInst *>(*iter);)
+//         {
+//             auto phi = dynamic_cast<PhiInst *>(*iter);
+//             ++iter;
+//             phi->EraseRecordByBlock(pre);
+//             if (phi->PhiRecord.size() == 1)
+//             {
+//                 BasicBlock *b = phi->PhiRecord.begin()->second.second;
+//                 if (b == this)
+//                 {
+//                     phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+//                     delete phi;
+//                 }
+//                 else
+//                 {
+//                     Value *repl = (*(phi->PhiRecord.begin())).second.first;
+//                     if (repl == phi)
+//                         phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+//                     phi->ReplaceAllUseWith(repl);
+//                     delete phi;
+//                 }
+//             }
+//         }
+//         return;
+//     }
+//     for (auto iter = this->begin(); iter != this->end(); ++iter)
+//     {
+//         auto inst = *iter;
+//         if (auto phi = dynamic_cast<PhiInst *>(this->front()))
+//         {
+//             auto tmp = std::find_if(
+//                 phi->PhiRecord.begin(), phi->PhiRecord.end(),
+//                 [pre](const std::pair<int, std::pair<Value *, BasicBlock *>> &ele)
+//                 {
+//                     return ele.second.second == pre;
+//                 });
+//             if (tmp != phi->PhiRecord.end())
+//             {
+//                 phi->Del_Incomes(tmp->first);
+//                 phi->FormatPhi();
+//             }
+//             if (phi->PhiRecord.size() == 1)
+//             {
+//                 BasicBlock *b = phi->PhiRecord.begin()->second.second;
+//                 if (b == this)
+//                 {
+//                     phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+//                     delete phi;
+//                 }
+//                 else
+//                 {
+//                     Value *repl = (*(phi->PhiRecord.begin())).second.first;
+//                     if (repl == phi)
+//                         phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+//                     phi->ReplaceAllUseWith(repl);
+//                     delete phi;
+//                 }
+//             }
+//         }
+//         else
+//             return;
+//     }
+// }
+
 // bool BasicBlock::is_empty_Insts() const
 // {
 //     return instructions.empty();
@@ -1585,4 +1661,50 @@ UndefValue *UndefValue::Get(Type *_ty)
     if (!UnVal)
         UnVal = new UndefValue(_ty);
     return UnVal;
+}
+
+
+void PhiInst::removeIncomingFrom(BasicBlock *fromBB) {
+    //要移除的索引集合
+    std::vector<int> toEraseIndices;
+
+    //找出所有与BB匹配的索引
+    for(const auto &entry:PhiRecord){
+        int idx=entry.first;
+        BasicBlock *curBB=entry.second.second;
+        if(curBB==fromBB){
+            toEraseIndices.push_back(idx);
+        }
+    }
+    //反向排序，确保删除顺序不会影响vector索引
+    std::sort(toEraseIndices.rbegin(), toEraseIndices.rend());
+
+    for(int idx:toEraseIndices){
+        //从UseRecord中移除相应的Use*
+        auto val=PhiRecord[idx].first;
+
+        //找到UseRecord中对应的Use*
+        for(auto it=UseRecord.begin();it!=UseRecord.end();){
+            if(it->second==idx){
+                Use *usePtr=it->first;
+                //从useruselist中移除对应的shared_ptr
+                auto uit=std::find_if(useruselist.begin(), useruselist.end(),
+                    [usePtr](const std::unique_ptr<Use> &p) { return p.get() == usePtr; });
+                if (uit != useruselist.end()) {
+                    useruselist.erase(uit);
+                }
+                it=UseRecord.erase(it);
+            }else{
+                ++it;
+            }
+        }
+        //从PhiRecord中移除对应的记录
+        PhiRecord.erase(idx);
+        oprandNum--;
+    }
+    //如果删完了，oprandNum归零
+    if(PhiRecord.empty()){
+        oprandNum=0;
+    }
+    //如果PhiRecord为空，可能需要删除PhiInst(自己后续删吧，不在这里写了)
 }

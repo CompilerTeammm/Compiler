@@ -94,31 +94,9 @@ bool SSAPRE::PartialRedundancyElimination(Function* func){
         //多前驱插phi
         for(auto* bb:insertPoints){
             if(bb->GetPredBlocks().size()<=1) continue;
-            // //检查是否已有该phi
-            // bool alreadyPhi=false;
-            // for(auto* inst:*bb){
-            //     if(inst->GetInstId()==Instruction::Phi){
-            //         auto* phi=static_cast<PhiInst*>(inst);
-            //         if(phi->GetValUseListSize()!=bb->GetPredBlocks().size()) continue;
-
-            //         alreadyPhi=true;break;
-            //     }
-            // }
-            // if(alreadyPhi) continue;
-
             std::vector<std::pair<BasicBlock*,Value*>> preds;
-            // bool allPredOK=true;
             bool valid=true;
             for(auto* pred:bb->GetPredBlocks()){
-                // Instruction* existing=FindExpressionInBlock(pred,key);
-                // if(existing){
-                //     preds.emplace_back(pred,existing->GetDef());
-                // }else if(insertValueMap.count(pred)){
-                //     preds.emplace_back(pred,insertValueMap[pred]);
-                // }else{
-                //     allPredOK=false;
-                //     break;
-                // }
                 if (insertValueMap.count(pred)) {
                     preds.emplace_back(pred, insertValueMap[pred]);
                 } else if (auto* existing = FindExpressionInBlock(pred, key)) {
@@ -129,7 +107,6 @@ bool SSAPRE::PartialRedundancyElimination(Function* func){
                 }
             }
             if(!valid) continue;
-            // if(!allPredOK) continue;
             Type* type=key.lhs->GetType();
             auto* phi=new PhiInst(type);
             for(auto& [p,v]:preds){

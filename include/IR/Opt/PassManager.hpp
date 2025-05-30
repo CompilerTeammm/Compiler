@@ -15,18 +15,16 @@
 #include "LoopUnrolling.hpp"
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
+#include "SimplifyCFG.hpp"
 
 // 互不影响，完全没问题再放出来
 #define dce
 #define sccp
 // #define gvn
 #define pre
+//#define SCFG
 // 循环优化
-<<<<<<< HEAD
 // #define Loop_Unrolling
-=======
-//#define Loop_Unrolling
->>>>>>> 642e2bf856524b56aee6698b1af9d5279ca3b509
 
 enum PassName
 {
@@ -121,6 +119,15 @@ void PassManager::RunOnTest()
         DominantTree tree(fun);
         tree.BuildDominantTree();
         SSAPRE(fun, &tree).run();
+    }
+#endif
+#ifdef SCFG
+    for (auto &function : funcVec)
+    {
+        auto fun = function.get();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        SimplifyCFG(fun, &tree).run();
     }
 #endif
 }
