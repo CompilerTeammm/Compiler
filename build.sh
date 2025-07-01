@@ -20,9 +20,9 @@ if ! mkdir -p "$BUILD_DIR"; then
 fi
 
 # 生成构建系统
-echo "[3/4] 生成构建配置（使用 $GENERATOR）..."
+echo "[3/4] 生成构建配置(使用 $GENERATOR)..."
 if ! cmake -B "$BUILD_DIR" -G "$GENERATOR" $CMAKE_ARGS; then
-    echo "错误：CMake 配置失败"
+    echo "错误:CMake 配置失败"
     exit 1
 fi
 
