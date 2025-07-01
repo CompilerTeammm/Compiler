@@ -734,12 +734,11 @@ public:
   std::vector<Value *> &RecordIncomingValsA_Blocks();
   bool IsReplaced();
 
-<<<<<<< HEAD
   // unrolling
   Value *ReturnValIn(BasicBlock *bb);
   void Del_Incomes(int CurrentNum);
   void FormatPhi();
-=======
+
   // hu1 do it
   // 删去phiinst的一个引用块实现
   //  %r = phi i32 [ %a, %bb ], [ %b, %bb2 ]
@@ -747,7 +746,7 @@ public:
   //  %r = phi i32 [ %b, %bb2 ]
   // 但需要注意,如果删完了之后是空phi了,需要自己删除掉这条指令
   void removeIncomingFrom(BasicBlock *fromBB);
->>>>>>> c2ea852e28d9745e1203986b31db90a18d381b90
+
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
 };

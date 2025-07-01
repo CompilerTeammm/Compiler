@@ -413,6 +413,11 @@ bool Instruction::IsSelectInst() const
   return id == Op::Select;
 }
 
+bool Instruction::IsCmpInst() const
+{
+  return id <= Op::G && id >= Op::Eq;
+}
+
 void Instruction::add_use(Value *_value)
 {
   assert(_value && "Cannot add a null operand!");

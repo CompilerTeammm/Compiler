@@ -1,0 +1,120 @@
+写后端的我认为的流程
+1. 需要模式匹配，中端的IR 与 RISCV 的一一映射
+2. 创建 Functions Blocks
+3. 每一条语句的创建并且放置内存
+4. phi消除的优化
+5. 寄存器分配的优化
+6. 约定与调用，前言和后文， data，text存储
+7. dump .s 文件
+
+
+8. 优化：死代码消除，死基本块消除， 图着色算法 
+
+
+// test 文件下面可以如此操作
+riscv64-unknown-elf-gcc -march=rv64gc -S try.c -O2
+riscv64-unknown-elf-gcc -march=rv64gc -c -o test.o test.s
+
+没有办法，我发现一些优化可以消除冗余，但是为了通用性，
+像s0，一些寄存器的内容都应该进行保存
+
+约定 a0,存放函数返回值， s0 作为帧指针，用于访问栈帧内数据
+sp ： 栈指针，动态调整栈空间
+
+
+中端的指令：
+LoadInst
+StoreInst
+AllocaInst
+RetInst
+
+BinaryInst
+ZextInst
+SextInst
+TruncInst
+
+CallInst
+CondInst
+UnCondInst
+MaxInst
+MinInst
+SelectInst
+GepInst
+
+FP2SIInst  // float -> int
+SI2FPInst  // int -> float
+
+
+int a = 10; 
+--->
+%.1 = alloca i32  
+store i32 10, i32* %.1
+--->  
+li a5,10   
+sw a5,-20(s0) 
+
+寄存器分配之前都是虚拟寄存器
+而不是实际的物理寄存器，所以就很
+明白了，寄存器分配是讲物理寄存器替代
+虚拟寄存器，而将不可以替换的插入
+store 和 load 语句去处理
+
+
+栈帧生成：
+函数栈帧生成三个工作
+对CSR (callee Saved Register) 进行处理
+完成栈帧布局，在栈帧布局确定之前栈找对象通过栈索引进行访问
+      栈对象通过基于栈寄存器的偏移进行访问
+函数前言 Prologue /  Epilogue 生成，前言是为函数建立新的栈帧，
+后序是销毁函数栈帧
+
+比较重要的几个点：1. 函数入口，即第一个bb要有栈帧开辟的相关
+2. 在每一个出口，要有栈帧结束的相关操作
+
+
+I will start the most difficult part!!!
+
+存在的未解决的问题
+1.如何计算我需要开辟栈帧的大小
+2.如何进行寄存器的分配
+
+语句可以分成两类：
+1. 可以之间输出的语句
+2. 需要进行合法化再输出的语句
+
+需要处理的一些特殊语句
+1.整型赋值 （已完成）
+2.逻辑运算  
+3.if 条件 else
+4.for 循环,不支持 while
+5.浮点数的赋值
+6.整数运算
+7.浮点数的运算
+8.函数的调用 
+
+
+寄存器---> 图着色算法的实现
+
+float 支持， BinaryInst 支持
+
+float a = 10;
+--->
+%.1 = alloca float
+store float 0x4024000000000000, float* %.1
+ret i32 0 
+--->
+li t0, 1092616192
+fmv.w.x %0, t0
+fsw %0, -20(s0)
+
+
+
+
+5.31 日，工作总结 (未完成工作，之后要做的任务)  
+0. 代码重构
+1. 支持 int, float 的全局定义
+2. 数组的一系列操作的支持
+3. call，函数调用的支持
+4. 寄存器分配算法，图着色
+5. phi 函数消除的优化 
+6. simd，指令调度 各种优化

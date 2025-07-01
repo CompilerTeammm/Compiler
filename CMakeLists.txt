@@ -24,7 +24,7 @@ file(GLOB_RECURSE SOURCES
   main.cpp
   IR/Analysis/IDF.cpp
   IR/Analysis/Dominant.cpp
-  # IR/Analysis/IDF.cpp
+  IR/Analysis/IDF.cpp
   IR/Opt/Mem2reg.cpp
   IR/Opt/MemoryToRegister.cpp
   IR/Opt/DCE.cpp
@@ -32,11 +32,16 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/ConstantProp.cpp
   IR/Opt/GVN.cpp
   IR/Opt/DealOps.cpp
+
   IR/Opt/SSAPRE.cpp
   IR/Opt/SimplifyCFG.cpp
-  IR/Opt/LoopUnrolling.cpp
-  IR/Analysis/LoopInfo.cpp
+  
+  # IR/Opt/LoopUnrolling.cpp
+  # IR/Analysis/LoopInfo.cpp
 
+
+  MyBackend/*.cpp
+  Log/log.cpp
 
   lib/*.cpp
   yacc/lex.yy.cpp       # 包含lex生成的代码

@@ -308,6 +308,7 @@ public:
   bool IsMinInst() const;
   bool IsMaxInst() const;
   bool IsSelectInst() const;
+  bool IsCmpInst() const;
 
   void add_use(Value *_value) override;
   virtual void print() = 0;

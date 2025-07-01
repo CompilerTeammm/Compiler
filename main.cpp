@@ -1,4 +1,3 @@
-
 #include "./include/lib/CoreClass.hpp"
 #include "./yacc/parser.hpp"
 #include <fstream>
@@ -6,10 +5,13 @@
 #include <iostream>
 #include <memory>
 #include "include/IR/Opt/PassManager.hpp"
+#include "include/MyBackend/MIR.hpp"
+#include "include/MyBackend/Translate.hpp"
+#include "Log/log.hpp"
+#include <filesystem>
 
 #define OPT
-// #define backend
-
+#define backend
 extern FILE *yyin;
 extern int optind, opterr, optopt;
 extern char *optargi;
@@ -40,12 +42,7 @@ int main(int argc, char **argv)
    yyin = fopen(argv[1], "r");
    yy::parser parse;
    parse();
-   // std::cout << "m";
    Singleton<CompUnit *>()->codegen();
-   // auto PM = std::make_unique<_PassManager>();
-   // PM->DecodeArgs(argc, argv);
-   // PM->RunOnTest();
-   // Singleton<Module>().Test();
 
    // 中端 前端要是测试可以把这段代码注释掉即可
 #ifdef OPT
@@ -54,20 +51,22 @@ int main(int argc, char **argv)
 #endif
 
    Singleton<Module>().Test();
-
    fflush(stdout);
    fclose(stdout);
-
    // 后端，使用前先定义backend，避免与中端测试冲突
 
+   // 单例模式 仅有此一个 Singleton<Module> ()
+   // auto it = &Singleton<Module> ();
+
 #ifdef backend
-#include "./include/Backend/RISCVLowering.hpp"
    // 后端
    freopen(asmoutput_path.c_str(), "w", stdout);
-   RISCVModuleLowering RISCVAsm;
+   TransModule RISCVAsm;
    RISCVAsm.run(&Singleton<Module>());
+   
    fflush(stdout);
    fclose(stdout);
 #endif
+
    return 0;
 }

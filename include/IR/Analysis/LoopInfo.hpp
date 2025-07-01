@@ -1,6 +1,5 @@
 #include "../../lib/CFG.hpp"
 #include "Dominant.hpp"
-#include "../../../util/my_stl.hpp"
 #include "../Opt/AnalysisManager.hpp"
 #include <cmath>
 // 这一坨就直接加了
@@ -42,12 +41,14 @@ public:
   Loop(BasicBlock *_Header, BasicBlock *_Latch) : Header(_Header), Latch(_Latch) { BBs.push_back(_Header); }
 
   // 单个循环重写成一个“基本块列表”
-  void addHeader(BasicBlock *BB) { Header == BB; }
-  void addLoopBody(BasicBlock *BB) { PushVecSingleVal(BBs, BB); }
+  void addHeader(BasicBlock *BB) { Header = BB; }
+  void addLoopBody(BasicBlock *BB) { 
+        //PushVecSingleVal(BBs, BB); 
+  }
   void addLatch(BasicBlock *BB)
   {
     Latch = BB;
-    PushVecSingleVal(BBs, BB);
+    // PushVecSingleVal(BBs, BB);
   }
   void deleteBB(BasicBlock *BB)
   {
@@ -136,6 +137,8 @@ public:
   virtual bool run() override
   {
     runAnalysis(); // 委托给现有的runAnalysis
+
+    return true;
   }
   // run
   void runAnalysis();
