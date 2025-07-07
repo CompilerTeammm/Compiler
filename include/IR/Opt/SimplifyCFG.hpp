@@ -21,7 +21,7 @@ public:
     bool SimplifyCFGBasicBlock(BasicBlock* bb);
 
     //子优化：function
-    bool removeUnreachableBlocks(Function* func);//删除不可达基本块
+    //bool removeUnreachableBlocks(Function* func);//删除不可达基本块
     bool mergeEmptyReturnBlocks(Function* func);//合并空返回基本块 仅处理操作数一致的空 ret 块，不考虑特殊控制流
     //子优化：basicblock
     bool mergeBlocks(BasicBlock* bb);//合并基本块
