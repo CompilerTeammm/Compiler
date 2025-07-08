@@ -10,8 +10,8 @@
 #include "Log/log.hpp"
 #include <filesystem>
 
-#define OPT
-// #define backend
+// #define OPT
+#define backend
 extern FILE *yyin;
 extern int optind, opterr, optopt;
 extern char *optargi;
@@ -37,7 +37,12 @@ int main(int argc, char **argv)
    size_t lastPointPos = asmoutput_path.find_last_of(".");
    asmoutput_path = asmoutput_path.substr(0, lastPointPos) + ".s";
 
-   copyFile("runtime.ll", output_path);
+
+   // copyFile("runtime.ll", output_path);
+   // clear the file 
+   std::ofstream ofs(output_path, std::ios::trunc); 
+   ofs.close();
+
    freopen(output_path.c_str(), "a", stdout);
    yyin = fopen(argv[1], "r");
    yy::parser parse;
@@ -53,10 +58,6 @@ int main(int argc, char **argv)
    Singleton<Module>().Test();
    fflush(stdout);
    fclose(stdout);
-   // 后端，使用前先定义backend，避免与中端测试冲突
-
-   // 单例模式 仅有此一个 Singleton<Module> ()
-   // auto it = &Singleton<Module> ();
 
 #ifdef backend
    // 后端

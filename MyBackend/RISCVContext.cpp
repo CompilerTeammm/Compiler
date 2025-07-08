@@ -9,6 +9,13 @@
 
 //现在为止，float，数组类型都没有进行处理
 
+bool RISCVContext::dealGlobalVal(Value* val)
+{
+    
+    return true;
+}
+
+
 RISCVInst* RISCVContext::CreateInstAndBuildBind(RISCVInst::ISA op, Instruction *inst)
 {
     auto RISCVInst = new class RISCVInst(op); // RISCVInst::ISA::_ret
@@ -581,9 +588,13 @@ RISCVOp* RISCVContext::Create(Value* val)
 
 RISCVOp* RISCVContext::mapTrans(Value* val)
 {
+    if(val->isGlobal() && valToRiscvOp.find(val) == valToRiscvOp.end()) {
+        auto op  = new RISCVOp(val->GetName(),RISCVOp::Global);
+        valToRiscvOp[val] = op;   // bug:: delete when???
+    }
+
     if(valToRiscvOp.find(val) == valToRiscvOp.end()){
         valToRiscvOp[val] = Create(val);
     }
-
     return valToRiscvOp[val];
 };

@@ -1,5 +1,16 @@
 #include "../include/MyBackend/RISCVPrint.hpp"
 
+void TextSegment::TextPrint()
+{
+    std::cout << "    " <<".global"<<"	"<< name << std::endl; 
+    std::cout << "    " << type <<std::endl; 
+    std::cout << "    " <<".align"<<"	"<< std::to_string(align) << std::endl; 
+    std::cout << "    " <<".type"<<"  "<< name << "@object"<< std::endl; 
+    std::cout << "    " <<".size"<<"  "<< name << std::endl; 
+    std::cout <<name << std::endl;
+    std::cout << "    " <<".word"<<"  "<<std::to_string(word);
+}   
+
 void RISCVPrint::printPrefix()
 {
     std::cout << "    " <<".file" << "    " <<"\"" << _fileName <<"\""<< std::endl;

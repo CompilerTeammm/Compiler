@@ -5,27 +5,34 @@
 #include "MIR.hpp"
 #include "RISCVContext.hpp"
 
-class TestSegment 
+class RISCVContext;
+class TextSegment 
 {
+public:
+    enum Type 
+    {
+        bss,
+        data
+    };
+private:
+    std::string name;
+    Type type;
+    size_t align;
+    size_t size; 
+    size_t word;
+    Value* value;
 
-};
-
-class DataSegment 
-{
-
+    void TextPrint();
 };
 
 class RISCVPrint
 {
     std::string _fileName;
-    TestSegment _text;
-    DataSegment _data;
     std::shared_ptr<RISCVContext>& _context;
 public:
     RISCVPrint(std::string fileName, Module* moudle,std::shared_ptr<RISCVContext>& ctx)
             :_fileName(fileName),_context(ctx)
             {    }
-
     // 总的
     void printAsm();
     // 架构目标等

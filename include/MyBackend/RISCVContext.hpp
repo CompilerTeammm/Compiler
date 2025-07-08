@@ -1,10 +1,12 @@
 #pragma once
 #include"MIR.hpp"
 #include "../../Log/log.hpp"
+#include "RISCVPrint.hpp"
 
 // RISCVContext 存储所有的信息
 // value*   ->  RISCVOp*   这个主要问题是 Value  与 RISCVOp 不是一一匹配的
 class RISCVInst;
+class TextSegment;
 class RISCVContext
 {
     // Value*   ---->    RISCVOp*
@@ -13,14 +15,23 @@ public:
 private:
     std::map<Value*,RISCVOp*> valToRiscvOp;
 
+    // texts
+    using TextPtr = std::shared_ptr<TextSegment>; 
+    std::vector<TextPtr> Texts;
+
     // moudle 里面维护好Mfuncs
     using MFuncPtr = std::shared_ptr<RISCVFunction>;
     std::vector<MFuncPtr> Mfuncs;
     RISCVFunction* curMfunc;
 public:
+    void addText(TextPtr text) {
+        Texts.push_back(text);
+    }
     void addFunc(MFuncPtr func) {
         Mfuncs.push_back(func);
     }
+
+    bool dealGlobalVal(Value* val);
 
     std::vector<MFuncPtr>& getMfuncs() {    return Mfuncs;  }
 

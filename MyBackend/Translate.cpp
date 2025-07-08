@@ -17,32 +17,44 @@ void TransModule::InitPrintAndCtx(Module* mod)
 bool TransModule::run(Module* mod) 
 {
     InitPrintAndCtx(mod);
-    std::shared_ptr<TransFunction> funcTran = std::make_shared<TransFunction>(ctx,printer);
-    auto& functions = mod->GetFuncTion();
-    for(auto& func : functions)
+
+    std::shared_ptr<TransGlobalVal> GlobalValTrans = std::make_shared<TransGlobalVal>(ctx,printer);
+    auto& GlobalValList = mod->GetGlobalVariable();
+    for(auto& var:GlobalValList) 
     {
-        bool result = funcTran->run(func.get());
+        bool result = GlobalValTrans->run(var.get());
         if(result == false)
         {
-            // test 
-            func->print();
-            fflush(stdout);
-            fclose(stdout);
-            assert("deal the can't translate function");
-            std::cerr<< "WTFC" << std::endl;
+            LOG(ERROR,"Trans GlobalVal falied");
         }
     }
 
+    std::shared_ptr<TransFunction> funcTrans = std::make_shared<TransFunction>(ctx,printer);
+    auto& functions = mod->GetFuncTion();
+    for(auto& func : functions)
+    {
+        bool result = funcTrans->run(func.get());
+        if(result == false)
+        {
+            LOG(ERROR,"Trans Function failed");
+        }
+    }
     // 输出汇编代码
     printer->printAsm();
     return true;
 }
 
-// 对函数的一个主要逻辑
-// 中端到后端需要一些合法化
+// deal with the global vals
+bool TransGlobalVal::run(Var* val)
+{
+    bool ret =  ctx->dealGlobalVal(val);
+    return ret;
+}
+
+// 对函数的一个主要逻辑  中端到后端需要一些合法化
 bool TransFunction::run(Function* func)
 {
-    bool ret = false;
+    bool ret = true;
     // 构造了 TransFunction
     auto mfunc = ctx->mapTrans(func)->as<RISCVFunction>();
     ctx->setCurFunction(mfunc);
@@ -64,16 +76,12 @@ bool TransFunction::run(Function* func)
     // 后端优化 phi 函数的消除
     PhiEliminate phi(func);
     ret = phi.run();
+    if(!ret)   LOG(ERROR,"Phi failed");
 
-    if( ret == false)
-        assert("Phi failed");
-    // 优化的进行，延后
     //寄存器分配算法
     RegAllocation RA;
     ret = RA.run();
-
-    if( ret == false)
-        assert("RA failed");
+    if(!ret)   LOG(ERROR,"RA failed");
 
     //约定与调用，前言与后文
     ProloAndEpilo PAE(mfunc);

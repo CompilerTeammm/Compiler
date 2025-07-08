@@ -70,11 +70,19 @@ class RISCVBlock;
 
 class RISCVOp 
 {
+public:
+    enum Type
+    {
+        Global,
+        Local
+    };
+private:
     std::string name;
+    Type type;
 public:
     RISCVOp() = default;
-    RISCVOp(std::string _name):name(_name) {}
-    RISCVOp(float tmpf)  
+    RISCVOp(std::string _name,Type _type= Local):name(_name),type(_type) {}
+    RISCVOp(float tmpf,Type _type= Local) : type(_type)  
     {
         uint32_t n;
         memcpy(&n, &tmpf, sizeof(float)); // 直接复制内存位模式
