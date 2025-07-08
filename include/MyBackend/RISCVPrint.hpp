@@ -14,6 +14,9 @@ public:
         bss,
         data
     };
+
+    TextSegment(Value* val):value(val) { TextInit(); }
+    void TextInit();
 private:
     std::string name;
     Type type;

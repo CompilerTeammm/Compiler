@@ -11,6 +11,8 @@
 
 bool RISCVContext::dealGlobalVal(Value* val)
 {
+    auto text = std::make_shared<TextSegment> (val);
+    addText(text);
     
     return true;
 }

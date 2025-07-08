@@ -1,5 +1,14 @@
 #include "../include/MyBackend/RISCVPrint.hpp"
 
+// need to deal the var
+void TextSegment::TextInit()
+{
+    auto type = value->GetType()->GetTypeEnum();
+    name = value->GetName();
+    Var* var = dynamic_cast<Var*>(value);
+    int a = 10;
+}
+
 void TextSegment::TextPrint()
 {
     std::cout << "    " <<".global"<<"	"<< name << std::endl; 
