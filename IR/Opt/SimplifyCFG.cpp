@@ -4,62 +4,39 @@ bool SimplifyCFG::run()
 {
     return SimplifyCFGFunction(func);
 }
-<<<<<<< HEAD
 
 bool SimplifyCFG::SimplifyCFGFunction(Function *func)
 {
     bool changed = false;
 
-    // function子优化
-    changed |= removeUnreachableBlocks(func);
     changed |= mergeEmptyReturnBlocks(func);
+
     // basicblock子优化
     std::vector<BasicBlock *> blocks;
     for (auto &bb_ptr : func->GetBBs())
     {
         blocks.push_back(bb_ptr.get()); // 从shared_ptr提取裸指针
-=======
-//子优化顺序尝试
-bool SimplifyCFG::SimplifyCFGFunction(Function* func){
-    bool changed=false;
-
-    changed |= mergeEmptyReturnBlocks(func);
-
-    //basicblock子优化
-    std::vector<BasicBlock*> blocks;
-    for(auto& bb_ptr:func->GetBBs()){
-        blocks.push_back(bb_ptr.get());//从shared_ptr提取裸指针
->>>>>>> 54edbd2bfcfa0dbf0569b2c33d1e2de9531383e6
     }
     for (auto *bb : blocks)
     {
         changed |= SimplifyCFGBasicBlock(bb);
     }
-    //如果在前端已经处理掉了那么就不需要这个了吧(?)
-    //changed |= removeUnreachableBlocks(func);
+    // 如果在前端已经处理掉了那么就不需要这个了吧(?)
+    // changed |= removeUnreachableBlocks(func);
 
     return changed;
 }
 
-<<<<<<< HEAD
 bool SimplifyCFG::SimplifyCFGBasicBlock(BasicBlock *bb)
 {
     bool changed = false;
-    changed |= mergeBlocks(bb);
     changed |= simplifyBranch(bb);
+    changed |= mergeBlocks(bb);
     changed |= eliminateTrivialPhi(bb);
-=======
-bool SimplifyCFG::SimplifyCFGBasicBlock(BasicBlock* bb){
-    bool changed=false;
-    changed |=simplifyBranch(bb);
-    changed |=mergeBlocks(bb);
-    changed |=eliminateTrivialPhi(bb);
->>>>>>> 54edbd2bfcfa0dbf0569b2c33d1e2de9531383e6
 
     return changed;
 }
 
-<<<<<<< HEAD
 // 删除不可达基本块(记得要把phi引用到的也进行处理)
 bool SimplifyCFG::removeUnreachableBlocks(Function *func)
 {
@@ -129,7 +106,6 @@ bool SimplifyCFG::removeUnreachableBlocks(Function *func)
     }
     return changed;
 }
-=======
 // //删除不可达基本块(记得要把phi引用到的也进行处理)
 // bool SimplifyCFG::removeUnreachableBlocks(Function* func){
 //     std::unordered_set<BasicBlock*> reachable;//存储可达块
@@ -185,7 +161,7 @@ bool SimplifyCFG::removeUnreachableBlocks(Function *func)
 //             ++it;
 //         }
 //     }
-//     // // 🐞 加入调试输出，验证哪些块是可达的
+//     // //  加入调试输出，验证哪些块是可达的
 //     // std::cerr << "==== Reachable Basic Blocks ====" << std::endl;
 //     // for (auto bb : reachable) {
 //     //     std::cerr << bb->GetName() << std::endl;
@@ -206,11 +182,9 @@ bool SimplifyCFG::removeUnreachableBlocks(Function *func)
 //     //     std::cerr << "==== Instructions in Block: " << bb->GetName() << " ====" << std::endl;
 //     //     bb->print();
 //     // }
-    
 
 //     return changed;
 // }
->>>>>>> 54edbd2bfcfa0dbf0569b2c33d1e2de9531383e6
 
 // 合并空返回块(no phi)(实际上是合并所有返回相同常量值的返回块)
 bool SimplifyCFG::mergeEmptyReturnBlocks(Function *func)
@@ -227,7 +201,7 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(Function *func)
     //     //基本块内只有一条指令(ret)
     //     Instruction* lastInst=bb->GetLastInsts();
     //     if(!lastInst || lastInst->id!=Instruction::Op::Ret) continue;
-        
+
     //     auto* retInst=dynamic_cast<RetInst*>(lastInst);
     //     if (!retInst || retInst->GetOperandNums() != 1) continue;
 
@@ -283,8 +257,6 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(Function *func)
     // }
     return true;
 }
-
-<<<<<<< HEAD
 // 合并基本块(no phi)
 // 不过只能合并线性路径,后面要补充
 bool SimplifyCFG::mergeBlocks(BasicBlock *bb)
@@ -378,50 +350,12 @@ bool SimplifyCFG::simplifyBranch(BasicBlock *bb)
     targetBlock->RemovePredBlock(bb);
     bb->AddNextBlock(targetBlock);
     targetBlock->AddPredBlock(bb);
-=======
-//合并基本块(no phi)
-//不过只能合并线性路径,后面要补充
-bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
-    // //获取后继块
-    // if(bb->GetNextBlocks().size()!=1){
-    //     return false;
-    // }
-    // auto succ=bb->GetNextBlocks()[0];
-    // //后继不能是自身,避免死循环
-    // if(succ==bb){
-    //     return false;
-    // }
-    // //判断succ是否只有bb一个前驱
-    // if(succ->GetPredBlocks().size()!=1||succ->GetPredBlocks()[0]!=bb){
-    //     return false;
-    // }
-
-    // //ok,那满足条件,合并
-    // //移除bb中的terminator指令(一般是br)
-    // if(bb->Size()!=0 && bb->GetBack()->IsTerminateInst()){
-    //     bb->GetBack()->EraseFromManager();
-    // }
-    // while(succ->Size()!=0){
-    //     Instruction *inst=succ->GetFront();
-    //     succ->erase(inst);
-    //     bb->push_back(inst);
-    // }
-    // //更新CFG
-    // //断开bb与succ
-    // bb->RemoveNextBlock(succ);
-    // succ->RemovePredBlock(bb);
-    // //succ的后继接到bb上
-    // auto nexts=succ->GetNextBlocks();
-    // for(auto succsucc:nexts){
-    //     succsucc->RemovePredBlock(succ);
-    //     succsucc->AddPredBlock(bb);
-    //     bb->AddNextBlock(succsucc);
-    // }
-    // succ->EraseFromManager();
-    return true;
+    // 合并基本块(no phi)
+    // 不过只能合并线性路径,后面要补充
 }
 
-bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
+/* bool SimplifyCFG::simplifyBranch(BasicBlock *bb)
+{
     // if(bb->Size()==0){
     //     return false;
     // }
@@ -460,17 +394,15 @@ bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
     // targetBlock->RemovePredBlock(bb);
     // bb->AddNextBlock(targetBlock);
     // targetBlock->AddPredBlock(bb);
->>>>>>> 54edbd2bfcfa0dbf0569b2c33d1e2de9531383e6
 
     // std::cerr << "Simplified to: br label %" << targetBlock->GetName() << "\n";
     return true;
-}
+} */
 // 消除无意义phi
 bool SimplifyCFG::eliminateTrivialPhi(BasicBlock *bb)
 {
     bool changed = false;
 
-<<<<<<< HEAD
     // 遍历当前基本块中所有指令
     for (auto it = bb->begin(); it != bb->end();)
     {
@@ -512,7 +444,6 @@ bool SimplifyCFG::eliminateTrivialPhi(BasicBlock *bb)
         }
         ++it;
     }
-=======
     // //遍历当前基本块中所有指令
     // for(auto it=bb->begin();it!=bb->end();){
     //     Instruction* inst=*it;
@@ -536,17 +467,16 @@ bool SimplifyCFG::eliminateTrivialPhi(BasicBlock *bb)
     //         //所有输入值相同,可以替换
     //         if(all_same&&same){
     //             inst->ReplaceAllUseWith(same);
-                
+
     //             auto to_erase=it;
     //             ++it;
     //             bb->erase(*to_erase);
-                
+
     //             changed=true;
     //             continue;
     //         }
     //     }
     //     ++it;
     // }
->>>>>>> 54edbd2bfcfa0dbf0569b2c33d1e2de9531383e6
     return changed;
 }

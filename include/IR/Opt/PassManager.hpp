@@ -22,16 +22,13 @@
 // #define dce
 // #define sccp
 // #define gvn
-<<<<<<< HEAD
 // #define pre
 // #define SCFG
-=======
-#define pre
-#define SCFG
-#define SInst
->>>>>>> 54edbd2bfcfa0dbf0569b2c33d1e2de9531383e6
+// #define pre
+// #define SCFG
+// #define SInst
 // 循环优化
-#define Loop_Unrolling
+// #define Loop_Unrolling
 
 enum PassName
 {
@@ -115,9 +112,8 @@ void PassManager::RunOnTest()
     for (auto &function : funcVec)
     {
         auto fun = function.get();
-        DominantTree tree(fun);
-        tree.BuildDominantTree();
-        SSAPRE(fun, &tree).run();
+        AnalysisManager *AM;
+        LoopUnrolling(fun, AM).run();
     }
 #endif
 #ifdef pre
