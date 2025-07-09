@@ -41,6 +41,4 @@ public:
     std::set<BasicBlock*> ComputeInsertPoints(DominantTree* ,std::set<BasicBlock*>&);
     //在基本块中查找匹配表达式
     Instruction* FindExpressionInBlock(BasicBlock*, const ExprKey&);
-
 };
-
