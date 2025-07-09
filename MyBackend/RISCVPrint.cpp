@@ -1,5 +1,5 @@
 #include "../include/MyBackend/RISCVPrint.hpp"
-#include "Type.hpp"
+#include "../include/lib/Type.hpp"
 
 // 1.init 全局变量
 // 2.处理数组的存在
@@ -10,28 +10,46 @@
 // need to deal the var
 void TextSegment::TextInit()
 {
-    auto _size = value->GetType()->GetSize();  
-    auto dataType = value->GetTypeEnum();
-    if (dataType == IR_ARRAY) {    // align
-        align = 3;
-    } else {
-        align = 2;
-    }
-    size = _size;    // size     
-    name = value->GetName();   // name 
-    Var* var = dynamic_cast<Var*> (value); 
-    auto hello = var->GetInitializer();
-    if(var->GetInitializer() != nullptr) {
+    auto var = dynamic_cast<Var*> (value);
+    if(var->GetInitializer() != nullptr) {   // type
         type = data;
     } else {
         type = bss;
     }
-    if(dataType == IR_ARRAY) {
-        auto arr = dynamic_cast<ArrayType*>(value);
-        auto num = arr->GetNum();
-        word = num* 4;
-    } else {
-        word = 4;
+    name = var->GetName();               // name
+    if ( var->GetTypeEnum() == IR_PTR)
+    {
+        auto PType = dynamic_cast<PointerType*> (var->GetType());
+        auto SubType = PType->GetSubType();
+        size = SubType->GetSize();     // size
+        auto dataType = SubType->GetTypeEnum();
+
+        if (dataType == IR_ARRAY) {    // align
+            align = 3;
+        } else {
+            align = 2;
+        }
+
+        if (type == data) {
+            auto init = var->GetInitializer();
+            if ( init->GetTypeEnum() == IR_Value_INT){
+                word = init->GetName();
+            }
+            else if (init->GetTypeEnum() == IR_Value_Float)
+            {
+                uint32_t n;
+                auto val = init->GetName();
+                float fval = std::stof(val);
+                memcpy(&n, &fval, sizeof(float)); // 直接复制内存位模式
+                word = std::to_string(n);
+            }
+        }
+        else {
+            word = std::to_string(SubType->GetSize());
+        }
+    }
+    else {
+        LOG(ERROR,"must be IR_PTR");
     }
 }
 
@@ -44,7 +62,6 @@ std::string TextSegment::translateType()
     }
 }
 
-
 void TextSegment::TextPrint()
 {
     std::cout << "    " <<".global"<<"	"<< name << std::endl; 
@@ -54,9 +71,9 @@ void TextSegment::TextPrint()
     std::cout << "    " <<".size"<<"  "<< name <<", " <<size<< std::endl; 
     std::cout <<name << std::endl;
     if( type == 0) {
-        std::cout << "    " <<".zero"<<"  "<<std::to_string(word) << std::endl;
+        std::cout << "    " <<".zero"<<"  "<< word << std::endl;
     } else {
-        std::cout << "    " <<".word"<<"  "<<std::to_string(word) << std::endl;
+        std::cout << "    " <<".word"<<"  "<< word << std::endl;
     }
 }   
 

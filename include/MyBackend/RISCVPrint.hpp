@@ -24,7 +24,7 @@ private:
     Type type;
     size_t align;
     size_t size; 
-    size_t word;
+    std::string word;
     Value* value;
 };
 
