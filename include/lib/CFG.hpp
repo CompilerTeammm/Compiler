@@ -738,7 +738,14 @@ public:
   Value *ReturnValIn(BasicBlock *bb);
   void Del_Incomes(int CurrentNum);
   void FormatPhi();
-
+  void ModifyBlock(BasicBlock *Old, BasicBlock *New);
+  void ReplaceVal(Use *use, Value *new_val);
+  void RSUW(Use *u, Operand val)
+  {
+    u->RemoveFromValUseList(this);
+    u->usee = val;
+    val->add_use(u);
+  }
   // hu1 do it
   // 删去phiinst的一个引用块实现
   //  %r = phi i32 [ %a, %bb ], [ %b, %bb2 ]
@@ -828,6 +835,7 @@ public:
   BasicBlock *GenerateNewBlock();
   BasicBlock *GenerateNewBlock(std::string);
   bool IsEnd(); // 是否划分
+  BasicBlock *SplitAt(User *inst);
 };
 
 class BuiltinFunc : public Value
@@ -890,7 +898,7 @@ public:
   void UpdateParam(Var *var) { params.emplace_back(var); }
   int &GetSize() { return size_BB; }
 
-  int bb_num = 0;
+  std::pair<Value *, BasicBlock *> InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping);
 };
 
 class Module : public SymbolTable
@@ -918,7 +926,9 @@ public:
   Function &GenerateFunction(IR_DataType _tp, std::string _id);
 
   // 死代码消除，只有声明，中端待定义
-  void EraseFunction(Function *func);
+  void EraseFunction(Function *func)
+  {
+  }
   bool EraseDeadFunc();
   void Test()
   {

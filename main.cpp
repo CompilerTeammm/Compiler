@@ -11,7 +11,7 @@
 #include <filesystem>
 
 #define OPT
-#define backend
+//  #define backend
 extern FILE *yyin;
 extern int optind, opterr, optopt;
 extern char *optargi;
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
    freopen(asmoutput_path.c_str(), "w", stdout);
    TransModule RISCVAsm;
    RISCVAsm.run(&Singleton<Module>());
-   
+
    fflush(stdout);
    fclose(stdout);
 #endif

@@ -18,13 +18,13 @@
 #include "SimplifyCFG.hpp"
 
 // 互不影响，完全没问题再放出来
-#define dce
-#define sccp
+// #define dce
+// #define sccp
 // #define gvn
-#define pre
-#define SCFG
+// #define pre
+// #define SCFG
 // 循环优化
-// #define Loop_Unrolling
+#define Loop_Unrolling
 
 enum PassName
 {
@@ -108,8 +108,9 @@ void PassManager::RunOnTest()
     for (auto &function : funcVec)
     {
         auto fun = function.get();
-        AnalysisManager *AM;
-        LoopUnrolling(fun, AM).run();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        SSAPRE(fun, &tree).run();
     }
 #endif
 #ifdef pre

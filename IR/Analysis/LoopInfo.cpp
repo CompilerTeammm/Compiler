@@ -169,8 +169,8 @@ std::vector<BasicBlock *> LoopInfoAnalysis::getOverBlocks(Loop *loop)
   {
     for (auto curbb : _dom->getSuccBBs(bb))
     {
-      if (!ContainsBlock(loop, curbb))
-        PushVecSingleVal(workList, curbb);
+      // if (!ContainsBlock(loop, curbb))
+      // PushVecSingleVal(workList, curbb);
     }
   }
   return workList;
@@ -184,8 +184,8 @@ std::vector<BasicBlock *> LoopInfoAnalysis::getExitingBlocks(Loop *loop)
   {
     for (auto rev : _dom->getPredBBs(bb))
     {
-      if (ContainsBlock(loop, rev))
-        PushVecSingleVal(exiting, rev);
+      // if (ContainsBlock(loop, rev))
+      // PushVecSingleVal(exiting, rev);
     }
   }
   return exiting;
@@ -245,4 +245,31 @@ void LoopInfoAnalysis::setLoop(BasicBlock *bb, Loop *loop)
   if (Loops.find(bb) != Loops.end())
     return;
   Loops.emplace(bb, loop);
+}
+
+void LoopInfoAnalysis::deleteLoop(Loop *loop)
+{
+  auto parent = loop->GetParent();
+  if (parent)
+  {
+    auto it1 = std::find(loops.begin(), loops.end(), loop);
+    assert(it1 != loops.end()); // 确保存在
+    parent->getLoops().erase(std::remove(parent->getLoops().begin(), parent->getLoops().end(), loop), parent->getLoops().end());
+  }
+  while (parent)
+  {
+    for (auto loopbody : loop->getLoopBody())
+    {
+      // 从父循环的 LoopBody 中移除当前循环的 LoopBody 成员
+      auto iter = std::find(parent->getLoopBody().begin(), parent->getLoopBody().end(), loopbody);
+      if (iter != parent->getLoopBody().end())
+      {
+        parent->getLoopBody().erase(iter);
+      }
+    }
+    parent = parent->GetParent(); // 向上遍历所有祖先循环
+  }
+  auto it1 = std::find(loops.begin(), loops.end(), loop);
+  assert(it1 != loops.end()); // 确保存在
+  loops.erase(it1);
 }

@@ -1663,48 +1663,223 @@ UndefValue *UndefValue::Get(Type *_ty)
     return UnVal;
 }
 
-
-void PhiInst::removeIncomingFrom(BasicBlock *fromBB) {
-    //要移除的索引集合
+void PhiInst::removeIncomingFrom(BasicBlock *fromBB)
+{
+    // 要移除的索引集合
     std::vector<int> toEraseIndices;
 
-    //找出所有与BB匹配的索引
-    for(const auto &entry:PhiRecord){
-        int idx=entry.first;
-        BasicBlock *curBB=entry.second.second;
-        if(curBB==fromBB){
+    // 找出所有与BB匹配的索引
+    for (const auto &entry : PhiRecord)
+    {
+        int idx = entry.first;
+        BasicBlock *curBB = entry.second.second;
+        if (curBB == fromBB)
+        {
             toEraseIndices.push_back(idx);
         }
     }
-    //反向排序，确保删除顺序不会影响vector索引
+    // 反向排序，确保删除顺序不会影响vector索引
     std::sort(toEraseIndices.rbegin(), toEraseIndices.rend());
 
-    for(int idx:toEraseIndices){
-        //从UseRecord中移除相应的Use*
-        auto val=PhiRecord[idx].first;
+    for (int idx : toEraseIndices)
+    {
+        // 从UseRecord中移除相应的Use*
+        auto val = PhiRecord[idx].first;
 
-        //找到UseRecord中对应的Use*
-        for(auto it=UseRecord.begin();it!=UseRecord.end();){
-            if(it->second==idx){
-                Use *usePtr=it->first;
-                //从useruselist中移除对应的shared_ptr
-                auto uit=std::find_if(useruselist.begin(), useruselist.end(),
-                    [usePtr](const std::unique_ptr<Use> &p) { return p.get() == usePtr; });
-                if (uit != useruselist.end()) {
+        // 找到UseRecord中对应的Use*
+        for (auto it = UseRecord.begin(); it != UseRecord.end();)
+        {
+            if (it->second == idx)
+            {
+                Use *usePtr = it->first;
+                // 从useruselist中移除对应的shared_ptr
+                auto uit = std::find_if(useruselist.begin(), useruselist.end(),
+                                        [usePtr](const std::unique_ptr<Use> &p)
+                                        { return p.get() == usePtr; });
+                if (uit != useruselist.end())
+                {
                     useruselist.erase(uit);
                 }
-                it=UseRecord.erase(it);
-            }else{
+                it = UseRecord.erase(it);
+            }
+            else
+            {
                 ++it;
             }
         }
-        //从PhiRecord中移除对应的记录
+        // 从PhiRecord中移除对应的记录
         PhiRecord.erase(idx);
         oprandNum--;
     }
-    //如果删完了，oprandNum归零
-    if(PhiRecord.empty()){
-        oprandNum=0;
+    // 如果删完了，oprandNum归零
+    if (PhiRecord.empty())
+    {
+        oprandNum = 0;
     }
-    //如果PhiRecord为空，可能需要删除PhiInst(自己后续删吧，不在这里写了)
+    // 如果PhiRecord为空，可能需要删除PhiInst(自己后续删吧，不在这里写了)
+}
+BasicBlock *BasicBlock::SplitAt(User *inst)
+{
+    auto tmp = new BasicBlock();
+
+    std::vector<BasicBlock *> succ;
+    if (auto cond = GetBack()->as<CondInst>())
+    {
+        for (int i = 1; i < 3; i++)
+            succ.push_back(cond->GetOperand(i)->as<BasicBlock>());
+    }
+    else if (auto uncond = GetBack()->as<UnCondInst>())
+    {
+        succ.push_back(uncond->GetOperand(0)->as<BasicBlock>());
+    }
+    for (auto bb : succ)
+    {
+        for (auto inst : *bb)
+        {
+            if (auto phi = inst->as<PhiInst>())
+            {
+                for (auto &[ind, rec] : phi->PhiRecord)
+                {
+                    if (rec.second == this)
+                        rec.second = tmp;
+                }
+            }
+            else
+                break;
+        }
+    }
+
+    auto [left, right] = SplitList((Instruction *)inst, GetBack());
+    tmp->CollectList(left, right);
+    return tmp;
+}
+
+std::pair<Value *, BasicBlock *> Function::InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping)
+{
+    std::pair<Value *, BasicBlock *> tmp{nullptr, nullptr};
+    BasicBlock *block = inst->Node::GetParent();
+    User *Jump = block->GetBack();
+    Function *func = block->GetParent();
+    Function *inlined_func = inst->GetOperand(0)->as<Function>();
+    BasicBlock *SplitBlock = block->SplitAt(inst);
+    tmp.second = SplitBlock;
+    BasicBlock::List<Function, BasicBlock>::iterator Block_Pos(block);
+    Block_Pos.InsertAfter(SplitBlock);
+    ++Block_Pos;
+    std::vector<BasicBlock *> blocks;
+    int num = 1;
+    for (auto &param : inlined_func->GetParams())
+    {
+        Value *Param = param.get();
+        if (OperandMapping.find(inst->GetUserUseList()[num]->usee) !=
+            OperandMapping.end())
+            OperandMapping[Param] = OperandMapping[inst->GetUserUseList()[num]->usee];
+        else
+            OperandMapping[Param] = inst->GetUserUseList()[num]->usee;
+        num++;
+    }
+    for (BasicBlock *block : *inlined_func)
+        blocks.push_back(block->clone(OperandMapping));
+    UnCondInst *Br = new UnCondInst(blocks[0]);
+    block->push_back(Br);
+    for (auto it = blocks[0]->begin(); it != blocks[0]->end();)
+    {
+        auto shouldmvinst = dynamic_cast<AllocaInst *>(*it);
+        ++it;
+        if (shouldmvinst)
+        {
+            BasicBlock *front_block = func->GetFront();
+            shouldmvinst->Node::EraseFromManager();
+            front_block->push_front(shouldmvinst);
+        }
+    }
+    for (BasicBlock *block_ : blocks)
+        Block_Pos.InsertBefore(block_);
+    if (inlined_func->GetValUseListSize() == 0)
+        Singleton<Module>().EraseFunction(inlined_func);
+    Value *Ret_Val = nullptr;
+    if (inst->GetTypeEnum() != IR_DataType::IR_Value_VOID)
+    {
+        for (BasicBlock *block : blocks)
+        {
+            User *inst = block->GetBack();
+            if (dynamic_cast<RetInst *>(inst))
+            {
+                if (auto val = inst->GetOperand(0))
+                {
+                    tmp.first = val;
+                }
+                UnCondInst *Br = new UnCondInst(SplitBlock);
+                inst->clear_use();
+                auto it = dynamic_cast<UnCondInst *>(inst);
+                it->EraseFromManager();
+                block->push_back(Br);
+            }
+        }
+    }
+    else
+    {
+        for (BasicBlock *block : blocks)
+        {
+            User *inst = block->GetBack();
+            if (dynamic_cast<RetInst *>(inst))
+            {
+                UnCondInst *Br = new UnCondInst(SplitBlock);
+                inst->clear_use();
+                auto it = dynamic_cast<UnCondInst *>(inst);
+                it->EraseFromManager();
+                block->push_back(Br);
+            }
+        }
+    }
+    if (dynamic_cast<UnCondInst *>(Jump))
+    {
+        BasicBlock *bb = Jump->GetOperand(0)->as<BasicBlock>();
+        auto iter = bb->begin();
+        while (auto phi = dynamic_cast<PhiInst *>(*iter))
+        {
+            phi->ModifyBlock(block, SplitBlock);
+            ++iter;
+        }
+    }
+    else if (dynamic_cast<CondInst *>(Jump))
+    {
+        BasicBlock *bb = Jump->GetOperand(1)->as<BasicBlock>();
+        auto iter = bb->begin();
+        while (auto phi = dynamic_cast<PhiInst *>(*iter))
+        {
+            phi->ModifyBlock(block, SplitBlock);
+            ++iter;
+        }
+        BasicBlock *bb1 = Jump->GetOperand(2)->as<BasicBlock>();
+        auto iter1 = bb1->begin();
+        while (auto phi = dynamic_cast<PhiInst *>(*iter1))
+        {
+            phi->ModifyBlock(block, SplitBlock);
+            ++iter1;
+        }
+    }
+    return tmp;
+}
+
+void PhiInst::ModifyBlock(BasicBlock *Old, BasicBlock *New)
+{
+    auto it1 = std::find_if(
+        PhiRecord.begin(), PhiRecord.end(),
+        [Old](const std::pair<int, std::pair<Value *, BasicBlock *>> &ele)
+        {
+            return ele.second.second == Old;
+        });
+    if (it1 == PhiRecord.end())
+        return;
+    // 将value对应的块信息更改
+    it1->second.second = New;
+}
+
+void PhiInst::ReplaceVal(Use *use, Value *new_val)
+{
+    assert(UseRecord.find(use) != UseRecord.end());
+    auto index = UseRecord[use];
+    RSUW(use, new_val);
+    PhiRecord[index].first = new_val;
 }

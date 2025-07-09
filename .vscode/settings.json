@@ -72,7 +72,9 @@
     "charconv": "cpp",
     "format": "cpp",
     "span": "cpp",
-    "text_encoding": "cpp"
+    "text_encoding": "cpp",
+    "codecvt": "cpp",
+    "iomanip": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",
   "C_Cpp_Runner.cppCompilerPath": "g++",

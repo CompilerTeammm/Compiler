@@ -21,7 +21,7 @@ bool LoopUnrolling::run()
     if (unrollbody)
     {
       auto bb = Unroll(currLoop, unrollbody);
-      // CleanUp(currLoop, bb);
+      CleanUp(currLoop, bb);
       return true;
     }
   }
@@ -82,7 +82,6 @@ CallInst *LoopUnrolling::GetLoopBody(Loop *loop)
   auto phi = dynamic_cast<PhiInst *>(header->GetLastInsts());
   if (phi == nullptr || phi->getNumIncomingValues() != 2)
   {
-    _DEBUG(std::cerr << "Cant Find Phi" << std::endl;)
     return nullptr;
   }
 
@@ -98,7 +97,6 @@ CallInst *LoopUnrolling::GetLoopBody(Loop *loop)
   }
   if (validPhis.size() > 2) // 结点过多就得报错
   {
-    _DEBUG(std::cerr << "too many phi" << std::endl;)
     return nullptr;
   }
   /*  PhiInst *res = nullptr;
@@ -223,8 +221,8 @@ CallInst *LoopUnrolling::GetLoopBody(Loop *loop)
     ++it;            // 提前递增迭代器（避免失效）
     if (dynamic_cast<PhiInst *>(inst))
     {
-      inst->EraseFromManager();   // 从原header移除
-      newHeader->push_back(inst); // 添加到替代块
+      inst->Node::EraseFromManager(); // 从原header移除
+      newHeader->push_back(inst);     // 添加到替代块
     }
     else
     {
@@ -375,7 +373,6 @@ CallInst *LoopUnrolling::GetLoopBody(Loop *loop)
   */
   else if (res && NoUse) // res 是直接定义在 latch 块中的 Phi 指令
   {
-    assert(res->GetParent() == latch);
     ret = new RetInst(res);
   }
   /*
@@ -538,7 +535,7 @@ BasicBlock *LoopUnrolling::Unroll(Loop *loop, CallInst *UnrollBody)
   for (int round = 0; round < loop_iterations; ++round)
   {
     // 内联展开当前调用
-    auto inline_result = _func->InlineCall(dynamic_cast<CallInst *>(current_call), Arg2Orig);
+    auto inline_result = _func->InlineCall(dynamic_cast<CallInst *>(current_call), ParamToOriginal);
 
     if (inline_result.first != nullptr)
     {
@@ -546,10 +543,10 @@ BasicBlock *LoopUnrolling::Unroll(Loop *loop, CallInst *UnrollBody)
     }
 
     tmp_block = inline_result.second;
-    current_step_value = Arg2Orig[inductionOrigin];
+    current_step_value = ParamToOriginal[inductionOrigin];
 
     // 清空旧映射，准备下一轮
-    Arg2Orig.clear();
+    ParamToOriginal.clear();
 
     // 克隆当前调用作为下一轮展开的基础
     User *next_call = current_call->CloneInst();
@@ -568,17 +565,17 @@ BasicBlock *LoopUnrolling::Unroll(Loop *loop, CallInst *UnrollBody)
   // 替换调用指令本身为其返回值来源
   if (resultOrigin)
   {
-    UnrollBody->RAUW(resultOrigin);
+    UnrollBody->ReplaceAllUseWith(resultOrigin);
   }
 
   // 清理归纳变量：替换为 undef 并删除
-  loop->trait.indvar->RAUW(UndefValue::Get(loop->trait.indvar->GetType()));
+  loop->trait.indvar->ReplaceAllUseWith(UndefValue::Get(loop->trait.indvar->GetType()));
   delete loop->trait.indvar;
 
   // 清理结果变量（如果存在）
   if (loop->trait.res)
   {
-    loop->trait.res->RAUW(UndefValue::Get(loop->trait.res->GetType()));
+    loop->trait.res->ReplaceAllUseWith(UndefValue::Get(loop->trait.res->GetType()));
     delete loop->trait.res;
   }
 
@@ -644,4 +641,17 @@ int LoopUnrolling::CaculatePrice(std::vector<BasicBlock *> body, Function *curfu
     }
   }
   return cost * Lit_count;
+}
+
+void LoopUnrolling::CleanUp(Loop *loop, BasicBlock *clean)
+{
+  auto cond = dynamic_cast<CondInst *>(clean->GetBack());
+  auto Inloop = dynamic_cast<BasicBlock *>(cond->GetOperand(1));
+  auto Outloop = dynamic_cast<BasicBlock *>(cond->GetOperand(2));
+  if (loop->ContainBB(Outloop))
+    std::swap(Inloop, Outloop);
+  auto uncond = new UnCondInst(Outloop);
+  delete cond;
+  clean->push_back(uncond);
+  loopAnalysis->deleteLoop(loop);
 }

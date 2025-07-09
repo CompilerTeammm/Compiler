@@ -42,8 +42,9 @@ public:
 
   // 单个循环重写成一个“基本块列表”
   void addHeader(BasicBlock *BB) { Header = BB; }
-  void addLoopBody(BasicBlock *BB) { 
-        //PushVecSingleVal(BBs, BB); 
+  void addLoopBody(BasicBlock *BB)
+  {
+    // PushVecSingleVal(BBs, BB);
   }
   void addLatch(BasicBlock *BB)
   {
@@ -105,7 +106,6 @@ private:
   BasicBlock *Header = nullptr;  // 单个循环头
   BasicBlock *Latch = nullptr;   // 单个循环尾
   Loop *Parent = nullptr;
-
   // 嵌套循环
   std::vector<Loop *> Loops;   // 嵌套循环列表
   Loop *LoopsHeader = nullptr; // 嵌套循环的父循环
@@ -160,7 +160,7 @@ public:
   std::vector<BasicBlock *> getExitingBlocks(Loop *loop);
 
   // 删除
-  // void deleteLoop(Loop *loop);
+  void deleteLoop(Loop *loop);
   void deleteBB(BasicBlock *bb);
 
   // 功能

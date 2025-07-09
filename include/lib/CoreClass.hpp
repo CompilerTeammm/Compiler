@@ -213,7 +213,10 @@ public:
   bool remove_use(Use *_use);
   void clear_use();
 
-  int GetOperandNums() { return useruselist.size(); }
+  int GetOperandNums()
+  {
+    return useruselist.size();
+  }
   inline Operand GetOperand(int i) { return useruselist[i]->GetValue(); }
 
   inline void SetOperand(int i, Value *val)
