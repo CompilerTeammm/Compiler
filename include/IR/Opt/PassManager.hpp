@@ -16,6 +16,7 @@
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
+#include "SimplifyInst.hpp"
 
 // 互不影响，完全没问题再放出来
 #define dce
@@ -23,6 +24,7 @@
 // #define gvn
 #define pre
 #define SCFG
+#define SInst
 // 循环优化
 // #define Loop_Unrolling
 
@@ -128,6 +130,15 @@ void PassManager::RunOnTest()
         DominantTree tree(fun);
         tree.BuildDominantTree();
         SimplifyCFG(fun, &tree).run();
+    }
+#endif
+#ifdef SInst
+    for (auto &function : funcVec)
+    {
+        auto fun = function.get();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        SimplifyInst(fun, &tree).run();
     }
 #endif
 }

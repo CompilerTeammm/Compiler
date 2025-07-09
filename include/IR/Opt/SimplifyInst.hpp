@@ -11,7 +11,7 @@ class SimplifyInst: public _PassBase<SimplifyInst,Function>{
     DominantTree* tree;
     public:
     bool run() override;
-    SimplifyInst(Function* _func):func(_func){}
+    SimplifyInst(Function* _func,DominantTree* _tree):func(_func),tree(_tree){}
     ~SimplifyInst()=default;
 
     bool simplifyInst(Function* func);
