@@ -17,6 +17,8 @@ public:
 
     TextSegment(Value* val):value(val) { TextInit(); }
     void TextInit();
+    void TextPrint();
+    std::string translateType();
 private:
     std::string name;
     Type type;
@@ -24,8 +26,6 @@ private:
     size_t size; 
     size_t word;
     Value* value;
-
-    void TextPrint();
 };
 
 class RISCVPrint

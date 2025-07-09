@@ -33,6 +33,7 @@ public:
 
     bool dealGlobalVal(Value* val);
 
+    std::vector<TextPtr>& getTexts() { return Texts; }
     std::vector<MFuncPtr>& getMfuncs() {    return Mfuncs;  }
 
     void setCurFunction(RISCVFunction* func) {   curMfunc = func;  }

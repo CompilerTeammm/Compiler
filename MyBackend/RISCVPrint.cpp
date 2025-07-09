@@ -1,23 +1,63 @@
 #include "../include/MyBackend/RISCVPrint.hpp"
+#include "Type.hpp"
+
+// 1.init 全局变量
+// 2.处理数组的存在
+// 3.函数调用的处理
+// 4.函数参数的注意
+// 5.代码的测评（抽样）
 
 // need to deal the var
 void TextSegment::TextInit()
 {
-    auto type = value->GetType()->GetTypeEnum();
-    name = value->GetName();
-    Var* var = dynamic_cast<Var*>(value);
-    int a = 10;
+    auto _size = value->GetType()->GetSize();  
+    auto dataType = value->GetTypeEnum();
+    if (dataType == IR_ARRAY) {    // align
+        align = 3;
+    } else {
+        align = 2;
+    }
+    size = _size;    // size     
+    name = value->GetName();   // name 
+    Var* var = dynamic_cast<Var*> (value); 
+    auto hello = var->GetInitializer();
+    if(var->GetInitializer() != nullptr) {
+        type = data;
+    } else {
+        type = bss;
+    }
+    if(dataType == IR_ARRAY) {
+        auto arr = dynamic_cast<ArrayType*>(value);
+        auto num = arr->GetNum();
+        word = num* 4;
+    } else {
+        word = 4;
+    }
 }
+
+std::string TextSegment::translateType()
+{
+    if( !type ) {
+        return std::string(".bss");
+    } else {
+        return std::string(".data");
+    }
+}
+
 
 void TextSegment::TextPrint()
 {
     std::cout << "    " <<".global"<<"	"<< name << std::endl; 
-    std::cout << "    " << type <<std::endl; 
+    std::cout << "    " << translateType() <<std::endl; 
     std::cout << "    " <<".align"<<"	"<< std::to_string(align) << std::endl; 
-    std::cout << "    " <<".type"<<"  "<< name << "@object"<< std::endl; 
-    std::cout << "    " <<".size"<<"  "<< name << std::endl; 
+    std::cout << "    " <<".type"<<"  "<< name <<", "<<"@object"<< std::endl; 
+    std::cout << "    " <<".size"<<"  "<< name <<", " <<size<< std::endl; 
     std::cout <<name << std::endl;
-    std::cout << "    " <<".word"<<"  "<<std::to_string(word);
+    if( type == 0) {
+        std::cout << "    " <<".zero"<<"  "<<std::to_string(word) << std::endl;
+    } else {
+        std::cout << "    " <<".word"<<"  "<<std::to_string(word) << std::endl;
+    }
 }   
 
 void RISCVPrint::printPrefix()
@@ -78,6 +118,10 @@ void RISCVPrint::printFuncEpi(RISCVFunction* mfunc)
 void RISCVPrint::printAsm()
 {
     printPrefix();   
+    for(auto text :_context->getTexts()) 
+    {
+        text->TextPrint();
+    }
     auto funcs = _context->getMfuncs();
     for(auto func : funcs)
     {
