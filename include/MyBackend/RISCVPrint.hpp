@@ -16,6 +16,8 @@ public:
     };
 
     TextSegment(Value* val):value(val) { TextInit(); }
+
+    void  FillTheWord(size_t );
     void TextInit();
     void TextPrint();
     std::string translateType();

@@ -1,6 +1,51 @@
 #include "../include/MyBackend/RISCVPrint.hpp"
 #include "../include/lib/Type.hpp"
 
+void TextSegment::FillTheWord(size_t defaultSize)
+{
+    auto var = dynamic_cast<Var*>(value);
+    if (type == data)
+    {
+        auto init = var->GetInitializer();
+        if (init->GetTypeEnum() == IR_Value_INT)
+        {
+            word.emplace_back(init->GetName());
+        }
+        else if (init->GetTypeEnum() == IR_Value_Float)
+        {
+            uint32_t n;
+            auto val = init->GetName();
+            float fval = std::stof(val);
+            memcpy(&n, &fval, sizeof(float)); // 直接复制内存位模式
+            word.emplace_back(std::to_string(n));
+        }
+        else if (init->GetTypeEnum() == IR_ARRAY) // ARRAY && init
+        {
+            auto arr = dynamic_cast<ArrayType *>(init->GetType());
+            int layerSize = arr->GetLayer();
+            int num = arr->GetNum();
+            auto initList = init->as<Initializer>();
+            for (int i = 1; i < layerSize; i++)
+            {
+            }
+            for (auto &e : *initList)
+            {
+                auto interArr = dynamic_cast<ArrayType *>(e->GetType());
+                auto interList = e->as<Initializer>();
+                for (auto &interE : *interList)
+                {
+                    auto name = interE->GetName();
+                    word.emplace_back(name);
+                }
+            }
+        }
+    }
+    else
+    { // .bss
+        word.emplace_back(std::to_string(defaultSize));
+    }
+}
+
 // need to deal the var
 void TextSegment::TextInit()
 {
@@ -14,7 +59,8 @@ void TextSegment::TextInit()
     if ( var->GetTypeEnum() == IR_PTR)
     {
         auto PType = dynamic_cast<PointerType*> (var->GetType());
-        auto SubType = PType->GetSubType();
+        auto SubType = PType->GetSubType();   // sub 是上一级的
+        // auto baseType = PType->GetBaseType();  base 是最基础的
         size = SubType->GetSize();     // size
         auto dataType = SubType->GetTypeEnum();
 
@@ -23,41 +69,8 @@ void TextSegment::TextInit()
         } else {
             align = 2;
         }
-
-        if (type == data) {
-            auto init = var->GetInitializer();
-            if ( init->GetTypeEnum() == IR_Value_INT){
-                word.emplace_back(init->GetName());
-            }
-            else if (init->GetTypeEnum() == IR_Value_Float)
-            {
-                uint32_t n;
-                auto val = init->GetName();
-                float fval = std::stof(val);
-                memcpy(&n, &fval, sizeof(float)); // 直接复制内存位模式
-                word.emplace_back(std::to_string(n));
-            } 
-            else if (init->GetTypeEnum() == IR_ARRAY) // ARRAY && init
-            {
-                auto arr = dynamic_cast<ArrayType*> (init->GetType());
-                int layerSize = arr->GetLayer();
-                int num = arr->GetNum();
-                auto initList = init->as<Initializer>();
-                for(auto& e : *initList)
-                {
-                    auto interArr = dynamic_cast<ArrayType*> (e->GetType());
-                    auto interList = e->as<Initializer>();
-                    for(auto& interE :*interList)
-                    {
-                        auto name = interE->GetName();
-                        word.emplace_back(name);
-                    }
-                }
-            }
-        }
-        else {  // .bss
-            word.emplace_back(std::to_string(SubType->GetSize()));
-        }
+        
+        FillTheWord(SubType->GetSize());
     }
     else {
         LOG(ERROR,"must be IR_PTR");
