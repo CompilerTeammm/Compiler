@@ -18,6 +18,7 @@ bool TransModule::run(Module* mod)
 {
     InitPrintAndCtx(mod);
 
+    // constant also is the global
     std::shared_ptr<TransGlobalVal> GlobalValTrans = std::make_shared<TransGlobalVal>(ctx,printer);
     auto& GlobalValList = mod->GetGlobalVariable();
     for(auto& var:GlobalValList) 

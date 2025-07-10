@@ -1,12 +1,6 @@
 #include "../include/MyBackend/RISCVPrint.hpp"
 #include "../include/lib/Type.hpp"
 
-// 1.init 全局变量
-// 2.处理数组的存在
-// 3.函数调用的处理
-// 4.函数参数的注意
-// 5.代码的测评（抽样）
-
 // need to deal the var
 void TextSegment::TextInit()
 {
@@ -33,7 +27,7 @@ void TextSegment::TextInit()
         if (type == data) {
             auto init = var->GetInitializer();
             if ( init->GetTypeEnum() == IR_Value_INT){
-                word = init->GetName();
+                word.emplace_back(init->GetName());
             }
             else if (init->GetTypeEnum() == IR_Value_Float)
             {
@@ -41,11 +35,28 @@ void TextSegment::TextInit()
                 auto val = init->GetName();
                 float fval = std::stof(val);
                 memcpy(&n, &fval, sizeof(float)); // 直接复制内存位模式
-                word = std::to_string(n);
+                word.emplace_back(std::to_string(n));
+            } 
+            else if (init->GetTypeEnum() == IR_ARRAY) // ARRAY && init
+            {
+                auto arr = dynamic_cast<ArrayType*> (init->GetType());
+                int layerSize = arr->GetLayer();
+                int num = arr->GetNum();
+                auto initList = init->as<Initializer>();
+                for(auto& e : *initList)
+                {
+                    auto interArr = dynamic_cast<ArrayType*> (e->GetType());
+                    auto interList = e->as<Initializer>();
+                    for(auto& interE :*interList)
+                    {
+                        auto name = interE->GetName();
+                        word.emplace_back(name);
+                    }
+                }
             }
         }
-        else {
-            word = std::to_string(SubType->GetSize());
+        else {  // .bss
+            word.emplace_back(std::to_string(SubType->GetSize()));
         }
     }
     else {
@@ -69,11 +80,12 @@ void TextSegment::TextPrint()
     std::cout << "    " <<".align"<<"	"<< std::to_string(align) << std::endl; 
     std::cout << "    " <<".type"<<"  "<< name <<", "<<"@object"<< std::endl; 
     std::cout << "    " <<".size"<<"  "<< name <<", " <<size<< std::endl; 
-    std::cout <<name << std::endl;
+    std::cout <<name <<":"<< std::endl;
     if( type == 0) {
-        std::cout << "    " <<".zero"<<"  "<< word << std::endl;
+        std::cout << "    " <<".zero"<<"  "<< word[0] << std::endl;
     } else {
-        std::cout << "    " <<".word"<<"  "<< word << std::endl;
+        for(auto& w : word) 
+            std::cout << "    " <<".word"<<"  "<< w << std::endl;
     }
 }   
 
