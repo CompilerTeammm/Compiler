@@ -214,3 +214,22 @@ std::vector<BasicBlock *> DominantTree::getSuccBBs(BasicBlock *bb)
 
     return std::move(vec);
 }
+
+std::vector<BasicBlock *> DominantTree::getIdomVec(BasicBlock * bb)
+{
+    std::vector<BasicBlock*> bbs;
+    TreeNode* node = getNode(bb);
+    for(auto e :node->idomChild) 
+    {
+        bbs.emplace_back(e->curBlock);
+    }
+
+    return bbs;
+}
+
+//    A     
+//    |  \
+//    B   D
+//    |
+//    C
+//

@@ -35,60 +35,62 @@ bool SimplifyCFG::SimplifyCFGBasicBlock(BasicBlock* bb){
 
 //删除不可达基本块(记得要把phi引用到的也进行处理)
 bool SimplifyCFG::removeUnreachableBlocks(Function* func){
-    std::unordered_set<BasicBlock*> reachable;//存储可达块
-    std::stack<BasicBlock*> bbstack;
+    // std::unordered_set<BasicBlock*> reachable;//存储可达块
+    // std::stack<BasicBlock*> bbstack;
 
-    auto entry=func->GetFront();
-    bbstack.push(entry);
-    reachable.insert(entry);
+    // auto entry=func->GetFront();
+    // bbstack.push(entry);
+    // reachable.insert(entry);
 
-    //DFS
-    while(!bbstack.empty()){
-        BasicBlock* bb=bbstack.top();
-        bbstack.pop();
-        for(auto& succ:bb->GetNextBlocks()){
-            if(reachable.insert(succ).second){
-                bbstack.push(succ);
-            }
-        }
-    }
+    // //DFS
+    // while(!bbstack.empty()){
+    //     BasicBlock* bb=bbstack.top();
+    //     bbstack.pop();
+    //     for(auto& succ:bb->GetNextBlocks()){
+    //         if(reachable.insert(succ).second){
+    //             bbstack.push(succ);
+    //         }
+    //     }
+    // }
 
-    bool changed=false;
-    //遍历所有bb,移除不可达者
-    auto& BBList=func->GetBBs();
-    for(auto it=BBList.begin();it!=BBList.end();){
-        BasicBlock* bb=it->get();
-        if(reachable.count(bb)==0){
+    // bool changed=false;
+    // //遍历所有bb,移除不可达者
+    // auto& BBList=func->GetBBs();
+    // for(auto it=BBList.begin();it!=BBList.end();){
+    //     BasicBlock* bb=it->get();
+    //     if(reachable.count(bb)==0){
 
-            std::cerr << "Erasing unreachable block: " << bb->GetName() << std::endl;
-            //清理其产生的值被使用的地方
-            for(auto i=bb->begin();i!=bb->end();++i){
-                Instruction* inst=*i;
-                inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
-            }
-            //移除phi中引用到这个bb的分支
-            for(auto succ:bb->GetNextBlocks()){
-                for(auto it=succ->begin();it!=succ->end();++it){
-                    if(auto phi=dynamic_cast<PhiInst*>(*it)){
-                        phi->removeIncomingFrom(bb);
-                    }else{
-                        break;
-                    }
-                }
-            }
-            for(auto pred:bb->GetPredBlocks()){
-                pred->RemoveNextBlock(bb);
-            }
-            for(auto succ:bb->GetNextBlocks()){
-                succ->RemovePredBlock(bb);
-            }
-            it=BBList.erase(it);
-            changed=true;
-        }else{
-            ++it;
-        }
-    }
-    return changed;
+    //         std::cerr << "Erasing unreachable block: " << bb->GetName() << std::endl;
+    //         //清理其产生的值被使用的地方
+    //         for(auto i=bb->begin();i!=bb->end();++i){
+    //             Instruction* inst=*i;
+    //             inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
+    //         }
+    //         //移除phi中引用到这个bb的分支
+    //         for(auto succ:bb->GetNextBlocks()){
+    //             for(auto it=succ->begin();it!=succ->end();++it){
+    //                 if(auto phi=dynamic_cast<PhiInst*>(*it)){
+    //                     phi->removeIncomingFrom(bb);
+    //                 }else{
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //         for(auto pred:bb->GetPredBlocks()){
+    //             pred->RemoveNextBlock(bb);
+    //         }
+    //         for(auto succ:bb->GetNextBlocks()){
+    //             succ->RemovePredBlock(bb);
+    //         }
+    //         it=BBList.erase(it);
+    //         changed=true;
+    //     }else{
+    //         ++it;
+    //     }
+    // }
+    //return changed;
+
+    return true;
 }
 
 //合并空返回块(no phi)(实际上是合并所有返回相同常量值的返回块)

@@ -1,9 +1,16 @@
 #include "../../include/IR/Opt/LoopUnrolling.hpp"
+#include <memory>
 
 bool LoopUnrolling::run()
 {
   DominantTree dom(_func);
   dom.BuildDominantTree(); // 计算支配关系
+  for(auto e:*_func)
+  {
+    auto vec = dom.getIdomVec(e);
+  }
+
+  // auto loopTest = std::make_shared<LoopInfoAnalysis>(_func, &dom, DeleteLoop);
   LoopInfoAnalysis *loopAnalysis = new LoopInfoAnalysis(_func, &dom, DeleteLoop);
   std::vector<Loop *> loopAnalysis_Unroll{loopAnalysis->loopsBegin(), loopAnalysis->loopsEnd()};
 

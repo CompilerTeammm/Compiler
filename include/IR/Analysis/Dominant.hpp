@@ -171,4 +171,6 @@ public:
     bool dominates(BasicBlock *bb1, BasicBlock *bb2);
 
     ~DominantTree() = default;
+
+    std::vector<BasicBlock*> getIdomVec(BasicBlock* );
 };

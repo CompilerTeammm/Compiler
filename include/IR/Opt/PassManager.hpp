@@ -23,8 +23,8 @@
 #define dce
 #define sccp
 //#define gvn
-#define pre
-#define SCFG
+// #define pre
+// #define SCFG
 //#define SInst
 //define DSE
 // 循环优化
