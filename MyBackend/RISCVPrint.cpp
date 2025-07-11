@@ -2,48 +2,89 @@
 #include "../include/lib/Type.hpp"
 
 void TextSegment::FillTheWord(size_t defaultSize)
-{
-    auto var = dynamic_cast<Var*>(value);
+{   
+    // I already know the type of data ---》  .bss   .data
+    // defaultSize   ==    this value's  size
+    // this value  is an  Instruction
+    // type value size -----> to fill the word
+
+    auto var = dynamic_cast<Var*> (value);
+    auto Vartype = var->GetType();
+    auto PType = dynamic_cast<PointerType*> (Vartype);
+    auto it = PType->GetBaseType();
+    auto subType = PType->GetSubType();
+    Value* Vusee = var->GetInitializer();
+
     if (type == data)
     {
-        auto init = var->GetInitializer();
-        if (init->GetTypeEnum() == IR_Value_INT)
+        if (subType->GetTypeEnum() == IR_Value_INT)
         {
-            word.emplace_back(init->GetName());
+            word.emplace_back(Vusee->GetName());
         }
-        else if (init->GetTypeEnum() == IR_Value_Float)
+        else if(subType->GetTypeEnum() == IR_Value_Float)
         {
             uint32_t n;
-            auto val = init->GetName();
+            auto val = Vusee->GetName();
             float fval = std::stof(val);
             memcpy(&n, &fval, sizeof(float)); // 直接复制内存位模式
             word.emplace_back(std::to_string(n));
         }
-        else if (init->GetTypeEnum() == IR_ARRAY) // ARRAY && init
+        else if (subType->GetTypeEnum() == IR_ARRAY)
         {
-            auto arr = dynamic_cast<ArrayType *>(init->GetType());
-            int layerSize = arr->GetLayer();
-            int num = arr->GetNum();
-            auto initList = init->as<Initializer>();
-            for (int i = 1; i < layerSize; i++)
-            {
-            }
-            for (auto &e : *initList)
-            {
-                auto interArr = dynamic_cast<ArrayType *>(e->GetType());
-                auto interList = e->as<Initializer>();
-                for (auto &interE : *interList)
-                {
-                    auto name = interE->GetName();
-                    word.emplace_back(name);
-                }
-            }
+            ArrayType* arrType = dynamic_cast<ArrayType*> (Vusee->GetType());
+            auto InitList = Vusee->as<Initializer>();
+            std::vector<int> index;
+            auto val = InitList->GetInitVal(index);
+            int layer = arrType->GetLayer();
+            int a = 10;
         }
     }
-    else
-    { // .bss
+    else if(type == bss)
+    {
         word.emplace_back(std::to_string(defaultSize));
     }
+
+    // auto var = dynamic_cast<Var*>(value);
+    // if (type == data)
+    // {
+    //     auto init = var->GetInitializer();
+    //     if (init->GetTypeEnum() == IR_Value_INT)
+    //     {
+    //         word.emplace_back(init->GetName());
+    //     }
+    //     else if (init->GetTypeEnum() == IR_Value_Float)
+    //     {
+    //         uint32_t n;
+    //         auto val = init->GetName();
+    //         float fval = std::stof(val);
+    //         memcpy(&n, &fval, sizeof(float)); // 直接复制内存位模式
+    //         word.emplace_back(std::to_string(n));
+    //     }
+    //     else if (init->GetTypeEnum() == IR_ARRAY) // ARRAY && init
+    //     {
+    //         auto arr = dynamic_cast<ArrayType *>(init->GetType());
+    //         int layerSize = arr->GetLayer();
+    //         int num = arr->GetNum();
+    //         auto initList = init->as<Initializer>();
+    //         for (int i = 1; i < layerSize; i++)
+    //         {
+    //         }
+    //         for (auto &e : *initList)
+    //         {
+    //             auto interArr = dynamic_cast<ArrayType *>(e->GetType());
+    //             auto interList = e->as<Initializer>();
+    //             for (auto &interE : *interList)
+    //             {
+    //                 auto name = interE->GetName();
+    //                 word.emplace_back(name);
+    //             }
+    //         }
+    //     }
+    // }
+    // else
+    // { // .bss
+    //     word.emplace_back(std::to_string(defaultSize));
+    // }
 }
 
 // need to deal the var
