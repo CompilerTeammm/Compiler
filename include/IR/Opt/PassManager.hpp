@@ -17,16 +17,16 @@
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
 #include "SimplifyInst.hpp"
+#include "DSE.hpp"
 
 // 互不影响，完全没问题再放出来
-// #define dce
-// #define sccp
-// #define gvn
-// #define pre
-// #define SCFG
-// #define pre
-// #define SCFG
-// #define SInst
+#define dce
+#define sccp
+//#define gvn
+#define pre
+#define SCFG
+//#define SInst
+//define DSE
 // 循环优化
 #define Loop_Unrolling
 
@@ -141,6 +141,15 @@ void PassManager::RunOnTest()
         DominantTree tree(fun);
         tree.BuildDominantTree();
         SimplifyInst(fun, &tree).run();
+    }
+#endif
+#ifdef DSE
+    for(auto &function : funcVec)
+    {
+        auto fun = function.get();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        DSE(fun, &tree).run();
     }
 #endif
 }
