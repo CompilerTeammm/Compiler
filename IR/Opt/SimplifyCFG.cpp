@@ -228,9 +228,8 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     if(bb->Size()!=0 && bb->GetBack()->IsTerminateInst()){
         bb->GetBack()->EraseFromManager();
     }
-    while(succ->Size()>0){
-        Instruction *inst=succ->GetFront();
-        // succ->remove(inst);
+    while (succ->Size() > 0) {
+        Instruction *inst = succ->pop_front();
         bb->push_back(inst);
     }
     //更新CFG
