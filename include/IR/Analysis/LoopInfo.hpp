@@ -129,10 +129,11 @@ public:
   LoopInfoAnalysis(Function *func, DominantTree *dom, std::vector<Loop *> &deleteLoop) : _func(func), _dom(dom), _deleteloop(deleteLoop)
   {
     setBBs();
-    // setDest();
+    //  setDest();
   }
-  void setBBs() { _BBs = &_func->GetBBs(); }
-  // void setDest(BasicBlock *bb) { Dest = &_dom->getSuccBBs(bb); }
+
+  void setBBs() { _BBs = &(_func->GetBBs()); }
+  // void setDest() { Dest = &_dom->BuildDominantTree(); }
 
   virtual bool run() override
   {
@@ -194,6 +195,7 @@ private:
   std::vector<BasicBlock *> PostOrder;  // 存储后序遍历的基本块
   std::map<BasicBlock *, Loop *> Loops; // 基本块与循环的映射
   // std::vector<BasicBlock *> *Dest; // CFG中的后继
+  // std::vector<std::vector<int>> *Dest; // CFG中的后继
   int depth = 0;
   int index = 0;
 };

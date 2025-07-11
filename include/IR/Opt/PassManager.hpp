@@ -28,7 +28,7 @@
 // #define SCFG
 // #define SInst
 // 循环优化
-// #define Loop_Unrolling
+#define Loop_Unrolling
 
 enum PassName
 {

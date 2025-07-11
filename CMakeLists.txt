@@ -37,8 +37,8 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/SimplifyCFG.cpp
   IR/Opt/SimplifyInst.cpp
   
-  # IR/Opt/LoopUnrolling.cpp
-  # IR/Analysis/LoopInfo.cpp
+  IR/Opt/LoopUnrolling.cpp
+  IR/Analysis/LoopInfo.cpp
 
 
   MyBackend/*.cpp
