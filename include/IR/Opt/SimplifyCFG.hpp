@@ -20,7 +20,7 @@ public:
     ~SimplifyCFG() = default;
     // 分层次组织子优化
     bool SimplifyCFGFunction(Function *func);
-    bool SimplifyCFGBasicBlock(BasicBlock *bb);
+    // bool SimplifyCFGBasicBlock(BasicBlock *bb);
 
     // 子优化：function
     bool removeUnreachableBlocks(Function *func); // 删除不可达基本块
