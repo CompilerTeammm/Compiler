@@ -79,11 +79,34 @@ bool SimplifyCFG::blockHasSideEffect(BasicBlock* bb) {
 bool SimplifyCFG::isOnlyRetBlock(Function* func, BasicBlock* bb) {
     int retCount = 0;
     for (auto& b : func->GetBBs()) {
-        if (b->GetLastInsts()->IsTerminateInst() && b->GetLastInsts()->id==Instruction::Op::Ret){
+        Instruction* inst=b->GetLastInsts();
+        if(!inst) continue;
+        if (inst->IsTerminateInst() && inst->id==Instruction::Op::Ret){
             ++retCount;
         }
     }
-    return retCount == 1 && bb->GetLastInsts()->IsTerminateInst() && bb->GetLastInsts()->id==Instruction::Op::Ret;
+    Instruction* inst=bb->GetLastInsts();
+    if(!inst) return false;
+    return retCount == 1 && inst->IsTerminateInst() && inst->id==Instruction::Op::Ret;
+}
+//判断基本块是否可达（入口可达分析）
+bool SimplifyCFG::isReachableFromEntry(BasicBlock* bb,BasicBlock* entry){
+    std::set<BasicBlock*> visited;
+    std::queue<BasicBlock*> queue;
+
+    queue.push(entry);
+    while(!queue.empty()){
+        BasicBlock* cur=queue.front();
+        queue.pop();
+        if(cur==bb) return true;
+        if(visited.count(cur)) continue;
+
+        visited.insert(cur);
+        for (auto* succ : cur->GetNextBlocks()) {
+            queue.push(succ);
+        }
+    }
+    return false;
 }
 
 //合并空返回块(no phi)(实际上是合并所有返回相同常量值的返回块)
@@ -198,53 +221,68 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
     }
 
     bool changed=false;
-    //遍历所有bb,移除不可达者
-    auto& BBList=func->GetBBs();
-    for(auto it=BBList.begin();it!=BBList.end();){
-        BasicBlock* bb=it->get();
-        if(reachable.count(bb)==0){
+    std::vector<BasicBlock*> toDelete;//准备删除列表
+    for(auto& bb:func->GetBBs()){
+        if(bb.get()==entry) continue;
+        
+        //保留入口可达的块
+        if(isReachableFromEntry(bb.get(),entry)){
+            continue;
+        }
+        //保护唯一返回块
+        if(isOnlyRetBlock(func,bb.get())){
+            continue;
+        }
 
-            //检查该块中是否有唯一的ret
-            bool containsRet=false;
-            for(auto* inst:*bb){
-                if(inst->id==Instruction::Op::Ret){
-                    containsRet=true;
+        //检查该块中是否有唯一的ret
+        bool containsRet=false;
+        for(auto* inst:*bb){
+            if(inst->id==Instruction::Op::Ret){
+                containsRet=true;
+                break;
+            }
+        }
+        if(containsRet && !hasOtherRetInst(func,bb.get())){
+            std::cerr << "WARNING: This is the only return block. Keeping: " << bb->GetName() << "\n";
+            continue;
+        }
+
+        //标记删除
+        toDelete.push_back(bb.get());
+    }
+
+
+    //遍历所有bb,移除不可达者
+    for (auto* bb : toDelete) {
+        std::cerr << "Erasing unreachable block: " << bb->GetName() << "\n";
+
+        // 替换所有值为 undef
+        for (auto* inst : *bb) {
+            inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
+        }
+
+        // 清除 phi 引用
+        for (auto* succ : bb->GetNextBlocks()) {
+            for (auto it = succ->begin(); it != succ->end(); ++it) {
+                if (auto phi = dynamic_cast<PhiInst*>(*it)) {
+                    phi->removeIncomingFrom(bb);
+                } else {
                     break;
                 }
             }
-            if(containsRet && !hasOtherRetInst(func,bb)){
-                std::cerr << "WARNING: This is the only return block. Keeping: " << bb->GetName() << "\n";
-                ++it;
-                continue;
-            }
-            
-            std::cerr << "Erasing unreachable block: " << bb->GetName() << std::endl;
-            //清理其产生的值被使用的地方
-            for(auto i=bb->begin();i!=bb->end();++i){
-                Instruction* inst=*i;
-                inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
-            }
-            //移除phi中引用到这个bb的分支
-            for(auto succ:bb->GetNextBlocks()){
-                for(auto it=succ->begin();it!=succ->end();++it){
-                    if(auto phi=dynamic_cast<PhiInst*>(*it)){
-                        phi->removeIncomingFrom(bb);
-                    }else{
-                        break;
-                    }
-                }
-            }
-            for(auto pred:bb->GetPredBlocks()){
-                pred->RemoveNextBlock(bb);
-            }
-            for(auto succ:bb->GetNextBlocks()){
-                succ->RemovePredBlock(bb);
-            }
-            it=BBList.erase(it);
-            changed=true;
-        }else{
-            ++it;
         }
+
+        // 清除 CFG 边
+        for (auto* pred : bb->GetPredBlocks()) {
+            pred->RemoveNextBlock(bb);
+        }
+        for (auto* succ : bb->GetNextBlocks()) {
+            succ->RemovePredBlock(bb);
+        }
+
+        // 从函数中删除
+        func->RemoveBBs(bb);
+        changed = true;
     }
     return changed;
 }
@@ -381,3 +419,4 @@ bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
     }
     return changed;
 }
+//是否需要补充 入口块无 terminator，合理补充跳转 的部分?

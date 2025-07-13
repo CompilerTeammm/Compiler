@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <optional>
 #include <string.h>
+#include <queue>
+#include <vector>
 class SimplifyCFG : public _PassBase<SimplifyCFG, Function>
 {
 private:
@@ -36,4 +38,5 @@ public:
     bool hasSideEffect(Instruction* inst);
     bool blockHasSideEffect(BasicBlock* bb);
     bool isOnlyRetBlock(Function* func, BasicBlock* bb);
+    bool isReachableFromEntry(BasicBlock* bb,BasicBlock* entry);
 };
