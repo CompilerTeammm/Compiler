@@ -3,26 +3,8 @@
 bool SimplifyCFG::run() {
     return SimplifyCFGFunction(func);
 }
+
 //子优化顺序尝试
-// bool SimplifyCFG::SimplifyCFGFunction(Function* func){
-//     bool changed=false;
-
-//     changed |= mergeEmptyReturnBlocks(func);
-
-//     //basicblock子优化
-//     std::vector<BasicBlock*> blocks;
-//     for(auto& bb_ptr:func->GetBBs()){
-//         blocks.push_back(bb_ptr.get());//从shared_ptr提取裸指针
-//     }
-//     for(auto* bb:blocks){
-//         changed|=SimplifyCFGBasicBlock(bb);
-//     }
-//     //如果在前端已经处理掉了那么就不需要这个了吧(?)
-//     //现在只用于消除branch的后续处理
-//     changed |= removeUnreachableBlocks(func);
-
-//     return changed;
-// }
 bool SimplifyCFG::SimplifyCFGFunction(Function* func){
     bool changed=false;
 
@@ -49,24 +31,29 @@ bool SimplifyCFG::SimplifyCFGFunction(Function* func){
             localChanged |= mergeBlocks(bb);
         }
 
-        //清理CFG中的不可达基本块(否则phi会出错)
-        localChanged |= removeUnreachableBlocks(func);
-
         // 消除冗余 phi（统一值/已删除 predecessor）
         for (auto* bb : blocks) {
             localChanged |= eliminateTrivialPhi(bb);
         }
+        
+        //清理CFG中的不可达基本块(否则phi会出错)
+        localChanged |= removeUnreachableBlocks(func);
+
         changed |= localChanged;
     }while(localChanged);//持续迭代直到收敛
 }
-// bool SimplifyCFG::SimplifyCFGBasicBlock(BasicBlock* bb){
-//     bool changed=false;
-//     changed |=simplifyBranch(bb);
-//     changed |=mergeBlocks(bb);
-//     changed |=eliminateTrivialPhi(bb);
-
-//     return changed;
-// }
+//暂时没考虑无返回值情况
+bool SimplifyCFG::hasOtherRetInst(Function* func,BasicBlock* bb_){
+    for(auto& bb_ptr:func->GetBBs()){
+        BasicBlock* bb=bb_ptr.get();
+        if(bb==bb_) continue;
+        if(!bb->reachable) continue;
+        for(auto* inst:*bb){
+            if(inst->id==Instruction::Op::Ret) return true;
+        }
+    }
+    return false;
+}
 
 //删除不可达基本块(记得要把phi引用到的也进行处理)
 bool SimplifyCFG::removeUnreachableBlocks(Function* func){
@@ -95,6 +82,20 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
         BasicBlock* bb=it->get();
         if(reachable.count(bb)==0){
 
+            //检查该块中是否有唯一的ret
+            bool containsRet=false;
+            for(auto* inst:*bb){
+                if(inst->id==Instruction::Op::Ret){
+                    containsRet=true;
+                    break;
+                }
+            }
+            if(containsRet && !hasOtherRetInst(func,bb)){
+                std::cerr << "WARNING: This is the only return block. Keeping: " << bb->GetName() << "\n";
+                ++it;
+                continue;
+            }
+            
             std::cerr << "Erasing unreachable block: " << bb->GetName() << std::endl;
             //清理其产生的值被使用的地方
             for(auto i=bb->begin();i!=bb->end();++i){
@@ -156,8 +157,12 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
         }
     }
     //合并空ret块
-    if(ReturnBlocks.size()<=1){
-        std::cerr << "No or only one return block with common return value found.\n";
+    if(ReturnBlocks.size()==1){
+        std::cerr << "Only one return block found: " << ReturnBlocks[0]->GetName() << ", skipped merging.\n";
+        return false;
+    }
+    if(ReturnBlocks.size()==0){
+        std::cerr << "No return blocks found.\n";
         return false;
     }
     std::cerr<<"Found"<<ReturnBlocks.size()<<" return blocks with common return value: "<<commonRetVal.value()<<"\n";

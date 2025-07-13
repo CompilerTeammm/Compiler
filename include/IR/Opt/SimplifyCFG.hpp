@@ -29,4 +29,7 @@ public:
     bool mergeBlocks(BasicBlock *bb);         // 合并基本块
     bool simplifyBranch(BasicBlock *bb);      // 简化分支（实际上是简化恒真或恒假的条件跳转
     bool eliminateTrivialPhi(BasicBlock *bb); // 消除无意义phi
+
+    //辅助函数:
+    bool hasOtherRetInst(Function *func,BasicBlock *bb_);//判断是否存在其他可达return
 };
