@@ -42,7 +42,7 @@ bool SimplifyCFG::SimplifyCFGFunction(Function* func){
         changed |= localChanged;
     }while(localChanged);//持续迭代直到收敛
 }
-//暂时没考虑无返回值情况
+//辅助函数群:
 bool SimplifyCFG::hasOtherRetInst(Function* func,BasicBlock* bb_){
     for(auto& bb_ptr:func->GetBBs()){
         BasicBlock* bb=bb_ptr.get();
@@ -53,6 +53,128 @@ bool SimplifyCFG::hasOtherRetInst(Function* func,BasicBlock* bb_){
         }
     }
     return false;
+}
+// 判断指令是否为副作用调用
+bool SimplifyCFG::hasSideEffect(Instruction* inst){
+    if(inst->IsCallInst()){
+        std::string callee=inst->GetName();
+        //根据实际副作用函数名调整判断条件
+        if(callee.find("_sysy")!=std::string::npos||callee=="putint"){
+            return true;
+        }
+    }
+    return false;
+}
+// 判断基本块是否含有副作用调用
+bool SimplifyCFG::blockHasSideEffect(BasicBlock* bb) {
+    for (auto it = bb->begin(); it != bb->end(); ++it) {
+        Instruction* inst = *it;
+        if (hasSideEffect(inst)) return true;
+    }
+    
+    return false;
+}
+
+// 判断是否唯一返回块
+bool SimplifyCFG::isOnlyRetBlock(Function* func, BasicBlock* bb) {
+    int retCount = 0;
+    for (auto& b : func->GetBBs()) {
+        if (b->GetLastInsts()->IsTerminateInst() && b->GetLastInsts()->id==Instruction::Op::Ret){
+            ++retCount;
+        }
+    }
+    return retCount == 1 && bb->GetLastInsts()->IsTerminateInst() && bb->GetLastInsts()->id==Instruction::Op::Ret;
+}
+
+//合并空返回块(no phi)(实际上是合并所有返回相同常量值的返回块)
+bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
+    auto& BBs=func->GetBBs();
+    std::vector<BasicBlock*> ReturnBlocks;
+    std::optional<int> commonRetVal;//optional用于标识一个值要么存在要么不存在(可选值)
+    //记录目标常量返回值
+
+    //收集所有返回指令,返回值需要是整数常量且值相同的块
+    for(auto& bbPtr:BBs){
+        BasicBlock* bb=bbPtr.get();
+        if(bb->Size()!=1) continue;
+        //基本块内只有一条指令(ret)
+        Instruction* lastInst=bb->GetLastInsts();
+        if(!lastInst || lastInst->id!=Instruction::Op::Ret) continue;
+        
+        auto* retInst=dynamic_cast<RetInst*>(lastInst);
+        if (!retInst || retInst->GetOperandNums() != 1) continue;
+
+        Value* retVal=retInst->GetOperand(0);
+        auto* c=dynamic_cast<ConstIRInt*>(retVal);
+        if(!c) continue;
+        int val=c->GetVal();
+        if(!commonRetVal.has_value()){
+            commonRetVal =val;
+        }
+        if(val!=commonRetVal.value()){
+            continue;
+        }
+
+        //跳过含副作用的块
+        if (blockHasSideEffect(bb)) {
+            std::cerr << "Skipped return block with side effects: " << bb->GetName() << "\n";
+            continue;
+        }
+
+        //跳过唯一合法ret块
+        if (isOnlyRetBlock(func,bb)) {
+            std::cerr << "Skipped only return block: " << bb->GetName() << "\n";
+            continue;
+        }
+
+        ReturnBlocks.push_back(bb);
+    }
+    //合并空ret块
+    if(ReturnBlocks.size()==1){
+        std::cerr << "Only one return block found: " << ReturnBlocks[0]->GetName() << ", skipped merging.\n";
+        return false;
+    }
+    if(ReturnBlocks.size()==0){
+        std::cerr << "No return blocks found.\n";
+        return false;
+    }
+    std::cerr<<"Found"<<ReturnBlocks.size()<<" return blocks with common return value: "<<commonRetVal.value()<<"\n";
+
+    //选定第一个作为公共返回块
+    BasicBlock* commonRet=ReturnBlocks.front();
+
+    bool changed=false;
+    //重定向其他返回块的前驱到commonRet
+    for(size_t i=1;i<ReturnBlocks.size();++i){
+        BasicBlock* redundant=ReturnBlocks[i];
+        std::cerr << "Removed redundant return block: " << redundant->GetName() << "\n";
+        //重定向所有前驱块的后继指针从redundant到commonRet
+        for(auto* pred: redundant->GetPredBlocks()){
+            if(pred->Size()==0) continue;
+            auto term=pred->GetLastInsts();
+            if(!term) continue;
+
+            bool replaced=false;
+            //替换terminator的operand
+            for(int i=0;i<term->GetOperandNums();++i){
+                if(term->GetOperand(i)==redundant){
+                    term->SetOperand(i, commonRet);
+                    replaced=true;
+                    std::cerr << "    [Redirected] " << pred->GetName() << " -> " << commonRet->GetName() << "\n";
+                }
+            }
+            if(replaced){
+                pred->RemoveNextBlock(redundant);
+                pred->AddNextBlock(commonRet);
+                commonRet->AddPredBlock(pred);
+            }
+        }
+        //从函数中移除
+        std::cerr<< "Removed redundant return block: "<<redundant->GetName()<<"\n";
+        func->RemoveBBs(redundant);
+        changed=true;
+    }
+    return changed;
 }
 
 //删除不可达基本块(记得要把phi引用到的也进行处理)
@@ -127,82 +249,6 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
     return changed;
 }
 
-//合并空返回块(no phi)(实际上是合并所有返回相同常量值的返回块)
-bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
-    auto& BBs=func->GetBBs();
-    std::vector<BasicBlock*> ReturnBlocks;
-    std::optional<int> commonRetVal;//optional用于标识一个值要么存在要么不存在(可选值)
-    //记录目标常量返回值
-
-    //收集所有返回指令,返回值需要是整数常量且值相同的块
-    for(auto& bbPtr:BBs){
-        BasicBlock* bb=bbPtr.get();
-        if(bb->Size()!=1) continue;
-        //基本块内只有一条指令(ret)
-        Instruction* lastInst=bb->GetLastInsts();
-        if(!lastInst || lastInst->id!=Instruction::Op::Ret) continue;
-        
-        auto* retInst=dynamic_cast<RetInst*>(lastInst);
-        if (!retInst || retInst->GetOperandNums() != 1) continue;
-
-        Value* retVal=retInst->GetOperand(0);
-        auto* c=dynamic_cast<ConstIRInt*>(retVal);
-        if(!c) continue;
-        int val=c->GetVal();
-        if(!commonRetVal.has_value()){
-            commonRetVal =val;
-        }
-        if(val==commonRetVal.value()){
-            ReturnBlocks.push_back(bb);
-        }
-    }
-    //合并空ret块
-    if(ReturnBlocks.size()==1){
-        std::cerr << "Only one return block found: " << ReturnBlocks[0]->GetName() << ", skipped merging.\n";
-        return false;
-    }
-    if(ReturnBlocks.size()==0){
-        std::cerr << "No return blocks found.\n";
-        return false;
-    }
-    std::cerr<<"Found"<<ReturnBlocks.size()<<" return blocks with common return value: "<<commonRetVal.value()<<"\n";
-
-    //选定第一个作为公共返回块
-    BasicBlock* commonRet=ReturnBlocks.front();
-
-    bool changed=false;
-    //重定向其他返回块的前驱到commonRet
-    for(size_t i=1;i<ReturnBlocks.size();++i){
-        BasicBlock* redundant=ReturnBlocks[i];
-        std::cerr << "Removed redundant return block: " << redundant->GetName() << "\n";
-        //重定向所有前驱块的后继指针从redundant到commonRet
-        for(auto* pred: redundant->GetPredBlocks()){
-            if(pred->Size()==0) continue;
-            auto term=pred->GetLastInsts();
-            if(!term) continue;
-
-            bool replaced=false;
-            //替换terminator的operand
-            for(int i=0;i<term->GetOperandNums();++i){
-                if(term->GetOperand(i)==redundant){
-                    term->SetOperand(i, commonRet);
-                    replaced=true;
-                    std::cerr << "    [Redirected] " << pred->GetName() << " -> " << commonRet->GetName() << "\n";
-                }
-            }
-            if(replaced){
-                pred->RemoveNextBlock(redundant);
-                pred->AddNextBlock(commonRet);
-                commonRet->AddPredBlock(pred);
-            }
-        }
-        //从函数中移除
-        std::cerr<< "Removed redundant return block: "<<redundant->GetName()<<"\n";
-        func->RemoveBBs(redundant);
-        changed=true;
-    }
-    return changed;
-}
 
 bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
     if(bb->Size()==0){

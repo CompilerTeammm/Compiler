@@ -8,6 +8,7 @@
 #include <stack>
 #include <unordered_set>
 #include <optional>
+#include <string.h>
 class SimplifyCFG : public _PassBase<SimplifyCFG, Function>
 {
 private:
@@ -32,4 +33,7 @@ public:
 
     //辅助函数:
     bool hasOtherRetInst(Function *func,BasicBlock *bb_);//判断是否存在其他可达return
+    bool hasSideEffect(Instruction* inst);
+    bool blockHasSideEffect(BasicBlock* bb);
+    bool isOnlyRetBlock(Function* func, BasicBlock* bb);
 };
