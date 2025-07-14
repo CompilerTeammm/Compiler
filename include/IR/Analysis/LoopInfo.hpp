@@ -128,11 +128,18 @@ public:
   };
   LoopInfoAnalysis(Function *func, DominantTree *dom, std::vector<Loop *> &deleteLoop) : _func(func), _dom(dom), _deleteloop(deleteLoop)
   {
-    setBBs();
-    //  setDest();
+    _BBs = &(_func->GetBBs());
+    for (auto &bb : *_BBs)
+    {
+      PostOrderDT(bb.get());
+    }
+    run();
   }
 
-  void setBBs() { _BBs = &(_func->GetBBs()); }
+  /*   void setBBs()
+    {
+      _BBs = &(_func->GetBBs());
+    } */
   // void setDest() { Dest = &_dom->BuildDominantTree(); }
 
   virtual bool run() override
