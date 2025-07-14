@@ -522,11 +522,13 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     
     std::map<RISCVInst*,AllocaInst*> StoreInsts;
     std::vector<RISCVInst*> LoadInsts;
+    std::vector<AllocaInst*> AllocaInsts;
 
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
 
+    std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
     std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    }
     std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
     std::map<AllocaInst*,lastStoreInstPtr>& getStoreRecord() {   return StackStoreRecord;   }

@@ -29,7 +29,6 @@ bool TransModule::run(Module* mod)
             LOG(ERROR,"Trans GlobalVal falied");
         }
     }
-
     std::shared_ptr<TransFunction> funcTrans = std::make_shared<TransFunction>(ctx,printer);
     auto& functions = mod->GetFuncTion();
     for(auto& func : functions)

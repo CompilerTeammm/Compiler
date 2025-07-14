@@ -61,21 +61,27 @@ bool ProloAndEpilo::run()
 
 size_t ProloAndEpilo::caculate()
 {
-    auto MallocVec = mfunc->getStoreInsts();
     int N = INITSIZE;
     int sumMallocSize = 0;
-    
-    // 需要处理 sd  sw  fsw, 根据存储的指令数 开辟栈帧的大小
-    for(auto [e,_1] : MallocVec)
-    {
-        RISCVInst::ISA op = e->getOpcode();
-        if( op == RISCVInst::_sw || op == RISCVInst ::_fsw) {
-            sumMallocSize += sizeof(int32_t);
-        }
-    } 
 
-    while( N * ALIGN < sumMallocSize)
-        N++;
+    for(auto allocInst : mfunc->getAllocas())
+    {
+        auto e = allocInst;
+        if(e->GetTypeEnum() == IR_PTR) 
+        {
+            auto PType = dynamic_cast<PointerType*> (e->GetType());
+            if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
+            {
+                size_t arrSize = PType->GetSubType()->GetSize();
+                sumMallocSize += arrSize;
+            }
+            else if(PType->GetSubType()->GetTypeEnum() == IR_Value_Float ||
+                  PType->GetSubType()->GetTypeEnum() == IR_Value_INT ) {
+                sumMallocSize += sizeof(int32_t);
+            }
+        }
+    }
+    while (N * ALIGN < sumMallocSize)   N++;
 
     size_t size = (N + INITSIZE) * ALIGN;
     return size; 

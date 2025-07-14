@@ -205,6 +205,7 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
 RISCVInst* RISCVContext::CreateAInst(AllocaInst *inst)
 {
     // auto type = inst->GetType()->GetSize();
+    curMfunc->getAllocas().push_back(inst);
     auto storeRecord = curMfunc->getStoreRecord();
     storeRecord[inst] = nullptr;
     return storeRecord[inst];
