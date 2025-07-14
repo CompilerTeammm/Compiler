@@ -6,7 +6,7 @@ import time
 import difflib
 import re
 
-compiler_path = "./Compiler"
+compiler_path = "./build/Compiler"
 test_folder="./testcases"
 # pass_args=["--mem2reg"]
 
