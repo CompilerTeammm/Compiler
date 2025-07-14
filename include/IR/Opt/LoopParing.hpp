@@ -18,6 +18,9 @@ private:
   void evert_thread(Value *_initial, Value *_boundary, bool every_call);
   bool makeit(std::vector<Loop *> loops);
   void deletephi(Function *_func);
+  bool calculate_iteration(Loop *loop);
+  bool CheckPhiNodeUsage(PhiInst *resPhi, Loop *loop, BasicBlock *latch);
+  bool checkDataFlowAnalysis(Loop *loop);
 
 private:
   Function *_func;
