@@ -38,5 +38,4 @@ public:
     bool hasSideEffect(Instruction* inst);
     bool blockHasSideEffect(BasicBlock* bb);
     bool isOnlyRetBlock(Function* func, BasicBlock* bb);
-    bool isReachableFromEntry(BasicBlock* bb,BasicBlock* entry);
 };
