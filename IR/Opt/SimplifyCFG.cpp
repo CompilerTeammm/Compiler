@@ -36,7 +36,7 @@ bool SimplifyCFG::SimplifyCFGFunction(Function* func){
             localChanged |= eliminateTrivialPhi(bb);
         }
         
-        //清理CFG中的不可达基本块(否则phi会出错)
+        // 清理CFG中的不可达基本块(否则phi会出错)
         localChanged |= removeUnreachableBlocks(func);
 
         changed |= localChanged;
@@ -58,8 +58,17 @@ bool SimplifyCFG::hasOtherRetInst(Function* func,BasicBlock* bb_){
 bool SimplifyCFG::hasSideEffect(Instruction* inst){
     if(inst->IsCallInst()){
         std::string callee=inst->GetName();
-        //根据实际副作用函数名调整判断条件
-        if(callee.find("_sysy")!=std::string::npos||callee=="putint"){
+        // SysY 可能的副作用函数
+        static const std::unordered_set<std::string> sideEffectFuncs = {
+            "putint", "putch", "putarray",
+            "_sysy_starttime", "_sysy_stoptime",
+            "getint", "getch", "getarray"
+        };
+
+        for (const auto& f : sideEffectFuncs) {
+            if (callee == f) return true;
+        }
+        if(callee.find("_sysy")!=std::string::npos){
             return true;
         }
     }
@@ -89,25 +98,6 @@ bool SimplifyCFG::isOnlyRetBlock(Function* func, BasicBlock* bb) {
     if(!inst) return false;
     return retCount == 1 && inst->IsTerminateInst() && inst->id==Instruction::Op::Ret;
 }
-//判断基本块是否可达（入口可达分析）
-bool SimplifyCFG::isReachableFromEntry(BasicBlock* bb,BasicBlock* entry){
-    std::set<BasicBlock*> visited;
-    std::queue<BasicBlock*> queue;
-
-    queue.push(entry);
-    while(!queue.empty()){
-        BasicBlock* cur=queue.front();
-        queue.pop();
-        if(cur==bb) return true;
-        if(visited.count(cur)) continue;
-
-        visited.insert(cur);
-        for (auto* succ : cur->GetNextBlocks()) {
-            queue.push(succ);
-        }
-    }
-    return false;
-}
 
 //合并空返回块(no phi)(实际上是合并所有返回相同常量值的返回块)
 bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
@@ -132,6 +122,7 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
         if(!c) continue;
         int val=c->GetVal();
         if(!commonRetVal.has_value()){
+            std::cerr << "[mergeEmptyReturnBlocks] Return value mismatch, skipping block: " << bb->GetName() << "\n";
             commonRetVal =val;
         }
         if(val!=commonRetVal.value()){
@@ -206,8 +197,18 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
     std::stack<BasicBlock*> bbstack;
 
     auto entry=func->GetFront();
+    if(!entry) return false;
+    
+    //如果入口块没有终结指令或没有后继,保守跳过清理
+    Instruction* term=entry->GetBack();
+    if(!term || !term->IsTerminateInst() || entry->GetNextBlocks().empty()){
+        std::cerr << "[removeUnreachableBlocks] Skipped: entry block is not a valid CFG root.\n";
+        return false;
+    }
+
+    reachable.insert(entry); 
     bbstack.push(entry);
-    reachable.insert(entry);
+    
 
     //DFS
     while(!bbstack.empty()){
@@ -224,29 +225,18 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
     std::vector<BasicBlock*> toDelete;//准备删除列表
     for(auto& bb:func->GetBBs()){
         if(bb.get()==entry) continue;
-        
-        //保留入口可达的块
-        if(isReachableFromEntry(bb.get(),entry)){
-            continue;
-        }
+        if(reachable.count(bb.get())) continue;
         //保护唯一返回块
         if(isOnlyRetBlock(func,bb.get())){
+            std::cerr << "[removeUnreachableBlocks] Skipping only ret block: " << bb->GetName() << "\n";
             continue;
         }
-
-        //检查该块中是否有唯一的ret
-        bool containsRet=false;
-        for(auto* inst:*bb){
-            if(inst->id==Instruction::Op::Ret){
-                containsRet=true;
-                break;
-            }
-        }
-        if(containsRet && !hasOtherRetInst(func,bb.get())){
-            std::cerr << "WARNING: This is the only return block. Keeping: " << bb->GetName() << "\n";
+        //保守处理,副作用块即使不可达也不删
+        if (blockHasSideEffect(bb.get())) {
+            std::cerr << "[removeUnreachableBlocks] Side-effect block unreachable but preserved: " << bb->GetName() << "\n";
             continue;
         }
-
+        std::cerr << "[removeUnreachableBlocks] Mark unreachable: " << bb->GetName() << "\n";
         //标记删除
         toDelete.push_back(bb.get());
     }
@@ -289,15 +279,14 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func){
 
 
 bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
-    if(bb->Size()==0){
+    if(!bb||bb->Size()==0){
         return false;
     }
     //获取基本块最后一条指令
     Instruction* lastInst=bb->GetBack();
 
     //判断是否条件跳转指令
-    bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
-    if(!is_cond_branch){
+    if (!lastInst || lastInst->id != Instruction::Op::Cond) {
         return false;
     }
     //获取条件操作数和两个基本块
@@ -306,6 +295,11 @@ bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
     BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
     //确认`目标基本块合法
     if(!trueBlock||!falseBlock){
+        return false;
+    }
+    // 跳转块中是否有副作用？
+    if (blockHasSideEffect(trueBlock) || blockHasSideEffect(falseBlock)) {
+        std::cerr << "[simplifyBranch] Skip branch with side-effected targets: " << bb->GetName() << "\n";
         return false;
     }
     //判断条件是否是常量函数
@@ -389,6 +383,21 @@ bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
 
         //isphi?
         if(inst->id==Instruction::Op::Phi){
+            
+            //是否只有一个输入来源块
+            std::unordered_set<BasicBlock*> incomingBlocks;
+            for(size_t i=0;i<inst->GetOperandNums();i+=2){
+                if(auto* pred = dynamic_cast<BasicBlock*>(inst->GetOperand(i+1))){
+                    incomingBlocks.insert(pred);
+                }
+            }
+
+            //主干phi,来源块>=2
+            if(incomingBlocks.size()>=2 && blockHasSideEffect(bb)){
+                std::cerr << "[eliminateTrivialPhi] Skip phi in block with side effects: " << bb->GetName() << "\n";
+                continue;
+            }
+
             Value* same=nullptr;
             bool all_same=true;
 
@@ -419,4 +428,3 @@ bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
     }
     return changed;
 }
-//是否需要补充 入口块无 terminator，合理补充跳转 的部分?
