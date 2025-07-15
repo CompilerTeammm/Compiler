@@ -1,11 +1,15 @@
 #include "../../include/IR/Opt/LoopUnrolling.hpp"
+#include <memory>
 
 bool LoopUnrolling::run()
 {
   DominantTree dom(_func);
-  dom.InitNodes();         // 初始化节点
   dom.BuildDominantTree(); // 计算支配关系
-  dom.buildTree();         // 构建支配树
+  /*   for (auto e : *_func)
+  {
+    auto vec = dom.getIdomVec(e);
+  } */
+  // auto loopTest = std::make_shared<LoopInfoAnalysis>(_func, &dom, DeleteLoop);
   LoopInfoAnalysis *loopAnalysis = new LoopInfoAnalysis(_func, &dom, DeleteLoop);
   std::vector<Loop *> loopAnalysis_Unroll{loopAnalysis->loopsBegin(), loopAnalysis->loopsEnd()};
 
@@ -443,28 +447,23 @@ CallInst *LoopUnrolling::GetLoopBody(Loop *loop)
 
 BasicBlock *LoopUnrolling::Unroll(Loop *loop, CallInst *UnrollBody)
 {
-  BasicBlock *tmp_block = nullptr;
+  // 1. 验证和提取循环特征
+  assert(loop && UnrollBody && "Invalid arguments");
+  auto &trait = loop->trait;
+  assert(trait.initial && trait.boundary && trait.change && "Invalid loop traits");
+
+  // 2. 获取循环边界值
+  int initial_value = dynamic_cast<ConstIRInt *>(trait.initial)->GetVal();
+  int boundary_value = dynamic_cast<ConstIRInt *>(trait.boundary)->GetVal();
+  int step_value = trait.step;
+
+  // 3. 验证步长指令
+  auto *step_inst = dynamic_cast<BinaryInst *>(trait.change);
+  assert(step_inst && "Step instruction must be binary");
+
+  // 4. 计算循环迭代次数
   int loop_iterations = 0;
-
-  // 获取循环边界和初始值
-  auto initial_value = dynamic_cast<ConstIRInt *>(loop->trait.initial)->GetVal();
-  auto boundary_value = dynamic_cast<ConstIRInt *>(loop->trait.boundary)->GetVal();
-
-  // 获取步长操作指令
-  auto step_inst = dynamic_cast<BinaryInst *>(loop->trait.change);
-  assert(step_inst && "Step instruction must be a binary instruction");
-
-  // 获取退出块
-  auto exit_blocks = loopAnalysis->getExitingBlocks(loop);
-  assert(exit_blocks.size() == 1 && "Only one exit block is supported");
-  auto exit_block = exit_blocks[0];
-
-  // 解析操作类型与步长
-  auto operation = step_inst->GetOp();
-  auto step_value = loop->trait.step;
-
-  // 根据操作类型计算迭代次数
-  switch (operation)
+  switch (step_inst->GetOp())
   {
   case BinaryInst::Op_Add:
     loop_iterations = (boundary_value - initial_value + step_value + (step_value > 0 ? -1 : 1)) / step_value;
@@ -482,35 +481,26 @@ BasicBlock *LoopUnrolling::Unroll(Loop *loop, CallInst *UnrollBody)
     assert(false && "Unsupported operation type");
   }
 
+  // 5. 获取退出块
+  auto exit_blocks = loopAnalysis->getExitingBlocks(loop);
+  assert(exit_blocks.size() == 1 && "Only one exit block supported");
+  BasicBlock *exit_block = exit_blocks[0];
+
+  // 6. 初始化参数映射
   std::unordered_map<Value *, Value *> ParamToOriginal;
+  Value *inductionOrigin = trait.initial;
+  Value *resultOrigin = trait.res ? trait.res->ReturnValIn(prehead) : nullptr;
 
-  // 获取循环原始信息
-  Value *inductionOrigin = loop->trait.initial;
-  Value *resultOrigin = nullptr;
-
-  if (loop->trait.res)
-  {
-    resultOrigin = loop->trait.res->ReturnValIn(prehead);
-  }
-
-  // 定义参数替换闭包
+  // 7. 参数映射函数
   auto mapArguments = [&](User *callInst, Value *inductionVal, Value *resultVal)
   {
-    // 遍历所有操作数（跳过第一个）
     for (int idx = 1; idx < callInst->GetUserUseListSize(); ++idx)
     {
-      auto operand = callInst->GetOperand(idx);
-
-      if (auto phiNode = dynamic_cast<PhiInst *>(operand))
+      Value *operand = callInst->GetOperand(idx);
+      if (auto *phiNode = dynamic_cast<PhiInst *>(operand))
       {
-        if (phiNode == loop->trait.indvar)
-        {
-          ParamToOriginal[operand] = inductionVal;
-        }
-        else if (phiNode == loop->trait.res)
-        {
-          ParamToOriginal[operand] = resultVal;
-        }
+        ParamToOriginal[operand] = (phiNode == trait.indvar) ? inductionVal : (phiNode == trait.res) ? resultVal
+                                                                                                     : operand;
       }
       else
       {
@@ -519,90 +509,70 @@ BasicBlock *LoopUnrolling::Unroll(Loop *loop, CallInst *UnrollBody)
     }
   };
 
-  // 初始化参数映射
+  // 8. 初始化映射
   mapArguments(UnrollBody, inductionOrigin, resultOrigin);
 
-  // 定位插入点和待删除指令列表
-  BasicBlock::List<BasicBlock, User>::iterator insert_point(UnrollBody);
-  std::vector<User *> to_erase_list;
+  // 9. 准备展开
+  BasicBlock::iterator insert_point(UnrollBody);
+  std::vector<User *> to_erase_list = {UnrollBody};
   User *current_call = UnrollBody;
-
-  to_erase_list.push_back(current_call);
-
   Value *current_result = nullptr;
-  Value *current_step_value = nullptr;
+  BasicBlock *last_block = nullptr;
 
+  // 10. 执行循环展开
   for (int round = 0; round < loop_iterations; ++round)
   {
-    // 内联展开当前调用
+    // 内联当前调用
     auto inline_result = _func->InlineCall(dynamic_cast<CallInst *>(current_call), ParamToOriginal);
 
-    if (inline_result.first != nullptr)
-    {
-      current_result = inline_result.first;
-    }
+    current_result = inline_result.first;
+    last_block = inline_result.second;
+    Value *current_step_value = ParamToOriginal[inductionOrigin];
 
-    tmp_block = inline_result.second;
-    current_step_value = ParamToOriginal[inductionOrigin];
-
-    // 清空旧映射，准备下一轮
+    // 准备下一轮
     ParamToOriginal.clear();
-
-    // 克隆当前调用作为下一轮展开的基础
     User *next_call = current_call->CloneInst();
     to_erase_list.push_back(next_call);
 
-    // 插入到当前位置之后
-    insert_point = insert_point.InsertAfter(next_call);
-
-    // 更新参数映射
+    // 插入新调用并更新映射
+    auto next_call_ = dynamic_cast<Instruction *>(next_call);
+    insert_point = insert_point.InsertAfter(next_call_);
     mapArguments(next_call, current_step_value, current_result);
   }
 
-  // 获取调用目标函数
+  // 11. 获取目标函数
   Function *target_func = dynamic_cast<Function *>(UnrollBody->GetOperand(0));
 
-  // 替换调用指令本身为其返回值来源
+  // 12. 清理和优化
   if (resultOrigin)
   {
     UnrollBody->ReplaceAllUseWith(resultOrigin);
   }
 
-  // 清理归纳变量：替换为 undef 并删除
-  loop->trait.indvar->ReplaceAllUseWith(UndefValue::Get(loop->trait.indvar->GetType()));
-  delete loop->trait.indvar;
-
-  // 清理结果变量（如果存在）
-  if (loop->trait.res)
+  // 清理归纳变量
+  if (trait.indvar)
   {
-    loop->trait.res->ReplaceAllUseWith(UndefValue::Get(loop->trait.res->GetType()));
-    delete loop->trait.res;
+    trait.indvar->ReplaceAllUseWith(UndefValue::Get(trait.indvar->GetType()));
+    delete trait.indvar;
   }
 
-  // 遍历调用指令的所有使用点，在 exit 块中做 Use 替换
-  //
-  //
-  //
-  //
-  /*   for (auto use : UnrollBody->GetUserUseList())
-    {
-      if (use->GetUser()->GetUserUseList()->GetParent() == exit)
-        use->GetUser()->RSUW(use, resultOrigin);
-    }
-   */
-  // 删除所有临时生成的调用指令
-  for (auto iter = to_erase_list.begin(); iter != to_erase_list.end();)
+  // 清理结果变量
+  if (trait.res)
   {
-    User *inst_to_delete = *iter;
-    ++iter;
-    delete inst_to_delete;
+    trait.res->ReplaceAllUseWith(UndefValue::Get(trait.res->GetType()));
+    delete trait.res;
   }
 
-  // 从模块中移除被内联的函数
+  // 删除临时指令
+  for (auto *inst : to_erase_list)
+  {
+    delete inst;
+  }
+
+  // 移除内联函数
   Singleton<Module>().EraseFunction(target_func);
 
-  // 返回最终结果
-  return tmp_block;
+  return last_block;
 }
 
 int LoopUnrolling::CaculatePrice(std::vector<BasicBlock *> body, Function *curfunc, int Lit_count)

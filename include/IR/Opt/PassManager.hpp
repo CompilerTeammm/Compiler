@@ -20,14 +20,15 @@
 #include "DSE.hpp"
 
 // 互不影响，完全没问题再放出来
-#define dce
-#define sccp
-//#define gvn
-#define pre
-#define SCFG
-//#define SInst
-//define DSE
+// #define dce
+// #define sccp
+// #define gvn
+// #define pre
+// #define SCFG
+// #define SInst
+// define DSE
 // 循环优化
+// #define Loop_Simplifying
 // #define Loop_Unrolling
 
 enum PassName
@@ -108,6 +109,14 @@ void PassManager::RunOnTest()
         GVN(fun, &tree).run();
     }
 #endif
+#ifdef Loop_Simplying
+    for (auto &function : funcVec)
+    {
+        auto fun = function.get();
+        AnalysisManager *AM;
+        Loop_Simplying(fun, AM).run();
+    }
+#endif
 #ifdef Loop_Unrolling
     for (auto &function : funcVec)
     {
@@ -144,7 +153,7 @@ void PassManager::RunOnTest()
     }
 #endif
 #ifdef DSE
-    for(auto &function : funcVec)
+    for (auto &function : funcVec)
     {
         auto fun = function.get();
         DominantTree tree(fun);
@@ -152,4 +161,5 @@ void PassManager::RunOnTest()
         DSE(fun, &tree).run();
     }
 #endif
+
 }

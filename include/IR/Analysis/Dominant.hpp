@@ -104,7 +104,8 @@ private:
     std::map<TreeNode *, int> DomLevels;
 
     size_t BBsNum;
-    int count = 1; // dfs的时候计数赋值的
+    int count = 1;                      // dfs的时候计数赋值的
+    std::vector<std::vector<int>> Dest; // CFG中的后继
 public:
     DominantTree(Function *func)
         : _func(func), Nodes(func->Size()), count(1),
@@ -170,4 +171,6 @@ public:
     bool dominates(BasicBlock *bb1, BasicBlock *bb2);
 
     ~DominantTree() = default;
+
+    std::vector<BasicBlock*> getIdomVec(BasicBlock* );
 };

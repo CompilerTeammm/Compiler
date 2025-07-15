@@ -5,7 +5,8 @@
 void DominantTree::InitNodes()
 {
     //   pair <BasicBlock* , TreeNode*>
-    for (int i = 0; i < BasicBlocks.size(); i++){
+    for (int i = 0; i < BasicBlocks.size(); i++)
+    {
         // 内存泄漏了
         Nodes[i] = new TreeNode();
         BlocktoNode[BasicBlocks[i]] = Nodes[i]; // map
@@ -24,7 +25,7 @@ void DominantTree::InitNodes()
             BasicBlock *des_true = dynamic_cast<BasicBlock *>(uselist[1]->GetValue());
             BasicBlock *des_false = dynamic_cast<BasicBlock *>(uselist[2]->GetValue());
 
-            // 
+            //
             BlocktoNode[bb]->succNodes.push_front(BlocktoNode[des_true]);
             BlocktoNode[bb]->succNodes.push_front(BlocktoNode[des_false]);
 
@@ -117,7 +118,7 @@ void DominantTree::InitIdom()
     }
 
     // 建立idomChild
-    for(int i = 1; i < Nodes.size();i++)
+    for (int i = 1; i < Nodes.size(); i++)
     {
         Nodes[i]->idom->idomChild.push_back(Nodes[i]);
     }
@@ -125,7 +126,7 @@ void DominantTree::InitIdom()
 
 void DominantTree::InitDSU()
 {
-    for(int i = 0; i <DSU.size(); i++)
+    for (int i = 0; i < DSU.size(); i++)
     {
         DSU[i] = new dsuNode();
     }
@@ -190,12 +191,11 @@ bool DominantTree::dominates(BasicBlock *bb1, BasicBlock *bb2)
     return false;
 }
 
-
-std::vector<BasicBlock*> DominantTree::getPredBBs(BasicBlock* bb)
+std::vector<BasicBlock *> DominantTree::getPredBBs(BasicBlock *bb)
 {
-    TreeNode* TNode = getNode(bb);
-    std::vector<BasicBlock*> vec;
-    for(auto e : TNode->predNodes)
+    TreeNode *TNode = getNode(bb);
+    std::vector<BasicBlock *> vec;
+    for (auto e : TNode->predNodes)
     {
         vec.push_back(e->curBlock);
     }
@@ -203,14 +203,33 @@ std::vector<BasicBlock*> DominantTree::getPredBBs(BasicBlock* bb)
     return std::move(vec);
 }
 
-std::vector<BasicBlock*> DominantTree::getSuccBBs(BasicBlock* bb)
+std::vector<BasicBlock *> DominantTree::getSuccBBs(BasicBlock *bb)
 {
-    TreeNode* TNode = getNode(bb);
-    std::vector<BasicBlock*> vec;
-    for(auto e : TNode->succNodes)
+    TreeNode *TNode = getNode(bb);
+    std::vector<BasicBlock *> vec;
+    for (auto e : TNode->succNodes)
     {
         vec.push_back(e->curBlock);
     }
 
     return std::move(vec);
 }
+
+std::vector<BasicBlock *> DominantTree::getIdomVec(BasicBlock * bb)
+{
+    std::vector<BasicBlock*> bbs;
+    TreeNode* node = getNode(bb);
+    for(auto e :node->idomChild) 
+    {
+        bbs.emplace_back(e->curBlock);
+    }
+
+    return bbs;
+}
+
+//    A     
+//    |  \
+//    B   D
+//    |
+//    C
+//

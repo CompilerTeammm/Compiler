@@ -3,93 +3,100 @@
 bool SimplifyCFG::run() {
     return SimplifyCFGFunction(func);
 }
+
 //子优化顺序尝试
 bool SimplifyCFG::SimplifyCFGFunction(Function* func){
     bool changed=false;
 
+    //1. 尝试合并空返回块(只处理相同常量返回,无需依赖CFG)
     changed |= mergeEmptyReturnBlocks(func);
 
-    //basicblock子优化
-    std::vector<BasicBlock*> blocks;
+    bool localChanged=false;
+    do{
+        localChanged=false;
+
+        //收集当前基本块列表(避免中途结构变化)
+        std::vector<BasicBlock*> blocks;
+        for(auto& bb_ptr:func->GetBBs()){
+            blocks.push_back(bb_ptr.get());
+        }
+
+        //简化条件跳转
+        for(auto* bb: blocks){
+            localChanged |= simplifyBranch(bb);
+        }
+
+        //合并线性块(无phi)
+        for (auto* bb : blocks) {
+            localChanged |= mergeBlocks(bb);
+        }
+
+        // 消除冗余 phi（统一值/已删除 predecessor）
+        for (auto* bb : blocks) {
+            localChanged |= eliminateTrivialPhi(bb);
+        }
+        
+        // 清理CFG中的不可达基本块(否则phi会出错)
+        localChanged |= removeUnreachableBlocks(func);
+
+        changed |= localChanged;
+    }while(localChanged);//持续迭代直到收敛
+}
+//辅助函数群:
+bool SimplifyCFG::hasOtherRetInst(Function* func,BasicBlock* bb_){
     for(auto& bb_ptr:func->GetBBs()){
-        blocks.push_back(bb_ptr.get());//从shared_ptr提取裸指针
+        BasicBlock* bb=bb_ptr.get();
+        if(bb==bb_) continue;
+        if(!bb->reachable) continue;
+        for(auto* inst:*bb){
+            if(inst->id==Instruction::Op::Ret) return true;
+        }
     }
-    for(auto* bb:blocks){
-        changed|=SimplifyCFGBasicBlock(bb);
-    }
-    //如果在前端已经处理掉了那么就不需要这个了吧(?)
-    //现在只用于消除branch的后续处理
-    changed |= removeUnreachableBlocks(func);
+    return false;
+}
+// 判断指令是否为副作用调用
+bool SimplifyCFG::hasSideEffect(Instruction* inst){
+    if(inst->IsCallInst()){
+        std::string callee=inst->GetName();
+        // SysY 可能的副作用函数
+        static const std::unordered_set<std::string> sideEffectFuncs = {
+            "putint", "putch", "putarray",
+            "_sysy_starttime", "_sysy_stoptime",
+            "getint", "getch", "getarray"
+        };
 
-    return changed;
+        for (const auto& f : sideEffectFuncs) {
+            if (callee == f) return true;
+        }
+        if(callee.find("_sysy")!=std::string::npos){
+            return true;
+        }
+    }
+    return false;
+}
+// 判断基本块是否含有副作用调用
+bool SimplifyCFG::blockHasSideEffect(BasicBlock* bb) {
+    for (auto it = bb->begin(); it != bb->end(); ++it) {
+        Instruction* inst = *it;
+        if (hasSideEffect(inst)) return true;
+    }
+    
+    return false;
 }
 
-bool SimplifyCFG::SimplifyCFGBasicBlock(BasicBlock* bb){
-    bool changed=false;
-    changed |=simplifyBranch(bb);
-    changed |=mergeBlocks(bb);
-    changed |=eliminateTrivialPhi(bb);
-
-    return changed;
-}
-
-//删除不可达基本块(记得要把phi引用到的也进行处理)
-bool SimplifyCFG::removeUnreachableBlocks(Function* func){
-    // std::unordered_set<BasicBlock*> reachable;//存储可达块
-    // std::stack<BasicBlock*> bbstack;
-
-    // auto entry=func->GetFront();
-    // bbstack.push(entry);
-    // reachable.insert(entry);
-
-    // //DFS
-    // while(!bbstack.empty()){
-    //     BasicBlock* bb=bbstack.top();
-    //     bbstack.pop();
-    //     for(auto& succ:bb->GetNextBlocks()){
-    //         if(reachable.insert(succ).second){
-    //             bbstack.push(succ);
-    //         }
-    //     }
-    // }
-
-    // bool changed=false;
-    // //遍历所有bb,移除不可达者
-    // auto& BBList=func->GetBBs();
-    // for(auto it=BBList.begin();it!=BBList.end();){
-    //     BasicBlock* bb=it->get();
-    //     if(reachable.count(bb)==0){
-
-    //         std::cerr << "Erasing unreachable block: " << bb->GetName() << std::endl;
-    //         //清理其产生的值被使用的地方
-    //         for(auto i=bb->begin();i!=bb->end();++i){
-    //             Instruction* inst=*i;
-    //             inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
-    //         }
-    //         //移除phi中引用到这个bb的分支
-    //         for(auto succ:bb->GetNextBlocks()){
-    //             for(auto it=succ->begin();it!=succ->end();++it){
-    //                 if(auto phi=dynamic_cast<PhiInst*>(*it)){
-    //                     phi->removeIncomingFrom(bb);
-    //                 }else{
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //         for(auto pred:bb->GetPredBlocks()){
-    //             pred->RemoveNextBlock(bb);
-    //         }
-    //         for(auto succ:bb->GetNextBlocks()){
-    //             succ->RemovePredBlock(bb);
-    //         }
-    //         it=BBList.erase(it);
-    //         changed=true;
-    //     }else{
-    //         ++it;
-    //     }
-    // }
-    // return changed;
-    return true;
+// 判断是否唯一返回块
+bool SimplifyCFG::isOnlyRetBlock(Function* func, BasicBlock* bb) {
+    int retCount = 0;
+    for (auto& b : func->GetBBs()) {
+        Instruction* inst=b->GetLastInsts();
+        if(!inst) continue;
+        if (inst->IsTerminateInst() && inst->id==Instruction::Op::Ret){
+            ++retCount;
+        }
+    }
+    Instruction* inst=bb->GetLastInsts();
+    if(!inst) return false;
+    return retCount == 1 && inst->IsTerminateInst() && inst->id==Instruction::Op::Ret;
 }
 
 //合并空返回块(no phi)(实际上是合并所有返回相同常量值的返回块)
@@ -115,15 +122,34 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
         if(!c) continue;
         int val=c->GetVal();
         if(!commonRetVal.has_value()){
+            std::cerr << "[mergeEmptyReturnBlocks] Return value mismatch, skipping block: " << bb->GetName() << "\n";
             commonRetVal =val;
         }
-        if(val==commonRetVal.value()){
-            ReturnBlocks.push_back(bb);
+        if(val!=commonRetVal.value()){
+            continue;
         }
+
+        //跳过含副作用的块
+        if (blockHasSideEffect(bb)) {
+            std::cerr << "Skipped return block with side effects: " << bb->GetName() << "\n";
+            continue;
+        }
+
+        //跳过唯一合法ret块
+        if (isOnlyRetBlock(func,bb)) {
+            std::cerr << "Skipped only return block: " << bb->GetName() << "\n";
+            continue;
+        }
+
+        ReturnBlocks.push_back(bb);
     }
     //合并空ret块
-    if(ReturnBlocks.size()<=1){
-        std::cerr << "No or only one return block with common return value found.\n";
+    if(ReturnBlocks.size()==1){
+        std::cerr << "Only one return block found: " << ReturnBlocks[0]->GetName() << ", skipped merging.\n";
+        return false;
+    }
+    if(ReturnBlocks.size()==0){
+        std::cerr << "No return blocks found.\n";
         return false;
     }
     std::cerr<<"Found"<<ReturnBlocks.size()<<" return blocks with common return value: "<<commonRetVal.value()<<"\n";
@@ -131,6 +157,7 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
     //选定第一个作为公共返回块
     BasicBlock* commonRet=ReturnBlocks.front();
 
+    bool changed=false;
     //重定向其他返回块的前驱到commonRet
     for(size_t i=1;i<ReturnBlocks.size();++i){
         BasicBlock* redundant=ReturnBlocks[i];
@@ -159,20 +186,107 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(Function* func){
         //从函数中移除
         std::cerr<< "Removed redundant return block: "<<redundant->GetName()<<"\n";
         func->RemoveBBs(redundant);
+        changed=true;
     }
-    return true;
+    return changed;
 }
 
+//删除不可达基本块(记得要把phi引用到的也进行处理)
+bool SimplifyCFG::removeUnreachableBlocks(Function* func){
+    std::unordered_set<BasicBlock*> reachable;//存储可达块
+    std::stack<BasicBlock*> bbstack;
+
+    auto entry=func->GetFront();
+    if(!entry) return false;
+    
+    //如果入口块没有终结指令或没有后继,保守跳过清理
+    Instruction* term=entry->GetBack();
+    if(!term || !term->IsTerminateInst() || entry->GetNextBlocks().empty()){
+        std::cerr << "[removeUnreachableBlocks] Skipped: entry block is not a valid CFG root.\n";
+        return false;
+    }
+
+    reachable.insert(entry); 
+    bbstack.push(entry);
+    
+
+    //DFS
+    while(!bbstack.empty()){
+        BasicBlock* bb=bbstack.top();
+        bbstack.pop();
+        for(auto& succ:bb->GetNextBlocks()){
+            if(reachable.insert(succ).second){
+                bbstack.push(succ);
+            }
+        }
+    }
+
+    bool changed=false;
+    std::vector<BasicBlock*> toDelete;//准备删除列表
+    for(auto& bb:func->GetBBs()){
+        if(bb.get()==entry) continue;
+        if(reachable.count(bb.get())) continue;
+        //保护唯一返回块
+        if(isOnlyRetBlock(func,bb.get())){
+            std::cerr << "[removeUnreachableBlocks] Skipping only ret block: " << bb->GetName() << "\n";
+            continue;
+        }
+        //保守处理,副作用块即使不可达也不删
+        if (blockHasSideEffect(bb.get())) {
+            std::cerr << "[removeUnreachableBlocks] Side-effect block unreachable but preserved: " << bb->GetName() << "\n";
+            continue;
+        }
+        std::cerr << "[removeUnreachableBlocks] Mark unreachable: " << bb->GetName() << "\n";
+        //标记删除
+        toDelete.push_back(bb.get());
+    }
+
+
+    //遍历所有bb,移除不可达者
+    for (auto* bb : toDelete) {
+        std::cerr << "Erasing unreachable block: " << bb->GetName() << "\n";
+
+        // 替换所有值为 undef
+        for (auto* inst : *bb) {
+            inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
+        }
+
+        // 清除 phi 引用
+        for (auto* succ : bb->GetNextBlocks()) {
+            for (auto it = succ->begin(); it != succ->end(); ++it) {
+                if (auto phi = dynamic_cast<PhiInst*>(*it)) {
+                    phi->removeIncomingFrom(bb);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // 清除 CFG 边
+        for (auto* pred : bb->GetPredBlocks()) {
+            pred->RemoveNextBlock(bb);
+        }
+        for (auto* succ : bb->GetNextBlocks()) {
+            succ->RemovePredBlock(bb);
+        }
+
+        // 从函数中删除
+        func->RemoveBBs(bb);
+        changed = true;
+    }
+    return changed;
+}
+
+
 bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
-    if(bb->Size()==0){
+    if(!bb||bb->Size()==0){
         return false;
     }
     //获取基本块最后一条指令
     Instruction* lastInst=bb->GetBack();
 
     //判断是否条件跳转指令
-    bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
-    if(!is_cond_branch){
+    if (!lastInst || lastInst->id != Instruction::Op::Cond) {
         return false;
     }
     //获取条件操作数和两个基本块
@@ -181,6 +295,11 @@ bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
     BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
     //确认`目标基本块合法
     if(!trueBlock||!falseBlock){
+        return false;
+    }
+    // 跳转块中是否有副作用？
+    if (blockHasSideEffect(trueBlock) || blockHasSideEffect(falseBlock)) {
+        std::cerr << "[simplifyBranch] Skip branch with side-effected targets: " << bb->GetName() << "\n";
         return false;
     }
     //判断条件是否是常量函数
@@ -198,14 +317,18 @@ bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
 
     //更新CFG
     bb->RemoveNextBlock(trueBlock);
-    bb->RemovePredBlock(falseBlock);
-    targetBlock->RemovePredBlock(bb);
+    bb->RemoveNextBlock(falseBlock);
+    trueBlock->RemovePredBlock(bb);
+    falseBlock->RemovePredBlock(bb);
+
     bb->AddNextBlock(targetBlock);
     targetBlock->AddPredBlock(bb);
+
 
     std::cerr << "Simplified to: br label %" << targetBlock->GetName() << "\n";
     return true;
 }
+
 //合并基本块(no phi)
 //不过只能合并线性路径,后面要补充
 bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
@@ -228,9 +351,8 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     if(bb->Size()!=0 && bb->GetBack()->IsTerminateInst()){
         bb->GetBack()->EraseFromManager();
     }
-    while(succ->Size()>0){
-        Instruction *inst=succ->GetFront();
-        // succ->remove(inst);
+    while (succ->Size() > 0) {
+        Instruction *inst = succ->pop_front();
         bb->push_back(inst);
     }
     //更新CFG
@@ -261,6 +383,21 @@ bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
 
         //isphi?
         if(inst->id==Instruction::Op::Phi){
+            
+            //是否只有一个输入来源块
+            std::unordered_set<BasicBlock*> incomingBlocks;
+            for(size_t i=0;i<inst->GetOperandNums();i+=2){
+                if(auto* pred = dynamic_cast<BasicBlock*>(inst->GetOperand(i+1))){
+                    incomingBlocks.insert(pred);
+                }
+            }
+
+            //主干phi,来源块>=2
+            if(incomingBlocks.size()>=2 && blockHasSideEffect(bb)){
+                std::cerr << "[eliminateTrivialPhi] Skip phi in block with side effects: " << bb->GetName() << "\n";
+                continue;
+            }
+
             Value* same=nullptr;
             bool all_same=true;
 
