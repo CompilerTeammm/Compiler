@@ -6,8 +6,8 @@
 // 寄存器分配可以先分配虚拟寄存器，之后使用寄存器分配算法
 // 将虚拟寄存器转化为实际寄存器去接受
 
-
-//现在为止，float，数组类型都没有进行处理
+// 数组，全局变量未进行处理 
+// call 函数未进行处理  全部支持  class RISCVInst
 
 bool RISCVContext::dealGlobalVal(Value* val)
 {
@@ -537,8 +537,32 @@ RISCVInst* RISCVContext::CreateI2Fnst(SI2FPInst *inst)
 
 RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 {
-    auto e = inst;
-    return nullptr;
+    RISCVInst* Inst = nullptr;
+    RISCVInst* param = nullptr;
+    RISCVInst* ret = nullptr;
+    // param
+    for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
+    {
+        Value* val = inst->GetOperand(paramNum);
+        auto lwInst = mapTrans(val)->as<RISCVInst>();
+        param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+        param->SetRealRegister("a"+std::to_string(paramNum-1));
+        param->push_back(lwInst->getOpreand(0));
+    }
+    // call
+    Inst = CreateInstAndBuildBind(RISCVInst::_call,inst);
+    Inst->push_back(std::make_shared<RISCVOp>(inst->GetOperand(0)->GetName()));
+    if (param != nullptr)
+        Inst->DealMore(param);
+    // ret
+    ret = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+    ret->SetVirRegister();
+    ret->SetRealRegister("a0");
+    Inst->DealMore(ret);
+    RISCVInst *swInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+    swInst->setStoreOp(swInst->GetPrevNode());
+   
+    return Inst;
 }
 
 // 处理数组
