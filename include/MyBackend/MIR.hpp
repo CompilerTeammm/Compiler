@@ -326,12 +326,60 @@ public:
     Status status = ONE;
 public:
     RISCVInst(ISA op) :opCode(op) { }
-
     ISA getOpcode() { return opCode;}
 
-    void setThreeRigs(op op1,op op2) //addw
+    void SetRegisterOp(std::string&& str,bool Flag = Register::vir)
     {
-        SetRegisterOp ("%." + std::to_string(Register::VirtualReg));
+        auto Regop = std::make_shared<Register>(str, Flag);
+        opsVec.push_back(Regop);
+    }
+    void SetVirRegister()  {
+        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+    }
+    void SetRealRegister(std::string&& str) {
+        SetRegisterOp(std::move(str),Register::real);   
+    }
+    void SetImmOp(std::string &&str)
+    {
+        auto Immop = std::make_shared<Imm>(str);
+        opsVec.push_back(Immop);
+    }
+    void SetImmOp(Value *val)
+    {
+        std::shared_ptr<Imm> Immop = nullptr;
+        if (val->GetType() == FloatType::NewFloatTypeGet())
+        {
+            auto it = (val->as<ConstIRFloat>());
+            if (it)
+                Immop = std::make_shared<Imm>(val->as<ConstIRFloat>());
+        }
+        else
+            Immop = std::make_shared<Imm>(val);
+        opsVec.push_back(Immop);
+        // std::cout << opsVec[1]->getName() << std:: endl;
+    }
+
+    void push_back(op Op) { opsVec.push_back(Op); }
+    std::vector<op> &getOpsVec() { return opsVec; }
+    std::vector<Instsptr> &getInsts() { return Insts; }
+    op getOpreand(int i)
+    {
+        if (i > opsVec.size())
+            assert("ops number is error");
+        return opsVec[i];
+    }
+    void DealMore(Instsptr inst)
+    {
+        Insts.push_back(inst);
+        status = MORE;
+    }
+    std::string ISAtoAsm();
+    ~RISCVInst() = default;
+
+
+    void setThreeRigs(op op1, op op2) // addw
+    {
+        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
         opsVec.push_back(op1);
         opsVec.push_back(op2);
     }
@@ -341,19 +389,16 @@ public:
         SetRegisterOp("a0",Register::real);
         SetImmOp(val);
     }
-
     void setFRetOp(Value* val)  // ret
     {
         SetRegisterOp("fa0",Register::real);
         SetImmOp(val);
     }
-
     void setRetOp(op val)
     {
         SetRegisterOp("a0",Register::real);
         opsVec.push_back(val);
     }
-
     void setFRetOp(op val)
     {
         SetRegisterOp("fa0",Register::real);
@@ -370,7 +415,6 @@ public:
         SetRegisterOp("%." + std::to_string(Register::VirtualReg));
         SetImmOp(val);
     }
-
     void setRealLIOp(Value* val) // li
     {
         SetRegisterOp("t0",Register::real);
@@ -393,60 +437,10 @@ public:
         
         opsVec.push_back(reg);
     }
-
     void setStoreStackOp(size_t offset)
     {
        opsVec.push_back(std::make_shared<RISCVOp> 
                        ("-" + std::to_string(offset) + "(s0)"));
-    }
-
-    void push_back(op Op) { opsVec.push_back(Op);}
-
-    std::vector<op>& getOpsVec()  {  return opsVec;  }
-
-    std::vector<Instsptr>& getInsts()  {  return Insts;  }
-
-    op getOpreand(int i) {
-        if (i > opsVec.size())
-            assert("ops number is error");
-        return opsVec[i];
-    }
-
-    void DealMore(Instsptr inst)
-    {
-        Insts.push_back(inst);
-        status = MORE;
-    }
-
-    std::string ISAtoAsm();
-
-    ~RISCVInst() = default;
-
-    // 将操作每一个Op进行封装
-    void SetRegisterOp(std::string&& str,bool Flag = Register::vir)
-    {
-        auto Regop = std::make_shared<Register> (str,Flag);
-        opsVec.push_back(Regop);
-    }
-
-    void SetImmOp(std::string&& str)
-    {
-        auto Immop = std::make_shared<Imm> (str);
-        opsVec.push_back(Immop);
-    }
-
-    void SetImmOp(Value* val)
-    {
-        std::shared_ptr<Imm> Immop = nullptr;
-        if (val->GetType() == FloatType::NewFloatTypeGet()) {
-            auto it = (val->as<ConstIRFloat>());
-            if (it)
-                Immop = std::make_shared<Imm> (val->as<ConstIRFloat>());
-        }
-        else
-            Immop = std::make_shared<Imm> (val);
-        opsVec.push_back(Immop);
-        // std::cout << opsVec[1]->getName() << std:: endl;
     }
 };
 

@@ -129,10 +129,25 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 }
 
 // StoreInst ----> 要被翻译为 li, sw 两条语句
+// 如果是 参数的store  ----> 要被翻译为 mv，sw 两天语句
 RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
 {
     Value* val = inst->GetOperand(0);
     RISCVInst* Inst = nullptr;
+    if (auto var = dynamic_cast<Var*>(val))
+    {
+        if(var->isParam())
+        {
+            Inst = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+            Inst->SetVirRegister();
+            Inst->SetRealRegister("a0");
+            RISCVInst* SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+            Inst->DealMore(SwInst);
+            SwInst->setStoreOp(Inst);
+            extraDealStoreInst(SwInst, inst);
+            return Inst;
+        }
+    }
 
     // float -> int
     if(dynamic_cast<FP2SIInst*>(inst->GetPrevNode()))
@@ -520,10 +535,9 @@ RISCVInst* RISCVContext::CreateI2Fnst(SI2FPInst *inst)
     return Inst;
 }
 
-// Todo:
-// 函数调用相关的语句
 RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 {
+    auto e = inst;
     return nullptr;
 }
 
