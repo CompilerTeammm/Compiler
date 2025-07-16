@@ -12,6 +12,7 @@
 // I think the std::move is not the must, Compiler will do this
 // I hope th search it.
 
+// array  stack 传参
 bool ProloAndEpilo:: DealStoreInsts()
 {
     auto MallocVec = mfunc->getStoreInsts();

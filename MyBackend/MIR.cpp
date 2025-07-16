@@ -41,6 +41,7 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _seqz) { return "seqz"; }
     if(opCode == _divw )  {return "divw";}
     if(opCode == _call)  { return "call"; }
+    if(opCode == _lui) { return "lui"; }
 
     return nullptr;
 }

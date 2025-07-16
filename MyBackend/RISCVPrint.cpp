@@ -201,10 +201,12 @@ void RISCVPrint::printFuncEpi(RISCVFunction* mfunc)
 void RISCVPrint::printAsm()
 {
     printPrefix();   
+    //  global values
     for(auto text :_context->getTexts()) 
     {
         text->TextPrint();
     }
+    // funcs
     auto funcs = _context->getMfuncs();
     for(auto func : funcs)
     {

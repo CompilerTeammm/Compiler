@@ -8,6 +8,7 @@
 #include "../lib/CoreClass.hpp"
 #include "../lib/MyList.hpp"
 #include <string.h>
+#include <string>
 #include "../../Log/log.hpp"
 
 /// 目标机器语言只有一种，RISCV，所以将 MIR -> RISCV
@@ -107,12 +108,6 @@ public:
     }
 };
 
-// 该不该要呢？
-class RISCVLabel:public RISCVOp 
-{
-
-};
-
 class Imm: public RISCVOp
 {
     Value* val;
@@ -142,6 +137,13 @@ public:
         if(Flag)
             VirtualReg++; 
     }
+};
+
+// 地址操作符
+class RISCVAddrOp:public RISCVOp 
+{
+public:
+    RISCVAddrOp(std::string name) :RISCVOp(name,RISCVOp::Global) { }
 };
 
 class RISCVInst:public RISCVOp,public Node<RISCVBlock,RISCVInst>
@@ -357,6 +359,12 @@ public:
             Immop = std::make_shared<Imm>(val);
         opsVec.push_back(Immop);
         // std::cout << opsVec[1]->getName() << std:: endl;
+    }
+    void SetAddrOp(std::string hi_lo,Value* val)
+    {
+        std::string s1(hi_lo+"(" + val->GetName() + ")");
+        std::shared_ptr<RISCVAddrOp> addrOp = std::make_shared<RISCVAddrOp> (s1);
+        opsVec.push_back(addrOp);
     }
 
     void push_back(op Op) { opsVec.push_back(Op); }

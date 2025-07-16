@@ -1,4 +1,5 @@
 #include "../include/MyBackend/RISCVContext.hpp"
+#include "MyBackend/MIR.hpp"
 #include <memory>
 
 // Deal RetInst 
@@ -68,8 +69,16 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
             auto newOp = LoadInst->getOpreand(0); 
             Inst0->setRetOp(newOp);
         }else {
-            Inst0 = CreateInstAndBuildBind(RISCVInst::_li,inst);
-            Inst0->setRetOp(op);
+            auto Inst = dynamic_cast<Instruction*> (op);
+            if (Inst == nullptr) {
+                Inst0 = CreateInstAndBuildBind(RISCVInst::_li,inst);
+                Value* val = inst->GetOperand(0);
+                Inst0->setRetOp(val);
+            }else {
+                Inst0 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+                RISCVInst* PreInst = Inst0->GetPrevNode();
+                Inst0->setRetOp(PreInst->getOpreand(0));
+            }
         }
         auto Inst1 = CreateInstAndBuildBind(RISCVInst::_ret,inst);
         Inst0->DealMore(Inst1);
@@ -112,19 +121,42 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
 RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 {
     RISCVInst* Inst = nullptr;
-    if(inst->GetType() == IntType::NewIntTypeGet()) {
+
+    if ( inst->GetOperand(0)->isGlobal())
+    {   // global 的lw 应该不需要记录，因为这个全局加载
+        RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+        luiInst->SetVirRegister();
+        luiInst->SetAddrOp("%hi",inst->GetOperand(0));
+
+        RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->SetAddrOp("%lo", inst->GetOperand(0));
+
         Inst = CreateInstAndBuildBind(RISCVInst::_lw,inst);
-        Inst->setLoadOp();
-        extraDealLoadInst(Inst,inst);
+        Inst->SetVirRegister();
+        Inst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        // One Or More
+        Inst->DealMore(luiInst);
+        Inst->DealMore(addInst);
     }
-    else if(inst->GetType() == FloatType::NewFloatTypeGet()) 
+    else
     {
-        Inst = CreateInstAndBuildBind(RISCVInst::_flw,inst);
-        Inst->setLoadOp();
-        extraDealLoadInst(Inst,inst);
+        if (inst->GetType() == IntType::NewIntTypeGet())
+        {
+            Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
+            Inst->setLoadOp();
+            extraDealLoadInst(Inst, inst);
+        }
+        else if (inst->GetType() == FloatType::NewFloatTypeGet())
+        {
+            Inst = CreateInstAndBuildBind(RISCVInst::_flw, inst);
+            Inst->setLoadOp();
+            extraDealLoadInst(Inst, inst);
+        }
+        else
+            LOG(ERROR, "other conditions");
     }
-    else 
-        LOG(ERROR,"other conditions");
     return Inst;
 }
 
@@ -559,8 +591,6 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     ret->SetVirRegister();
     ret->SetRealRegister("a0");
     Inst->DealMore(ret);
-    RISCVInst *swInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
-    swInst->setStoreOp(swInst->GetPrevNode());
    
     return Inst;
 }
