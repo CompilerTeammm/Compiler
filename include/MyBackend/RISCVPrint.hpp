@@ -4,6 +4,7 @@
 #include "../lib/CoreClass.hpp"
 #include "MIR.hpp"
 #include "RISCVContext.hpp"
+#include "Type.hpp"
 
 class RISCVContext;
 class TextSegment 
@@ -15,19 +16,27 @@ public:
         data
     };
 
-    TextSegment(Value* val):value(val) { TextInit(); }
+    TextSegment(Value* val):value(val),flag(0) { TextInit(); }
 
     void  FillTheWord(size_t );
+
+    using ArrFlag = int;
+    ArrFlag& getArrFlag() { return flag; }
+
     void TextInit();
     void TextPrint();
     std::string translateType();
     void generate_array_init(Initializer* arry_init, Type* basetype);
+    
+    template<typename T> 
+    void arrPrint(int& zeroFlag, int& sum);
 private:
     std::string name;
     DataType type;
     size_t align;
     size_t size; 
-    std::vector<std::string> word;
+    std::string word;
+    ArrFlag flag;
     Value* value;
     std::vector<std::variant<int , float>> init_vector;
 };

@@ -63,7 +63,7 @@ void TextSegment::FillTheWord(size_t defaultSize)
     {
         if (subType->GetTypeEnum() == IR_Value_INT)
         {
-            word.emplace_back(Vusee->GetName());
+            word = (Vusee->GetName());
         }
         else if(subType->GetTypeEnum() == IR_Value_Float)
         {
@@ -71,7 +71,7 @@ void TextSegment::FillTheWord(size_t defaultSize)
             auto val = Vusee->GetName();
             float fval = std::stof(val);
             memcpy(&n, &fval, sizeof(float)); // 直接复制内存位模式
-            word.emplace_back(std::to_string(n));
+            word = (std::to_string(n));
         }
         else if (subType->GetTypeEnum() == IR_ARRAY)
         {
@@ -82,7 +82,7 @@ void TextSegment::FillTheWord(size_t defaultSize)
     }
     else if(type == bss)
     {
-        word.emplace_back(std::to_string(defaultSize));
+        word = (std::to_string(defaultSize));
     }
 
     // auto var = dynamic_cast<Var*>(value);
@@ -148,6 +148,7 @@ void TextSegment::TextInit()
         auto dataType = SubType->GetTypeEnum();
 
         if (dataType == IR_ARRAY) {    // align
+            getArrFlag() = 1;
             align = 3;
         } else {
             align = 2;
@@ -169,6 +170,25 @@ std::string TextSegment::translateType()
     }
 }
 
+template<typename T>
+void TextSegment::arrPrint(int& zeroFlag, int& zeroSizesum)
+{
+    for (auto &v : init_vector)
+    {
+        int i = std::get<T>(v);
+        if (i == 0) {
+            zeroFlag = 1;   zeroSizesum += 4;
+        }
+        else{
+            if (zeroFlag == 1) {
+                std::cout << "    " << ".zero" << "  " << std::to_string(zeroSizesum) << std::endl;
+                zeroSizesum = 0;  zeroFlag = 0;
+            }
+            std::cout << "    " << ".word" << "  " << std::to_string(i) << std::endl;
+        }
+    }
+}
+
 void TextSegment::TextPrint()
 {
     std::cout << "    " <<".global"<<"	"<< name << std::endl; 
@@ -177,11 +197,34 @@ void TextSegment::TextPrint()
     std::cout << "    " <<".type"<<"  "<< name <<", "<<"@object"<< std::endl; 
     std::cout << "    " <<".size"<<"  "<< name <<", " <<size<< std::endl; 
     std::cout <<name <<":"<< std::endl;
-    if( type == 0) {
-        std::cout << "    " <<".zero"<<"  "<< word[0] << std::endl;
-    } else {
-        for(auto& w : word) 
-            std::cout << "    " <<".word"<<"  "<< w << std::endl;
+    // if( type == 0) {
+    //     std::cout << "    " <<".zero"<<"  "<< word[0] << std::endl;
+    // } else {
+    //     for(auto& w : word) 
+    //         std::cout << "    " <<".word"<<"  "<< w << std::endl;
+    // }
+    if (type == bss)
+        std::cout << "    " <<".zero"<<"  "<< word << std::endl;
+    else if (type == data) 
+    {
+        if(getArrFlag() == 1) 
+        {
+            int zeroFlag = 0;
+            int sum = 0;
+            auto v = init_vector[0];
+            if (std::holds_alternative<int>(init_vector[0]))
+            {
+                arrPrint<int>(zeroFlag,sum);
+            }
+            else if (std::holds_alternative<float>(v))
+            {
+                arrPrint<float>(zeroFlag,sum);
+            }
+            if (zeroFlag == 1)
+                    std::cout << "    " <<".zero"<<"  "<< std::to_string(sum) << std::endl;
+        } else {
+            std::cout << "    " <<".word"<<"  "<< word << std::endl;
+        }
     }
 }   
 
