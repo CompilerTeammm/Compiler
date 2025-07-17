@@ -520,8 +520,9 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::map<AllocaInst*,lastStoreInstPtr> StackStoreRecord;
     using matchLoadInstPtr = RISCVInst*;
     std::map<matchLoadInstPtr,AllocaInst*> StackLoadRecord;
+    using offset = size_t;
+    std::map<AllocaInst*,size_t> AllocaOffsetRecord;
 
-    
     std::map<RISCVInst*,AllocaInst*> StoreInsts;
     std::vector<RISCVInst*> LoadInsts;
     std::vector<AllocaInst*> AllocaInsts;
@@ -535,6 +536,7 @@ public:
     std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
     std::map<AllocaInst*,lastStoreInstPtr>& getStoreRecord() {   return StackStoreRecord;   }
     std::map<matchLoadInstPtr,AllocaInst*>& getLoadRecord() {   return StackLoadRecord;   }
+    std::map<AllocaInst*,size_t>& getAOffsetRecord() { return AllocaOffsetRecord; }
 
     void RecordStackMalloc(RISCVInst* inst,AllocaInst* alloca)
     {
@@ -549,31 +551,3 @@ public:
             
     ~RISCVFunction() = default;
 };
-
-
-class NamedRISCVOp:public RISCVOp
-{
-
-};
-
-class OuterTag:public NamedRISCVOp
-{
-
-};
-
-class RISCVObject:public NamedRISCVOp
-{
-
-};
-
-class RISCVGlobalObject:public RISCVObject 
-{
-
-};
-
-class RISCVTempFloatObject:public RISCVObject
-{
-
-};
-
-

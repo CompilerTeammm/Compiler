@@ -91,7 +91,8 @@ void TextSegment::FillTheWord(size_t defaultSize)
 void TextSegment::TextInit()
 {
     auto var = dynamic_cast<Var*> (value);
-    if(var->GetInitializer() != nullptr) {   // type
+    if(var->GetInitializer() != nullptr      // Initializer 继承自 vector 
+      && dynamic_cast<Initializer*>(var->GetInitializer())->size()!=0) {   // type
         type = data;
     } else {
         type = bss;

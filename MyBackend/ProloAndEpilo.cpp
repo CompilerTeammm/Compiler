@@ -1,22 +1,27 @@
 #include "../include/MyBackend/ProloAndEpilo.hpp"
+#include "MyBackend/MIR.hpp"
 #define INITSIZE 1
 
 // 栈帧的开辟是定死的，我对此进行一个封装
+// 函数如果调用其他函数才会存储 ra
 // addi   sp,sp,-Malloc
-// sd  s0,offset
+// sd  ra,offset1
+// sd  s0,offset2
 // addi s0,sp,Malloc
 // ....
-// ld s0,offset
+// ld  ra,offset1
+// ld s0,offset2
 // addi   sp,sp,Malloc
 
 // I think the std::move is not the must, Compiler will do this
-// I hope th search it.
+// I hope to search it.
 
 // array  stack 传参
 bool ProloAndEpilo:: DealStoreInsts()
 {
     auto MallocVec = mfunc->getStoreInsts();
-    auto StoreRecord = mfunc->getStoreRecord();
+    // auto StoreRecord = mfunc->getStoreRecord();
+    auto AOffsetRecord = mfunc->getAOffsetRecord();
     size_t offset = 16;
     std::set<AllocaInst*> tmp;
     for(auto[StackInst,alloc] : MallocVec)
@@ -25,8 +30,12 @@ bool ProloAndEpilo:: DealStoreInsts()
         {
             tmp.emplace(alloc);
             offset += 4;
+            StackInst->setStoreStackOp(offset);
+            AOffsetRecord.emplace(alloc,offset);
         }
-        StackInst->setStoreStackOp(offset);
+        else {
+            StackInst->setStoreStackOp(AOffsetRecord[alloc]);
+        }
     }
 
     return true;
@@ -67,10 +76,9 @@ size_t ProloAndEpilo::caculate()
 
     for(auto allocInst : mfunc->getAllocas())
     {
-        auto e = allocInst;
-        if(e->GetTypeEnum() == IR_PTR) 
+        if(allocInst->GetTypeEnum() == IR_PTR) 
         {
-            auto PType = dynamic_cast<PointerType*> (e->GetType());
+            auto PType = dynamic_cast<PointerType*> (allocInst->GetType());
             if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
             {
                 size_t arrSize = PType->GetSubType()->GetSize();
@@ -99,12 +107,17 @@ void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool fla
         inst->SetImmOp(std::move(std::to_string(size)));
 }
 
-void ProloAndEpilo::SetSDOp(std::shared_ptr<RISCVInst> inst,size_t size)
+void ProloAndEpilo::SetsdRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("s0",Register::real);
+    inst->SetRegisterOp("ra",Register::real);
     inst->SetRegisterOp(std::to_string(size-8)+"(sp)",Register::real);
 }
 
+void ProloAndEpilo::SetsdS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
+{
+    inst->SetRegisterOp("s0",Register::real);
+    inst->SetRegisterOp(std::to_string(size-16)+"(sp)",Register::real);
+}
 void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
     inst->SetRegisterOp("sp",Register::real);
@@ -113,11 +126,15 @@ void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
     inst->SetImmOp(std::to_string(size));
 
 }
-
-void ProloAndEpilo::SetLDOp(std::shared_ptr<RISCVInst> inst,size_t size)
+void ProloAndEpilo::SetldRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
+{
+    inst->SetRegisterOp("ra",Register::real);
+    inst->SetRegisterOp (std::to_string(size-8)+"(sp)",Register::real);
+}
+void ProloAndEpilo::SetldS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
     inst->SetRegisterOp("s0",Register::real);
-    inst->SetRegisterOp (std::to_string(size-8)+"(sp)",Register::real);
+    inst->SetRegisterOp (std::to_string(size-16)+"(sp)",Register::real);
 }
 
 void ProloAndEpilo::CreateProlo(size_t size)
@@ -130,10 +147,14 @@ void ProloAndEpilo::CreateProlo(size_t size)
     SetSPOp(spinst,size);
     InstVec.push_back(spinst);
 
+    auto sdRaInst = std::make_shared<RISCVInst> (RISCVInst::_sd);
+    SetsdRaOp(sdRaInst, size);
+    InstVec.push_back(sdRaInst);
+
     // 这个存储我认为可能是需要for函数去遍历这个
-    auto sdinst = std::make_shared<RISCVInst> (RISCVInst::_sd); 
-    SetSDOp(sdinst,size);
-    InstVec.push_back(sdinst);
+    auto sdS0inst = std::make_shared<RISCVInst> (RISCVInst::_sd); 
+    SetsdS0Op(sdS0inst,size);
+    InstVec.push_back(sdS0inst);
 
     // 栈指针的赋值
     auto s0inst = std::make_shared<RISCVInst> (RISCVInst::_addi);
@@ -148,9 +169,13 @@ void ProloAndEpilo::CreateEpilo(size_t size)
     auto it = std::make_shared<RISCVEpilogue> ();
     auto& InstVec = it->getInstsVec();
 
-    auto ldinst = std::make_shared<RISCVInst> (RISCVInst::_ld);
-    SetLDOp(ldinst,size); 
-    InstVec.push_back(ldinst);
+    auto ldRaInst = std::make_shared<RISCVInst> (RISCVInst::_ld);
+    SetldRaOp(ldRaInst,size); 
+    InstVec.push_back(ldRaInst);
+
+    auto ldS0inst = std::make_shared<RISCVInst> (RISCVInst::_ld);
+    SetldS0Op(ldS0inst,size); 
+    InstVec.push_back(ldS0inst);
 
     auto spinst = std::make_shared<RISCVInst> (RISCVInst::_addi);
     SetSPOp(spinst,size,_free);

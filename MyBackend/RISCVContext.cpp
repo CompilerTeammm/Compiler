@@ -572,6 +572,21 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     RISCVInst* Inst = nullptr;
     RISCVInst* param = nullptr;
     RISCVInst* ret = nullptr;
+    auto name = inst->GetOperand(0)->GetName();
+    if (name == "llvm.memcpy.p0.p0.i32")
+    {
+        RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+        luiInst->SetVirRegister();
+        luiInst->SetAddrOp("%hi",inst->GetOperand(2));
+
+        RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->SetAddrOp("%lo", inst->GetOperand(2));
+
+        
+        return nullptr;
+    }
     // param
     for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
     {
