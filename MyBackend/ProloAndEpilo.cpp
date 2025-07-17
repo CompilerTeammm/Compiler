@@ -1,5 +1,5 @@
 #include "../include/MyBackend/ProloAndEpilo.hpp"
-#include "MyBackend/MIR.hpp"
+#include "../include/MyBackend/MIR.hpp"
 #define INITSIZE 1
 
 // 栈帧的开辟是定死的，我对此进行一个封装
@@ -96,6 +96,7 @@ size_t ProloAndEpilo::caculate()
     return size; 
 }
 
+
 void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool flag)
 {
     inst->SetRegisterOp(std::move("sp"),Register::real);
@@ -106,13 +107,11 @@ void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool fla
     else 
         inst->SetImmOp(std::move(std::to_string(size)));
 }
-
 void ProloAndEpilo::SetsdRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
     inst->SetRegisterOp("ra",Register::real);
     inst->SetRegisterOp(std::to_string(size-8)+"(sp)",Register::real);
 }
-
 void ProloAndEpilo::SetsdS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
     inst->SetRegisterOp("s0",Register::real);
@@ -126,6 +125,7 @@ void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
     inst->SetImmOp(std::to_string(size));
 
 }
+
 void ProloAndEpilo::SetldRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
     inst->SetRegisterOp("ra",Register::real);
@@ -163,7 +163,6 @@ void ProloAndEpilo::CreateProlo(size_t size)
 
     mfunc->setPrologue(it);
 }
-
 void ProloAndEpilo::CreateEpilo(size_t size)
 {
     auto it = std::make_shared<RISCVEpilogue> ();
