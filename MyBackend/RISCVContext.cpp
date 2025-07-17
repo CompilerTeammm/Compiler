@@ -575,6 +575,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     auto name = inst->GetOperand(0)->GetName();
     if (name == "llvm.memcpy.p0.p0.i32")
     {
+        Value* val = inst->GetOperand(3);
         RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
         luiInst->SetVirRegister();
         luiInst->SetAddrOp("%hi",inst->GetOperand(2));
@@ -584,8 +585,28 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
         addInst->SetAddrOp("%lo", inst->GetOperand(2));
 
+        RISCVInst* saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+        saveS0Inst->SetVirRegister();
+        saveS0Inst->SetRealRegister("s0");
+        saveS0Inst->SetImmOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
+        // how to imm
 
-        return nullptr;
+        RISCVInst* para0 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+        para0->SetRealRegister("a0");
+        para0->getOpsVec().push_back(saveS0Inst->getOpreand(0));
+        
+        RISCVInst* para1 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+        para1->SetRealRegister("a1");
+        para1->getOpsVec().push_back(addInst->getOpreand(0));
+
+        RISCVInst* para2 = CreateInstAndBuildBind(RISCVInst::_li,inst);
+        para2->SetRealRegister("a2");
+        para2->SetImmOp(val);
+
+        Inst = CreateInstAndBuildBind(RISCVInst::_call, inst);
+        Inst->push_back(std::make_shared<RISCVOp>("memcpy@plt"));
+
+        return Inst;
     }
     // param
     for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)

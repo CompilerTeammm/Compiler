@@ -1,6 +1,50 @@
 #include "../include/MyBackend/RISCVPrint.hpp"
 #include "../include/lib/Type.hpp"
 
+void TextSegment::generate_array_init(Initializer* arry_init, Type* basetype) {
+    int init_size = arry_init->size();
+    int limi = dynamic_cast<ArrayType*>(arry_init->GetType())->GetNum();
+    if (init_size == 0) {
+        auto zero_num=arry_init->GetType()->GetSize()/basetype->GetSize();
+        for(auto i=0;i<zero_num;i++){
+            if(basetype->GetTypeEnum()==IR_Value_INT)init_vector.push_back(static_cast<int>(0));
+            else init_vector.push_back(static_cast<float>(0));
+        }
+    }
+    else {
+        for(int i=0; i<limi; i++) {
+            if(i<init_size) {
+                if(auto inits=dynamic_cast<Initializer*>((*arry_init)[i]))
+                    generate_array_init(inits, basetype);
+                else {
+                        if(basetype->GetTypeEnum() == IR_Value_INT) {
+                            std::string num = (*arry_init)[i]->GetName();
+                            int init = std::stoi(num);
+                            init_vector.push_back(init);
+                        }
+                        else if (basetype->GetTypeEnum() == IR_Value_Float) {
+                            ConstIRFloat* temp = dynamic_cast<ConstIRFloat*>((*arry_init)[i]);
+                            float init = temp->GetVal();
+                            init_vector.push_back(init);
+                        }                    
+                }
+            }
+            else {
+                Type* temptp = dynamic_cast<ArrayType*>(arry_init->GetType())->GetSubType();
+                size_t zeronum = temptp->GetSize() / basetype->GetSize();
+                    for(int i=0; i<zeronum; i++) {
+                    if (basetype->GetTypeEnum() == IR_Value_INT) {
+                        init_vector.push_back(static_cast<int>(0));
+                    }
+                    else if (basetype->GetTypeEnum() == IR_Value_Float) {
+                        init_vector.push_back(static_cast<float>(0));   
+                    }
+                }
+            }
+        }
+    }
+}
+
 void TextSegment::FillTheWord(size_t defaultSize)
 {   
     // I already know the type of data ---》  .bss   .data
@@ -33,10 +77,7 @@ void TextSegment::FillTheWord(size_t defaultSize)
         {
             ArrayType* arrType = dynamic_cast<ArrayType*> (Vusee->GetType());
             auto InitList = Vusee->as<Initializer>();
-            std::vector<int> index;
-            auto val = InitList->GetInitVal(index);
-            int layer = arrType->GetLayer();
-            int a = 10;
+            generate_array_init(InitList,arrType->GetBaseType());
         }
     }
     else if(type == bss)

@@ -83,7 +83,7 @@ bool TransFunction::run(Function* func)
     ret = RA.run();
     if(!ret)   LOG(ERROR,"RA failed");
 
-    //约定与调用，前言与后文
+    //约定与调用，前言与后序
     ProloAndEpilo PAE(mfunc);
     ret = PAE.run();
 

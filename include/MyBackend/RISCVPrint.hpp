@@ -9,7 +9,7 @@ class RISCVContext;
 class TextSegment 
 {
 public:
-    enum Type 
+    enum DataType 
     {
         bss,
         data
@@ -21,13 +21,15 @@ public:
     void TextInit();
     void TextPrint();
     std::string translateType();
+    void generate_array_init(Initializer* arry_init, Type* basetype);
 private:
     std::string name;
-    Type type;
+    DataType type;
     size_t align;
     size_t size; 
     std::vector<std::string> word;
     Value* value;
+    std::vector<std::variant<int , float>> init_vector;
 };
 
 class RISCVPrint

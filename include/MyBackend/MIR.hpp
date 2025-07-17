@@ -455,7 +455,6 @@ public:
 
 class RISCVBlock:public RISCVOp,public List<RISCVBlock, RISCVInst>, public Node<RISCVFunction, RISCVBlock>
 {
-    // std::string BBName;
     BasicBlock* cur_bb;
 public:
     RISCVBlock(BasicBlock* bb,std::string name)
@@ -464,21 +463,21 @@ public:
     ~RISCVBlock() = default;
 };
 
-// 栈帧的大小
-class FrameObject:public RISCVOp
-{
-    std::vector<RISCVInst*> StoreInsts;
-public:
-    std::vector<RISCVInst*>& getStoreInsts()
-    {
-        return StoreInsts;
-    }    
+// 栈帧的大小  都多余了
+// class FrameObject:public RISCVOp
+// {
+//     std::vector<RISCVInst*> StoreInsts;
+// public:
+//     std::vector<RISCVInst*>& getStoreInsts()
+//     {
+//         return StoreInsts;
+//     }    
 
-    void RecordStackMalloc(RISCVInst* inst)
-    {
-        StoreInsts.push_back(inst);
-    }
-};
+//     void RecordStackMalloc(RISCVInst* inst)
+//     {
+//         StoreInsts.push_back(inst);
+//     }
+// };
 
 // 与函数的栈帧相关
 class RISCVPrologue:public RISCVOp
@@ -493,7 +492,6 @@ public:
         return proloInsts;
     }
 };
-
 class RISCVEpilogue:public RISCVOp
 {
     using Instptr = std::shared_ptr<RISCVInst>;
