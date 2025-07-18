@@ -18,24 +18,30 @@ public:
     void CalcuLiveInAndOut();
 };
 
-class LiveInterval:public LiveInfo 
+class LiveInterval
 {
     using order = int;
     std::map<RISCVInst*,order> RecordInstAndOrder;
     void orderInsts();
+    LiveInfo liveInfo;
+    RISCVFunction* curfunc;
+    std::shared_ptr<RISCVContext> ctx;
+    // bbInfos records the bb with its start and end
 
-    // bbInfos records the bb with its start and end 
-    using rangeInfo = struct range;
-    using rangeInfoptr = std::shared_ptr<rangeInfo>;
-    std::map<RISCVInst*,rangeInfoptr> bbInfos;
-    struct range {
+    struct range
+    {
         int start;
         int end;
+        range(int s, int e) : start(s), end(e) {}
     };
+    using rangeInfoptr = std::shared_ptr<range>;
+    std::map<RISCVBlock*,rangeInfoptr> bbInfos;
+
+    std::map<Register*,std::vector<rangeInfoptr>> regLiveIntervals;
 public:
     void CalcuLiveIntervals();
     LiveInterval(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext> _ctx)
-                :LiveInfo(_curfunc,_ctx),bbInfos{}  {  }
+                :liveInfo(_curfunc,_ctx),bbInfos{},curfunc(_curfunc),ctx(_ctx)  {  }
 
     void run();
 };

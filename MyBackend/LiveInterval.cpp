@@ -90,7 +90,7 @@ void LiveInterval::orderInsts()
             RecordInstAndOrder[mInst] = order;
             order++;
         }
-        bbInfos.emplace(mbb,std::make_shared<rangeInfo>(start,order));
+        bbInfos.emplace(mbb,std::make_shared<range>(start,order));
     }
 }
 
@@ -98,14 +98,54 @@ void LiveInterval::CalcuLiveIntervals()
 {
     for (auto bb = curfunc->rbegin(); bb != curfunc->rend(); --bb)
     {
-        for(auto val : BlockLiveOut[*bb])
+        for(auto val :liveInfo.BlockLiveOut[*bb])
         {
+            auto it = bbInfos[*bb];
+            regLiveIntervals[val].emplace_back(std::make_shared<range>(it->start,it->end));
+        }
 
+        RISCVBlock* block = *bb;
+
+        int flag = 0;
+        RISCVInst *recordInst = nullptr;
+        for (auto inst = block->rbegin(); inst != block->rend(); --bb)
+        {
+            auto def = block->getLiveDef();
+            for(auto op: (*inst)->getOpsVec())
+            {
+                if ( Register* use = dynamic_cast<Register*>(op.get()))
+                {
+                    if(def.find(use) == def.end()) 
+                        continue;
+                    else {
+                        recordInst = *inst;
+                        auto& it = regLiveIntervals[use];
+                        it.back()->start = RecordInstAndOrder[recordInst];
+                    }
+                }
+            }
+
+            auto useSet = block->getLiveUse();
+            for(auto op: (*inst)->getOpsVec())
+            {
+                if ( Register* use = dynamic_cast<Register*>(op.get()))
+                {
+                    if (useSet.find(use) == useSet.end())
+                    {
+                        auto it = bbInfos[*bb];
+                        regLiveIntervals[use].emplace_back(std::make_shared<range>(it->start,
+                                                                 RecordInstAndOrder[*inst]));
+                    }
+                }
+            }
         }
     }
 }
 
 void LiveInterval::run()
 {
-    
+    liveInfo.GetLiveUseAndDef();
+    liveInfo.CalcuLiveInAndOut();
+    orderInsts();
+    CalcuLiveIntervals();
 }
