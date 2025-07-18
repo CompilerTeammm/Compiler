@@ -261,14 +261,19 @@ RISCVInst* RISCVContext::CreateAInst(AllocaInst *inst)
 // problem solved
 // todo Deal the problem
 void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,
-                                    Instruction* CmpInst,RISCVInst::op cmpOp2)
+                                    Instruction* CmpInst)
 {
     if (inst->GetPrevNode()->GetOperand(0)->GetType() == IntType::NewIntTypeGet())
     {
         RInst = CreateInstAndBuildBind(op, inst);
         auto val = CmpInst->GetOperand(0);
+        auto val2 = CmpInst->GetOperand(1);
         auto LoadRInst = mapTrans(val)->as<RISCVInst>();
         auto cmpOp1 = LoadRInst->getOpreand(0);
+
+        auto val2Inst = mapTrans(val2)->as<RISCVInst>();
+        auto cmpOp2 = val2Inst->getOpreand(0);
+
         RInst->push_back(cmpOp1);
         RInst->push_back(cmpOp2);
         auto Label = inst->GetOperand(2);
@@ -302,28 +307,29 @@ RISCVInst* RISCVContext::CreateCondInst(CondInst *inst)
     if (condition->GetType() == IntType::NewIntTypeGet())
     {
         if (CmpInst && CmpInst->IsCmpInst())  {
-            RISCVInst *RInst = mapTrans(CmpInst)->as<RISCVInst>();
-            auto cmpOp2 = RInst->getOpreand(0);
+            // RISCVInst *RInst = mapTrans(CmpInst)->as<RISCVInst>();
+            // if (RInst == nullptr)
+            //     auto cmpOp2 = RInst->getOpreand(0);
             // Instruction
             switch (CmpInst->GetInstId())
             {
             case Instruction::Eq:
-                extraDealBrInst(RInst, RISCVInst::_bne, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_bne, inst, CmpInst);
                 break;
             case Instruction::Ne:
-                extraDealBrInst(RInst, RISCVInst::_bqe, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_bqe, inst, CmpInst);
                 break;
             case Instruction::Ge:
-                extraDealBrInst(RInst, RISCVInst::_blt, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_blt, inst, CmpInst);
                 break;
             case Instruction::L:
-                extraDealBrInst(RInst, RISCVInst::_bge, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_bge, inst, CmpInst);
                 break;
             case Instruction::Le:
-                extraDealBrInst(RInst, RISCVInst::_bgt, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_bgt, inst, CmpInst);
                 break;
             case Instruction::G:
-                extraDealBrInst(RInst, RISCVInst::_ble, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_ble, inst, CmpInst);
                 break;
             default:
                 break;
@@ -499,12 +505,18 @@ RISCVInst* RISCVContext::CreateBInst(BinaryInst *inst)
         case BinaryInst::Op_GE:
         case BinaryInst::Op_E:
         case BinaryInst::Op_NE:
-            if (valOp1->GetType() == IntType::NewIntTypeGet())
-                extraDealCmp(RInst, inst);
-            else if (valOp1->GetType() == FloatType::NewFloatTypeGet())
-                extraDealCmp(RInst, inst);
-            else{
-                assert("other conditions");
+            if (dynamic_cast<Instruction*>(valOp1) && dynamic_cast<Instruction*>(valOp2)) {
+                break;
+            }
+            else {
+                if (valOp1->GetType() == IntType::NewIntTypeGet())
+                    extraDealCmp(RInst, inst);
+                else if (valOp1->GetType() == FloatType::NewFloatTypeGet())
+                    extraDealCmp(RInst, inst);
+                else
+                {
+                    assert("other conditions");
+                }
             }
             break;
         case BinaryInst::Op_And:

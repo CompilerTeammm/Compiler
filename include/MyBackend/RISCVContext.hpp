@@ -78,7 +78,7 @@ public:
     void extraDealLoadInst(RISCVInst* RISCVinst,LoadInst* inst);
 
     void extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,
-                                        Instruction* CmpInst,RISCVInst::op cmpOp2);
+                                        Instruction* CmpInst);
     void extraDealBeqInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst);    
 
 

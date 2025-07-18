@@ -21,7 +21,7 @@ bool ProloAndEpilo:: DealStoreInsts()
 {
     auto MallocVec = mfunc->getStoreInsts();
     // auto StoreRecord = mfunc->getStoreRecord();
-    auto AOffsetRecord = mfunc->getAOffsetRecord();
+    auto& AOffsetRecord = mfunc->getAOffsetRecord();
     size_t offset = 16;
     std::set<AllocaInst*> tmp;
     for(auto[StackInst,alloc] : MallocVec)
@@ -43,6 +43,16 @@ bool ProloAndEpilo:: DealStoreInsts()
 
 bool ProloAndEpilo:: DealLoadInsts()
 {
+    // auto LoadInsts = mfunc->getLoadInsts();
+    // auto record = mfunc->getLoadRecord();
+    // auto& offset = mfunc->getAOffsetRecord();
+    // for (auto Inst : LoadInsts)
+    // {
+    //     auto Alloc = record[Inst];
+    //     size_t off = offset[Alloc];
+    //     Inst->setStoreStackOp(off);
+    // }
+
     auto LoadInsts = mfunc->getLoadInsts();
     auto record = mfunc->getLoadRecord();
     auto storeRecord = mfunc->getStoreRecord();
