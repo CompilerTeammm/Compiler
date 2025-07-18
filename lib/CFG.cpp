@@ -405,7 +405,7 @@ CallInst::CallInst(Type *_tp)
     : Instruction(_tp, Op::Call) {}
 
 CallInst::CallInst(Value *_func, std::vector<Operand> &_args, std::string label)
-    : Instruction(_func->GetType(), Op::Call)
+    : Instruction(_func->GetType(), Op::Call),CalledFunction(_func)
 {
     name += label;
     add_use(_func);
@@ -1526,7 +1526,6 @@ void Function::print()
 void Function::AddBBs(BasicBlock *BB)
 {
     BBs.push_back(std::unique_ptr<BasicBlock>(BB));
-    size_BB++;
 }
 
 void Function::PushBothBB(BasicBlock *BB)
@@ -1542,7 +1541,6 @@ void Function::InsertBBs(BasicBlock *BB, size_t pos)
         pos = BBs.size(); // 防越界
     }
     BBs.insert(BBs.begin() + pos, std::unique_ptr<BasicBlock>(BB));
-    size_BB++;
 }
 
 void Function::InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert)
@@ -1552,7 +1550,6 @@ void Function::InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert)
 void Function::InsertBB(BasicBlock *curr, BasicBlock *insert)
 {
     insert->GenerateUnCondInst(curr);
-    insert->size_Inst = this->size_BB++;
     this->PushBothBB(insert);
 }
 
@@ -1564,14 +1561,12 @@ void Function::RemoveBBs(BasicBlock *BB)
     if (it != BBs.end())
     {
         BBs.erase(it);
-        size_BB--;
     }
 }
 
 void Function::InitBBs()
 {
     BBs.clear();
-    size_BB = 0;
 }
 
 void Function::PushParam(std::string name, Var *var)
@@ -1752,6 +1747,29 @@ BasicBlock *BasicBlock::SplitAt(User *inst)
     auto [left, right] = SplitList((Instruction *)inst, GetBack());
     tmp->CollectList(left, right);
     return tmp;
+}
+
+size_t Function::GetInstructionCount() const {
+    size_t count = 0;
+    for (auto bb = GetFront(); bb != nullptr; bb = bb->GetNextNode()) {
+      count += bb->Size();
+    }
+    return count;
+}
+
+std::pair<size_t, size_t> &Function::GetInlineInfo() {
+  if (inlineinfo.first == 0) {
+    for (auto bb : *this) {
+      for (auto inst : *bb) {
+        inlineinfo.first++;
+        if (auto alloca = dynamic_cast<AllocaInst *>(inst))
+          inlineinfo.second += dynamic_cast<PointerType *>(alloca->GetType())
+                                   ->GetSubType()
+                                   ->GetSize();
+      }
+    }
+  }
+  return inlineinfo;
 }
 
 std::pair<Value *, BasicBlock *> Function::InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping)

@@ -70,12 +70,12 @@ void PassManager::RunOnTest()
     {
         // Function;
         auto fun = function.get();
-        fun->GetSize() = 0;
+        int bb_index = 0;
         fun->GetBBs().clear();
         for (auto bb : *fun)
         {
             // BasicBlock
-            bb->index = fun->GetSize()++;
+            bb->index = bb_index++;
             std::shared_ptr<BasicBlock> shared_bb(bb);
             fun->GetBBs().push_back(shared_bb);
         }

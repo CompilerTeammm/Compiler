@@ -3,8 +3,6 @@
 #include <memory>
 #include "../../lib/CFG.hpp"
 
-
-
 class InlineHeuristic {
 public:
     virtual ~InlineHeuristic() = default;
@@ -16,12 +14,26 @@ public:
 
 class InlineHeuristicManager : public InlineHeuristic {
 public:
-    explicit InlineHeuristicManager(Module* m);
-    bool CanBeInlined(CallInst* call) override;
+    explicit InlineHeuristicManager(Module* m) : module_(m) {}
+    
+    bool CanBeInlined(CallInst* call) override {
+        for (auto& heuristic : heuristics_) {
+            if (!heuristic->CanBeInlined(call)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void push_back(std::unique_ptr<InlineHeuristic> h) {
+        heuristics_.push_back(std::move(h));
+    }
 
 private:
     std::vector<std::unique_ptr<InlineHeuristic>> heuristics_;
+    Module* module_;
 };
+
 
 
 class SizeLimitHeuristic : public InlineHeuristic {
@@ -48,19 +60,24 @@ class Inliner {
 public:
     explicit Inliner(Module* m);
 
-    // 运行内联优化，返回是否有改动
     bool Run();
+
+    bool Inline(Module* m);
+    void init(Module* m);
+    std::pair<int, BinaryInst::Operation> MatchLib(Function* func);
 
 private:
     bool InlineCall(CallInst* call);
-    std::vector<BasicBlock*> CopyBlocks(User* inst);
+
+    std::vector<BasicBlock*> CopyBlocks(User* callSite);
+
     void HandleVoidRet(BasicBlock* splitBlock, std::vector<BasicBlock*>& blocks);
+
     void HandleRetPhi(BasicBlock* retBlock, PhiInst* phi, std::vector<BasicBlock*>& blocks);
 
 private:
     Module* module_;
-    std::unique_ptr<InlineHeuristic> heuristic_;
-
-    // 待内联调用指令列表
     std::vector<CallInst*> callsToInline_;
+    std::unique_ptr<InlineHeuristic> heuristic_;
 };
+

@@ -202,7 +202,7 @@ class CallInst : public Instruction
 public:
   CallInst(Type *_tp);
   CallInst(Value *_func, std::vector<Operand> &_args, std::string label = "");
-
+  Value* GetCalledFunction() const { return CalledFunction; }
   CallInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
   void print() final
   {
@@ -224,6 +224,8 @@ public:
     }
     std::cout << ")\n";
   }
+private:
+    Value* CalledFunction;
 };
 
 class RetInst : public Instruction
@@ -769,7 +771,6 @@ public:
   bool visited;      // 是否被访问过
   // int index;      // 基本块序号
   bool reachable; // 是否可达
-  int size_Inst = 0;
   // BasicBlock包含Instruction
   using InstPtr = std::shared_ptr<Instruction>;
   // 当前基本块的指令
@@ -859,8 +860,8 @@ public:
 private:
   std::vector<ParamPtr> params;
   std::vector<BBPtr> BBs;
+  std::pair<size_t,size_t> inlineinfo;
   std::string id;
-  int size_BB = 0;
 
 public:
   Function(IR_DataType _type, const std::string &_id);
@@ -896,9 +897,11 @@ public:
   void InitBBs();
   void PushParam(std::string, Var *);
   void UpdateParam(Var *var) { params.emplace_back(var); }
-  int &GetSize() { return size_BB; }
-
+  size_t GetSize() { return BBs.size();}
+  size_t GetInstructionCount() const;//链表
   std::pair<Value *, BasicBlock *> InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping);
+  std::pair<size_t,size_t>& GetInlineInfo();
+  inline void ClearInlineInfo(){inlineinfo.first=inlineinfo.second=0;};
 };
 
 class Module : public SymbolTable
