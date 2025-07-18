@@ -5,6 +5,7 @@
 #include "../include/MyBackend/PhiEliminate.hpp"
 #include "../include/MyBackend/ProloAndEpilo.hpp"
 #include "../include/MyBackend/RegAllocation.hpp"
+#include "../include/MyBackend/LiveInterval.hpp"
 
 extern std::string asmoutput_path;
 
@@ -82,6 +83,9 @@ bool TransFunction::run(Function* func)
     RegAllocation RA;
     ret = RA.run();
     if(!ret)   LOG(ERROR,"RA failed");
+
+    LiveRange LR(mfunc);
+    LR.GetLiveUseAndDef();
 
     //约定与调用，前言与后序
     ProloAndEpilo PAE(mfunc);

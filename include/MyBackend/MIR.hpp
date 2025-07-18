@@ -456,11 +456,15 @@ public:
 class RISCVBlock:public RISCVOp,public List<RISCVBlock, RISCVInst>, public Node<RISCVFunction, RISCVBlock>
 {
     BasicBlock* cur_bb;
+    std::set<Register*> LiveUse;
+    std::set<Register*> LiveDef;
 public:
     RISCVBlock(BasicBlock* bb,std::string name)
-              :cur_bb(bb) , RISCVOp(name)   {    }
-    
+              :cur_bb(bb) , RISCVOp(name), LiveUse{}, LiveDef{}   {    }
     ~RISCVBlock() = default;
+
+    std::set<Register*>& getLiveUse()  {  return LiveUse; }
+    std::set<Register*>& getLiveDef()  {  return LiveDef; }
 };
 
 // 栈帧的大小  都多余了
