@@ -85,7 +85,7 @@ bool TransFunction::run(Function* func)
     if(!ret)   LOG(ERROR,"RA failed");
 
     // test 
-    LiveRange LR(mfunc,ctx);
+    LiveInfo LR(mfunc,ctx);
     // LR.GetLiveUseAndDef();
     LR.CalcuLiveInAndOut();
 

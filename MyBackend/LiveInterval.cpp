@@ -1,6 +1,7 @@
 #include "../include/MyBackend/LiveInterval.hpp"
+#include <memory>
 
-void LiveRange::GetLiveUseAndDef()
+void LiveInfo::GetLiveUseAndDef()
 {
     for(RISCVBlock* mbb :*curfunc)
     {
@@ -26,7 +27,7 @@ void LiveRange::GetLiveUseAndDef()
     }
 }
 
-void LiveRange::CalcuLiveInAndOut()
+void LiveInfo::CalcuLiveInAndOut()
 {   
     BlockLiveIn.clear();
     BlockLiveOut.clear();
@@ -83,16 +84,28 @@ void LiveInterval::orderInsts()
     int order = 0;
     for(RISCVBlock* mbb :*curfunc)
     {
+        int start = order;
         for(RISCVInst* mInst : *mbb)
         {
             RecordInstAndOrder[mInst] = order;
             order++;
         }
+        bbInfos.emplace(mbb,std::make_shared<rangeInfo>(start,order));
     }
 }
 
 void LiveInterval::CalcuLiveIntervals()
 {
+    for (auto bb = curfunc->rbegin(); bb != curfunc->rend(); --bb)
+    {
+        for(auto val : BlockLiveOut[*bb])
+        {
 
+        }
+    }
 }
 
+void LiveInterval::run()
+{
+    
+}
