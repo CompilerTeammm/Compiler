@@ -1,5 +1,6 @@
 #pragma once
 #include "MIR.hpp"
+#include "RISCVContext.hpp"
 
 // LinerScaner use the LiveInterval
 // LiveRange And LiveInterval is based on the mfunc
@@ -9,8 +10,9 @@ class LiveRange
     std::map<RISCVBlock*,std::set<Register*>> BlockLiveOut;
 public:
     RISCVFunction* curfunc;
-    LiveRange(RISCVFunction* _curfunc)
-            :curfunc(_curfunc) { }
+    std::shared_ptr<RISCVContext> ctx;
+    LiveRange(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext> _ctx)
+            :curfunc(_curfunc),ctx(_ctx),BlockLiveIn{},BlockLiveOut{} { }
 
     void GetLiveUseAndDef(); 
     void CalcuLiveInAndOut();

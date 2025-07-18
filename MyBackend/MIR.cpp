@@ -1,4 +1,6 @@
 #include "../include/MyBackend/MIR.hpp"
+#include "../include/IR/Analysis/Dominant.hpp"
+#include "../include/MyBackend/RISCVContext.hpp"
 
 int Register::VirtualReg = 0;
 
@@ -44,4 +46,13 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _lui) { return "lui"; }
 
     return nullptr;
+}
+
+std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
+{
+    succBlocks.clear();
+    DominantTree tree(cur_bb->GetParent());
+    tree.BuildDominantTree();
+    auto succBlocks = tree.getSuccBBs(cur_bb);
+    return succBlocks;
 }

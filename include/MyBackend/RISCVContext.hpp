@@ -31,6 +31,11 @@ public:
         Mfuncs.push_back(func);
     }
 
+    // static RISCVContext& getCTX()
+    // {
+    //     static RISCVContext ctx;
+    //     return ctx;
+    // }
     bool dealGlobalVal(Value* val);
 
     std::vector<TextPtr>& getTexts() { return Texts; }

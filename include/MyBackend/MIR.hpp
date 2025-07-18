@@ -458,11 +458,13 @@ class RISCVBlock:public RISCVOp,public List<RISCVBlock, RISCVInst>, public Node<
     BasicBlock* cur_bb;
     std::set<Register*> LiveUse;
     std::set<Register*> LiveDef;
+    std::vector<BasicBlock*> succBlocks;
 public:
     RISCVBlock(BasicBlock* bb,std::string name)
-              :cur_bb(bb) , RISCVOp(name), LiveUse{}, LiveDef{}   {    }
+              :cur_bb(bb) , RISCVOp(name), LiveUse{}, LiveDef{} {    }
     ~RISCVBlock() = default;
 
+    std::vector<BasicBlock*> getSuccBlocks();
     std::set<Register*>& getLiveUse()  {  return LiveUse; }
     std::set<Register*>& getLiveDef()  {  return LiveDef; }
 };
