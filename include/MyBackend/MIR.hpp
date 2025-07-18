@@ -459,7 +459,7 @@ class RISCVBlock:public RISCVOp,public List<RISCVBlock, RISCVInst>, public Node<
 public:
     RISCVBlock(BasicBlock* bb,std::string name)
               :cur_bb(bb) , RISCVOp(name)   {    }
-
+    
     ~RISCVBlock() = default;
 };
 
