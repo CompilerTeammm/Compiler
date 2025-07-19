@@ -11,6 +11,7 @@ public:
     std::unordered_map<RISCVBlock*,std::set<Register*>> BlockLiveOut;
     RISCVFunction* curfunc;
     std::shared_ptr<RISCVContext> ctx;
+    std::unordered_map<Register*,RISCVBlock*> BlockWithVals;
     LiveInfo(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext> _ctx)
             :curfunc(_curfunc),ctx(_ctx),BlockLiveIn{},BlockLiveOut{} { }
 
@@ -21,7 +22,7 @@ public:
 class LiveInterval
 {
     using order = int;
-    std::unordered_map<RISCVInst*,order> RecordInstAndOrder;
+    std::map<RISCVInst*,order> RecordInstAndOrder;
     void orderInsts();
     LiveInfo liveInfo;
     RISCVFunction* curfunc;
@@ -38,14 +39,15 @@ public:
 private:
     std::unordered_map<RISCVBlock*,rangeInfoptr> bbInfos;
 
-    std::unordered_map<Register*,std::vector<rangeInfoptr>> regLiveIntervals;
+    std::map<Register*,std::vector<rangeInfoptr>> regLiveIntervals;
 public:
     void CalcuLiveIntervals();
     LiveInterval(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext> _ctx)
                 :liveInfo(_curfunc,_ctx),bbInfos{},curfunc(_curfunc),ctx(_ctx)  {  }
 
     void run();
-    std::unordered_map<Register*,std::vector<rangeInfoptr>>& getIntervals() {
+    std::map<Register*,std::vector<rangeInfoptr>>& getIntervals() {
         return regLiveIntervals;
     }
+    void FinalCalcu();
 };

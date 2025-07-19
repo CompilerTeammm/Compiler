@@ -18,7 +18,7 @@ Register::Register(realReg _Regop,bool Flag,int _Fflag)
 }
 Register::realReg Register::getRegop()  
 { 
-    if(realRegister()) 
+    if(IsrealRegister()) 
         return realRegop;
     LOG(ERROR, "this is virtual reg!!!");
 }
@@ -28,7 +28,7 @@ Register*Register::GetRealReg(Register::realReg _Regop)
     static std::unordered_map<realReg,Register*> realRegMap;
     auto it = realRegMap.find(_Regop);
     if (it == realRegMap.end()) 
-        it = realRegMap.emplace(_Regop,std::make_shared<Register> (_Regop)).first;  
+        it = realRegMap.emplace(_Regop,new Register(_Regop)).first;  
     return it->second;
 }
 

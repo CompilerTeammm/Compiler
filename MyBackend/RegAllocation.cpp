@@ -130,7 +130,7 @@ void RegAllocation::initializeRegisterPool()
 
 int RegAllocation::allocateStackLocation() 
 {
-
+    return 0;
 }
 
 void RegAllocation::ScanLiveinterval()

@@ -152,7 +152,7 @@ public:
     Register(realReg _Regop,bool Flag = real,int _Fflag=0);
     int Fflag;
     bool RVflag;
-    bool realRegister() { return RVflag == real; }  // vir or real Reg
+    bool IsrealRegister() { return RVflag == real; }  // vir or real Reg
     bool IsFflag() { return Fflag == 1; }           // FloatReg or  IntReg
     realReg getRegop();
 
