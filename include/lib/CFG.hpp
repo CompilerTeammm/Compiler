@@ -902,6 +902,9 @@ public:
   std::pair<Value *, BasicBlock *> InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping);
   std::pair<size_t,size_t>& GetInlineInfo();
   inline void ClearInlineInfo(){inlineinfo.first=inlineinfo.second=0;};
+
+  //封装了一个链表操作ww
+  void InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb); 
 };
 
 class Module : public SymbolTable

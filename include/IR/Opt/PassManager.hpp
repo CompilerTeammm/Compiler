@@ -18,6 +18,7 @@
 #include "SimplifyCFG.hpp"
 #include "SimplifyInst.hpp"
 #include "DSE.hpp"
+#include "Inliner.hpp"
 
 // 互不影响，完全没问题再放出来
 // #define dce
@@ -30,6 +31,8 @@
 // 循环优化
 // #define Loop_Simplifying
 // #define Loop_Unrolling
+//内联优化
+#define inliner
 
 enum PassName
 {
@@ -160,6 +163,11 @@ void PassManager::RunOnTest()
         tree.BuildDominantTree();
         DSE(fun, &tree).run();
     }
+#endif
+#ifdef inliner
+    // 直接在 module 上运行 inlinerPass
+    Inliner inlinerPass(&Singleton<Module>());
+    inlinerPass.run();
 #endif
 
 }

@@ -281,6 +281,12 @@ bool User::remove_use(Use *_use)
 
 void User::clear_use() { useruselist.clear(); }
 
+void User::DropAllUsesOfThis() {
+  assert(this->GetValUseList().is_empty() && "The user list (who I use) must be empty before dropping users of me!");
+  for (auto &use : useruselist)
+    use->RemoveFromValUseList(use->GetUser());
+}
+
 Value *User::clone(std::unordered_map<Value *, Value *> &mapping)
 {
   auto it = mapping.find(this);

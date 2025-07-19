@@ -1649,6 +1649,22 @@ Function &Module::GenerateFunction(IR_DataType _tp, std::string _id)
     return *functions.back();
 }
 
+bool Module::EraseDeadFunc() {
+  std::vector<Function *> erase;
+  bool changed = false;
+  for (auto &func : functions) {
+    if (func->GetValUseListSize() == 0 && func->GetName() != "main") {
+      erase.push_back(func.get());
+      changed = true;
+    }
+  }
+  if (!erase.empty())
+    for (auto func : erase) {
+      EraseFunction(func);
+    }
+  return changed;
+}
+
 UndefValue *UndefValue::Get(Type *_ty)
 {
     static std::map<Type *, UndefValue *> Undefs;
@@ -1771,6 +1787,17 @@ std::pair<size_t, size_t> &Function::GetInlineInfo() {
   }
   return inlineinfo;
 }
+
+void Function::InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb) {
+    for (auto it = this->begin(); it != this->end(); ++it) {
+        if (*it == pos) {
+            it.InsertAfter(new_bb);
+            return;
+        }
+    }
+    assert(false && "InsertBlockAfter: pos block not found in function");
+}
+
 
 std::pair<Value *, BasicBlock *> Function::InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping)
 {

@@ -212,7 +212,7 @@ public:
   virtual void add_use(Value *_value);
   bool remove_use(Use *_use);
   void clear_use();
-
+  void DropAllUsesOfThis();
   int GetOperandNums()
   {
     return useruselist.size();
