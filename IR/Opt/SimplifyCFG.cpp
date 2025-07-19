@@ -71,21 +71,6 @@ bool SimplifyCFG::SimplifyCFGFunction(Function* func) {
 
         changed |= localChanged;
     } while (localChanged && --maxpass>0);
-
-        //合并线性块(无phi)
-        for (auto* bb : blocks) {
-            localChanged |= mergeBlocks(bb);
-        }
-
-        //清理CFG中的不可达基本块(否则phi会出错)
-        localChanged |= removeUnreachableBlocks(func);
-
-        // 消除冗余 phi（统一值/已删除 predecessor）
-        for (auto* bb : blocks) {
-            localChanged |= eliminateTrivialPhi(bb);
-        }
-        changed |= localChanged;
-    }while(localChanged);//持续迭代直到收敛
 }
 // bool SimplifyCFG::SimplifyCFGBasicBlock(BasicBlock* bb){
 //     bool changed=false;
