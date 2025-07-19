@@ -1,17 +1,16 @@
 #include "../include/MyBackend/RegAllocation.hpp"
 
-#define INTREGNUM 15
-#define FLOATREGNUM 20
+#define INTREGNUM 24
+#define FLOATREGNUM 32
 
-//  int 可用 t0-t6     a0.a7 -->调用其他函数需要保存
-//  float 可以  ft0-ft11   ， fa0-fa7 ---> 调用其他参数需要保存
-// 如何分辨 int or float 呢？？？
+// int      t2   a0-a7 t3-t6  s1-s11       24
+// t0 & t1 will not be regalloced, and it is real temp register
+// float  ft0-ft11  fa0-fa7  fs0-fs11      32
 
-bool RegAllocation::isFloatReg(Register* reg)
+bool RegAllocation::isFloatReg(Register *reg)
 {
-    return false;
+    return reg->IsFflag();
 }
-
 int RegAllocation::getAvailableRegNum(Register* reg) {
     return isFloatReg(reg) ? FLOATREGNUM : INTREGNUM;
 }
@@ -52,7 +51,11 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
     for(auto& oldInterval : tmpList)
     {
         if (oldInterval.second->end < newInterval.second->start) {
-            Registerpool.emplace_back(oldInterval.first);
+            if (oldInterval.first->IsFflag())
+                RegisterFloatpool.emplace_back(oldInterval.first);
+            else   
+                RegisterIntpool.emplace_back(oldInterval.first);
+
             active_list.remove(oldInterval);
             // why???
             if (oldInterval.first)
@@ -93,15 +96,24 @@ void RegAllocation::spillInterval(std::pair<Register*,rangeInfoptr> interval)
 
 void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr> interval)
 {   
-    if(Registerpool.empty()) {
-        spillInterval(interval);
-        return;
+    Register* reg;
+
+    auto func = [&](std::vector<Register*>& pool){
+        if (pool.empty()){
+            spillInterval(interval);
+            return;
+        }
+        reg = pool.back();
+        pool.pop_back();
+    };
+
+    if (interval.first->IsFflag()) {
+        func(RegisterFloatpool);
+    } else {
+        func(RegisterIntpool);
     }
-    auto reg = Registerpool.back();
-    Registerpool.pop_back();
 
     activeRegs[interval.first] = reg;
-
     active_list.emplace_back(interval);
 
     active_list.sort([](const auto &v1, const auto &v2){ 
@@ -111,22 +123,9 @@ void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr> interval)
 
 void RegAllocation::initializeRegisterPool()
 {
-    // need to write a new func getRegister;
-    // Registerpool.clear();
-    //     for (int i = Register::t0; i <= Register::t6; i++) {
-    //     Registerpool.push_back(ctx->getRegister(i));
-    // }
-    // for (int i = Register::a0; i <= Register::a7; i++) {
-    //     Registerpool.push_back(ctx->getRegister(i));
-    // }
-    
-    // // 添加浮点可用寄存器
-    // for (int i = Register::ft0; i <= Register::ft11; i++) {
-    //     Registerpool.push_back(ctx->getRegister(i));
-    // }
-    // for (int i = Register::fa0; i <= Register::fa7; i++) {
-    //     Registerpool.push_back(ctx->getRegister(i));
-    // }
+    RegisterVec& vecs = RegisterVec::GetRegVecs();
+    RegisterIntpool = vecs.GetintRegVec();
+    RegisterFloatpool = vecs.GetfloatRegVec();
 }
 
 int RegAllocation::allocateStackLocation() 

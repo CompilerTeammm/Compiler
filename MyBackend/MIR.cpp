@@ -3,13 +3,14 @@
 #include "../include/MyBackend/RISCVContext.hpp"
 
 int Register::VirtualReg = 0;
-Register::Register(std::string _name, bool Flag) : RISCVOp(_name), flag(Flag)
+Register::Register(std::string _name, bool Flag,int _Fflag) 
+                  :RISCVOp(_name), RVflag(Flag),Fflag(_Fflag)
 {
     if (Flag)
         VirtualReg++;
 }
-Register::Register(realReg _Regop,bool Flag)
-               : realRegop(_Regop),flag(Flag)
+Register::Register(realReg _Regop,bool Flag,int _Fflag)
+               : realRegop(_Regop),RVflag(Flag),Fflag(_Fflag)
 {     
     // auto x = magic_enum::enum_name(_Regop);
     // std::string str(x);

@@ -148,10 +148,12 @@ public:
         fs0,fs1,fs2,fs3,fs4,fs5,fs6,fs7,fs8,fs9,fs10,fs11,
         fa0,fa1,fa2,fa3,fa4,fa5,fa6,fa7,
     } realRegop;
-    Register(std::string _name,bool Flag = vir);
-    Register(realReg _Regop,bool Flag = real);
-    bool flag;
-    bool realRegister() { return flag == real; }
+    Register(std::string _name,bool Flag = vir,int _Fflag=0 );
+    Register(realReg _Regop,bool Flag = real,int _Fflag=0);
+    int Fflag;
+    bool RVflag;
+    bool realRegister() { return RVflag == real; }  // vir or real Reg
+    bool IsFflag() { return Fflag == 1; }           // FloatReg or  IntReg
     realReg getRegop();
 
     static Register* GetRealReg(realReg);

@@ -3,6 +3,7 @@
 #include "LiveInterval.hpp"
 #include "MIR.hpp"
 #include <algorithm>
+#include "RegisterVec.hpp"
 
 // Regester Allocation (RA)
 // I choose the LINEARSCANREGISTERALLOCATION 
@@ -15,14 +16,15 @@ class RegAllocation :public BackendPassBase
     LiveInterval interval;
     std::vector<std::pair<Register*,LiveInterval::rangeInfoptr>> LinerScaner;
     std::list<std::pair<Register*,LiveInterval::rangeInfoptr>> active_list;
-    std::vector<Register*> Registerpool;                  // realReg  
+    std::vector<Register*> RegisterIntpool;                    // realReg  
+    std::vector<Register*> RegisterFloatpool;                  // realReg  
     std::unordered_map<Register*,Register*> activeRegs;  // map<vir,real>
     std::unordered_map<Register*,int> stackLocation;    // map<vir, offset>
 
 public:
     bool run() override; 
     RegAllocation(RISCVFunction* _mfunc,std::shared_ptr<RISCVContext> _ctx)
-                :mfunc(_mfunc),ctx(_ctx),interval(_mfunc,_ctx)  {  }
+                :mfunc(_mfunc),ctx(_ctx),interval(_mfunc,_ctx) { }
     void fillLinerScaner();
     void ScanLiveinterval();
     void expireOldIntervals(std::pair<Register*,rangeInfoptr> newInterval);

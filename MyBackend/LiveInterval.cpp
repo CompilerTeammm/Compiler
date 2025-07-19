@@ -115,7 +115,7 @@ void LiveInterval::CalcuLiveIntervals()
             {
                 if ( Register* use = dynamic_cast<Register*>(op.get()))
                 {
-                    if (use->flag == 0)
+                    if (use->RVflag == 0)
                         continue;
                     if(def.find(use) == def.end()) 
                         continue;
