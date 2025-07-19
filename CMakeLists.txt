@@ -17,6 +17,7 @@ include_directories(
   include/IR/Opt/
   include/lib
   include/lib/ast
+  include/MyBackend
   yacc           # 包含parser.hpp所在目录
 )
 

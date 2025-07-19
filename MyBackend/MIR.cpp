@@ -33,7 +33,6 @@ Register*Register::GetPhyReg(Register::realReg _Regop)
 
 
 
-
 std::string  RISCVInst::ISAtoAsm()
 {
     if(opCode == _ret) {  return "ret"; }
@@ -77,6 +76,8 @@ std::string  RISCVInst::ISAtoAsm()
 
     return nullptr;
 }
+
+
 
 std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
 {

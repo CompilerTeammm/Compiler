@@ -112,21 +112,21 @@ void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr> interval)
 void RegAllocation::initializeRegisterPool()
 {
     // need to write a new func getRegister;
-    Registerpool.clear();
-        for (int i = Register::t0; i <= Register::t6; i++) {
-        Registerpool.push_back(ctx->getRegister(i));
-    }
-    for (int i = Register::a0; i <= Register::a7; i++) {
-        Registerpool.push_back(ctx->getRegister(i));
-    }
+    // Registerpool.clear();
+    //     for (int i = Register::t0; i <= Register::t6; i++) {
+    //     Registerpool.push_back(ctx->getRegister(i));
+    // }
+    // for (int i = Register::a0; i <= Register::a7; i++) {
+    //     Registerpool.push_back(ctx->getRegister(i));
+    // }
     
-    // 添加浮点可用寄存器
-    for (int i = Register::ft0; i <= Register::ft11; i++) {
-        Registerpool.push_back(ctx->getRegister(i));
-    }
-    for (int i = Register::fa0; i <= Register::fa7; i++) {
-        Registerpool.push_back(ctx->getRegister(i));
-    }
+    // // 添加浮点可用寄存器
+    // for (int i = Register::ft0; i <= Register::ft11; i++) {
+    //     Registerpool.push_back(ctx->getRegister(i));
+    // }
+    // for (int i = Register::fa0; i <= Register::fa7; i++) {
+    //     Registerpool.push_back(ctx->getRegister(i));
+    // }
 }
 
 int RegAllocation::allocateStackLocation() 
