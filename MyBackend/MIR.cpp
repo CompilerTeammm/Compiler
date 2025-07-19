@@ -21,14 +21,14 @@ Register::realReg Register::getRegop()
         return realRegop;
     LOG(ERROR, "this is virtual reg!!!");
 }
-
-Register*Register::GetPhyReg(Register::realReg _Regop)
+// global is only one
+Register*Register::GetRealReg(Register::realReg _Regop)
 {
-    static std::unordered_map<realReg,std::shared_ptr<Register>> realRegMap;
+    static std::unordered_map<realReg,Register*> realRegMap;
     auto it = realRegMap.find(_Regop);
     if (it == realRegMap.end()) 
         it = realRegMap.emplace(_Regop,std::make_shared<Register> (_Regop)).first;  
-    return it->second.get();
+    return it->second;
 }
 
 

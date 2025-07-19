@@ -154,7 +154,7 @@ public:
     bool realRegister() { return flag == real; }
     realReg getRegop();
 
-    static Register* GetPhyReg(realReg);
+    static Register* GetRealReg(realReg);
 };
 
 // 地址操作符
