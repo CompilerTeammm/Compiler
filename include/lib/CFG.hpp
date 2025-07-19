@@ -812,6 +812,7 @@ public:
   // 获取基本块的最后一条指令
   // 链表最后
   Instruction *GetLastInsts() const;
+  Instruction* GetFirstInsts() const;
 
   // 替换后继块中的某个基本块
   void ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
@@ -837,6 +838,9 @@ public:
   BasicBlock *GenerateNewBlock(std::string);
   bool IsEnd(); // 是否划分
   BasicBlock *SplitAt(User *inst);
+  //遍历前驱/后继块指令
+  void ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor);
+  void ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor);
 };
 
 class BuiltinFunc : public Value

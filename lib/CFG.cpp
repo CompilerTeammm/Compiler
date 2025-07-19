@@ -1142,6 +1142,10 @@ Instruction *BasicBlock::GetLastInsts() const
     return this->GetBack();
 }
 
+Instruction* BasicBlock::GetFirstInsts() const {
+    return this->GetFront();  
+}
+
 void BasicBlock::ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
 {
     for (auto &block : NextBlocks)
@@ -1787,6 +1791,21 @@ std::pair<size_t, size_t> &Function::GetInlineInfo() {
   }
   return inlineinfo;
 }
+
+void BasicBlock::ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor) {
+  for (auto *pred : PredBlocks) {
+    for (auto *instr = pred->GetFront(); instr != nullptr; instr = instr->GetNextNode()) {
+      visitor(instr);
+    }
+  }
+}
+  void BasicBlock::ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor) {
+    for (auto *succ : NextBlocks) {
+      for (auto *instr = succ->GetFront(); instr != nullptr; instr = instr->GetNextNode()) {
+        visitor(instr);
+      }
+    }
+  }
 
 void Function::InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb) {
     for (auto it = this->begin(); it != this->end(); ++it) {
