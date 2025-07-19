@@ -27,7 +27,7 @@ class DSE:public _PassBase<DSE,Function>{
     //基本块处理顺序(逆支配顺序)
     std::vector<BasicBlock*> DFSOrder;
 
-    //初始化处理顺序
+    //初始化块遍历顺序
     void initDFSOrder();
 
     //处理单个基本块
@@ -36,5 +36,5 @@ class DSE:public _PassBase<DSE,Function>{
     //判断存储是否为死存储
     bool isDeadStore(StoreInst* st);
 
-    
+    bool hasSideEffect(Instruction* inst);
 };
