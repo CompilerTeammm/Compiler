@@ -3,6 +3,36 @@
 #include "../include/MyBackend/RISCVContext.hpp"
 
 int Register::VirtualReg = 0;
+Register::Register(std::string _name, bool Flag) : RISCVOp(_name), flag(Flag)
+{
+    if (Flag)
+        VirtualReg++;
+}
+Register::Register(realReg _Regop,bool Flag)
+               : realRegop(_Regop),flag(Flag)
+{     
+    // auto x = magic_enum::enum_name(_Regop);
+    // std::string str(x);
+    // setName(str);
+}
+Register::realReg Register::getRegop()  
+{ 
+    if(realRegister()) 
+        return realRegop;
+    LOG(ERROR, "this is virtual reg!!!");
+}
+
+Register*Register::GetPhyReg(Register::realReg _Regop)
+{
+    static std::unordered_map<realReg,std::shared_ptr<Register>> realRegMap;
+    auto it = realRegMap.find(_Regop);
+    if (it == realRegMap.end()) 
+        it = realRegMap.emplace(_Regop,std::make_shared<Register> (_Regop)).first;  
+    return it->second.get();
+}
+
+
+
 
 std::string  RISCVInst::ISAtoAsm()
 {
@@ -51,6 +81,7 @@ std::string  RISCVInst::ISAtoAsm()
 std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
 {
     succBlocks.clear();
+    auto it = cur_bb->GetParent();
     DominantTree tree(cur_bb->GetParent());
     tree.BuildDominantTree();
     auto succBlocks = tree.getSuccBBs(cur_bb);

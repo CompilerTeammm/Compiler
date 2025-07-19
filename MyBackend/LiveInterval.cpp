@@ -108,19 +108,22 @@ void LiveInterval::CalcuLiveIntervals()
 
         int flag = 0;
         RISCVInst *recordInst = nullptr;
-        for (auto inst = block->rbegin(); inst != block->rend(); --bb)
+        for (auto inst = block->rbegin(); inst != block->rend(); --inst)
         {
             auto def = block->getLiveDef();
             for(auto op: (*inst)->getOpsVec())
             {
                 if ( Register* use = dynamic_cast<Register*>(op.get()))
                 {
+                    if (use->flag == 0)
+                        continue;
                     if(def.find(use) == def.end()) 
                         continue;
                     else {
                         recordInst = *inst;
-                        auto& it = regLiveIntervals[use];
-                        it.back()->start = RecordInstAndOrder[recordInst];
+                        auto& vec = regLiveIntervals[use];
+                        auto& vecback = vec.back();
+                        vecback->start = RecordInstAndOrder[recordInst];
                     }
                 }
             }

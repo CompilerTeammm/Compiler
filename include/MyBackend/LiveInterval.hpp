@@ -27,7 +27,7 @@ class LiveInterval
     RISCVFunction* curfunc;
     std::shared_ptr<RISCVContext> ctx;
     // bbInfos records the bb with its start and end
-
+public:
     struct range
     {
         int start;
@@ -35,6 +35,7 @@ class LiveInterval
         range(int s, int e) : start(s), end(e) {}
     };
     using rangeInfoptr = std::shared_ptr<range>;
+private:
     std::map<RISCVBlock*,rangeInfoptr> bbInfos;
 
     std::map<Register*,std::vector<rangeInfoptr>> regLiveIntervals;
@@ -44,4 +45,7 @@ public:
                 :liveInfo(_curfunc,_ctx),bbInfos{},curfunc(_curfunc),ctx(_ctx)  {  }
 
     void run();
+    std::map<Register*,std::vector<rangeInfoptr>>& getIntervals() {
+        return regLiveIntervals;
+    }
 };
