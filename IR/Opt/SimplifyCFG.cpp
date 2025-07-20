@@ -5,81 +5,30 @@ bool SimplifyCFG::run() {
 }
 
 //子优化顺序尝试
-//    bool SimplifyCFG::SimplifyCFGFunction(Function* func) {
-//     bool changed=false;
-//     int maxpass=10;
+   bool SimplifyCFG::SimplifyCFGFunction(Function* func) {
+    bool changed=false;
+    int maxpass=10;
 
-//     do {
-//         // 每次创建新的block列表（防止迭代器失效）
-//         auto blocks = func->GetBBs(); // 假设有这个方法
-        
-//         // 优化顺序调整（先处理简单变换）
-//         changed |= simplifyBranch(func);       // 先处理条件跳转
-//         changed |= mergeEmptyReturnBlocks(func); // 合并返回块
-//         changed |= eliminateTrivialPhi(func);    // 清理phi
-//         changed |= mergeBlocks(func);            // 合并块
-//         changed |= removeUnreachableBlocks(func);// 最后删除死块
-
-//         if (--maxpass <= 0) {
-//             std::cerr << "WARN: Exceeded max optimization passes\n";
-//             break;
-//         }
-//     } while (changed);
-//     return changed;
-//    }
-
-
-bool SimplifyCFG::SimplifyCFGFunction(Function* func) {
-    bool changed = false;
-
-    // 1. 先合并常量返回块（不涉及 CFG）
-    changed |= mergeEmptyReturnBlocks(func);
-    int maxpass=5;
-    bool localChanged = false;
     do {
-        localChanged = false;
+        changed = false;
+        // 每次创建新的block列表（防止迭代器失效）
+        auto blocks = func->GetBBs(); // 假设有这个方法
+        
+        // 优化顺序调整（先处理简单变换）
+        changed |= removeUnreachableBlocks(func);  // 先清理不可达块
+        changed |= simplifyBranch(func);          // 简化分支
+        changed |= eliminateTrivialPhi(func);     // 清理phi
+        changed |= mergeBlocks(func);             // 合并块
+        changed |= mergeEmptyReturnBlocks(func);  // 合并返回块
 
-        // 构建块列表（每轮重新构建）
-        std::vector<BasicBlock*> blocks;
-        for (auto& bb_ptr : func->GetBBs()) {
-            blocks.push_back(bb_ptr.get());
+        if (--maxpass <= 0) {
+            std::cerr << "WARN: Exceeded max optimization passes\n";
+            break;
         }
+    } while (changed);
+    return changed;
+   }
 
-        // 2. 简化 br i1 true/false
-        for (auto* bb : blocks) {
-            localChanged |= simplifyBranch(bb);
-        }
-
-        // 3. 清除死块（为 mergeBlocks 和 phi 提供干净 CFG）
-        localChanged |= removeUnreachableBlocks(func);
-
-        // 更新 block 列表
-        blocks.clear();
-        for (auto& bb_ptr : func->GetBBs()) {
-            blocks.push_back(bb_ptr.get());
-        }
-
-        // 4. 合并线性块（前驱=1, 无 phi）
-        for (auto* bb : blocks) {
-            localChanged |= mergeBlocks(bb);
-        }
-
-        // 5. 清除无用 phi（只有一个值、来自死块的已清理）
-        for (auto* bb : blocks) {
-            localChanged |= eliminateTrivialPhi(bb);
-        }
-
-        changed |= localChanged;
-    } while (localChanged && --maxpass>0);
-}
-// bool SimplifyCFG::SimplifyCFGBasicBlock(BasicBlock* bb){
-//     bool changed=false;
-//     changed |=simplifyBranch(bb);
-//     changed |=mergeBlocks(bb);
-//     changed |=eliminateTrivialPhi(bb);
-
-//     return changed;
-// }
 
 //辅助函数群:
 bool SimplifyCFG::hasOtherRetInst(Function* func,BasicBlock* bb_){
@@ -434,279 +383,185 @@ bool SimplifyCFG::removeUnreachableBlocks(Function* func) {
 //     return changed;
 // }
 
-
-bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
-    if(!bb||bb->Size()==0){
-        return false;
-    }
-    //获取基本块最后一条指令
-    Instruction* lastInst=bb->GetBack();
-
-    //判断是否条件跳转指令
-    if (!lastInst || lastInst->id != Instruction::Op::Cond) {
-        return false;
-    }
-    auto* condInst=dynamic_cast<CondInst*>(lastInst);
-    if(!condInst){
-        return false;
-    }
-    //获取条件操作数和两个基本块
-    Value* cond=condInst->GetUserUseList()[0]->GetValue();
-    BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(condInst->GetUserUseList()[1]->GetValue());
-    BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(condInst->GetUserUseList()[2]->GetValue());
-    //确认`目标基本块合法
-    if(!trueBlock||!falseBlock){
-        return false;
-    }
-    // 跳转块中是否有副作用？
-    if (blockHasSideEffect(trueBlock) || blockHasSideEffect(falseBlock)) {
-        std::cerr << "[simplifyBranch] Skip branch with side-effected targets: " << bb->GetName() << "\n";
-        return false;
-    }
-    //判断条件是否是常量函数
-    auto* c=dynamic_cast<ConstIRBoolean*>(cond);
-    if(!c){
-        std::cerr << "[simplifyBranch] Not a constant boolean condition in block: " << bb->GetName() << "\n";
-        return false;
-    }
-    BasicBlock* targetBlock=c->GetVal() ? trueBlock:falseBlock;
-    //创建无条件跳转指令,替换原条件跳转指令
-    auto oldInst=bb->GetLastInsts();
-    bb->erase(oldInst);
-    Instruction* uncondBr=new UnCondInst(targetBlock);
-    bb->push_back(uncondBr);
-
-    //更新CFG
-    bb->RemoveNextBlock(trueBlock);
-    bb->RemoveNextBlock(falseBlock);
-    trueBlock->RemovePredBlock(bb);
-    falseBlock->RemovePredBlock(bb);
-
-    bb->AddNextBlock(targetBlock);
-    targetBlock->AddPredBlock(bb);
-
-
-    std::cerr << "[simplifyBranch] Simplified to: br label %" << targetBlock->GetName() << "\n";
-    return true;
-}
-
 //新合并基本块
-bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
-    //条件1 只有一个后继
-    if(bb->GetNextBlocks().size()!=1) return false;
-
-    BasicBlock* succ = bb->GetNextBlocks()[0];
-
-    //条件2 不能合并到自身(防止循环)
-    if(succ==bb) return false;
-
-    //3 后继必须只有当前块一个前驱
-    if (succ->GetPredBlocks().size() != 1 || succ->GetPredBlocks()[0] != bb)
-        return false;
-    //4 后继块不能有phi
-    if(!succ->Size()==0 &&dynamic_cast<PhiInst*>(succ->front)){//这里判断条件没问题吧?
-        return false;
-    }    
-
-    //步骤1 移除当前块的终止指令
-    bb->pop_back();
-
-    //2 将后继块指令移到当前块
-    while(!succ->Size()==0){
-        Instruction* inst=succ->pop_front();
-        bb->push_back(inst);
-    }
-
-    //3 更新CFG
-    //将succ的后继变为bb的后继
-    for(auto succsucc:succ->GetNextBlocks()){
-        succsucc->RemovePredBlock(succ);
-        succsucc->AddPredBlock(bb);
-        bb->AddNextBlock(succsucc);
-    }
-
-    //断开连接
-    bb->RemoveNextBlock(succ);
-    func->RemoveBBs(succ);
-
-    return true;
-}
-
-//合并基本块(no phi)
-//不过只能合并线性路径,后面要补充
 // bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
-//     //获取后继块
-//     if(bb->GetNextBlocks().size()!=1){
-//         return false;
-//     }
-//     auto succ=bb->GetNextBlocks()[0];
-//     //后继不能是自身,避免死循环
-//     if(succ==bb){
-//         return false;
-//     }
-//     //判断succ是否只有bb一个前驱
-//     if(succ->GetPredBlocks().size()!=1||succ->GetPredBlocks()[0]!=bb){
-//         return false;
-//     }
+//     //条件1 只有一个后继
+//     if(bb->GetNextBlocks().size()!=1) return false;
 
-//     //不合并含phi的块
-//     if(!succ->Size()==0 && succ->front->id==Instruction::Op::Phi){
-//         return false;
-//     }
-//     if(bb->Size()==0 || !bb->GetBack()->IsTerminateInst()){
-//         return false;
-//     }
+//     BasicBlock* succ = bb->GetNextBlocks()[0];
 
-//     //ok,那满足条件,合并
-//     //移除bb中的terminator指令(一般是br)
-//     bb->GetBack()->EraseFromManager();
-//     while (succ->Size() > 0) {
-//         Instruction *inst = succ->pop_front();
+//     //条件2 不能合并到自身(防止循环)
+//     if(succ==bb) return false;
+
+//     //3 后继必须只有当前块一个前驱
+//     if (succ->GetPredBlocks().size() != 1 || succ->GetPredBlocks()[0] != bb)
+//         return false;
+//     //4 后继块不能有phi
+//     if(!succ->Size()==0 &&dynamic_cast<PhiInst*>(succ->front)){//这里判断条件没问题吧?
+//         return false;
+//     }    
+
+//     //步骤1 移除当前块的终止指令
+//     bb->pop_back();
+
+//     //2 将后继块指令移到当前块
+//     while(!succ->Size()==0){
+//         Instruction* inst=succ->pop_front();
 //         bb->push_back(inst);
 //     }
-//     //更新CFG
 
-//     //succ的后继接到bb上
-//     auto nexts=succ->GetNextBlocks();
-//     for(auto succsucc:nexts){
-//         succsucc->RemovePredBlock(succ);
+//     //3 更新CFG
+//     //将succ的后继变为bb的后继
+//     for(auto succsucc:succ->GetNextBlocks()){
+        // succsucc->RemovePredBlock(succ);
 //         succsucc->AddPredBlock(bb);
 //         bb->AddNextBlock(succsucc);
 //     }
 
-//     //断开bb与succ
+//     //断开连接
 //     bb->RemoveNextBlock(succ);
-//     succ->RemovePredBlock(bb);
-
 //     func->RemoveBBs(succ);
+
 //     return true;
 // }
 
-//消除无意义phi
-// bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
-//     bool changed=false;
-
-//     //遍历当前基本块中所有指令
-//     for(auto it=bb->begin();it!=bb->end();){
-//         Instruction* inst=*it;
-
-//         //isphi?
-//         if(inst->id==Instruction::Op::Phi){
-            
-//             //是否只有一个输入来源块
-//             std::unordered_set<BasicBlock*> incomingBlocks;
-//             for(size_t i=0;i<inst->GetOperandNums();i+=2){
-//                 if(auto* pred = dynamic_cast<BasicBlock*>(inst->GetOperand(i+1))){
-//                     incomingBlocks.insert(pred);
-//                 }
-//             }
-
-//             //主干phi,来源块>=2
-//             if(incomingBlocks.size()>=2 && blockHasSideEffect(bb)){
-//                 std::cerr << "[eliminateTrivialPhi] Skip phi in block with side effects: " << bb->GetName() << "\n";
-//                 ++it;
-//                 continue;
-//             }
-//             //输入只有一个来源,也可以删掉
-//             if(inst->GetOperandNums()==2){
-//                 inst->ReplaceAllUseWith(inst->GetOperand(0));
-//                 auto to_erase=it;
-//                 ++it;
-//                 bb->erase(*to_erase);
-//                 changed=true;
-//                 continue;
-//             }
-            
-//             bool has_undef = false;
-//             Value* same=nullptr;
-//             bool all_same=true;
-
-//             //遍历所有phi的输入值
-//             for(size_t i=0;i<inst->GetOperandNums();i+=2){
-//                 Value* val=inst->GetOperand(i);
-//                 if (dynamic_cast<UndefValue*>(val)) {
-//                     has_undef = true;
-//                     continue;
-//                 }
-//                 if(!same){
-//                     same=val;
-//                 }else if(val!=same){
-//                     all_same=false;
-//                     break;
-//                 }
-//             }
-
-//             //所有输入值相同,可以替换   
-//             if(same==nullptr){
-//                 //所有输入都是undef或self,替换为undef
-//                 auto undef=UndefValue::Get(inst->GetType());
-//                 inst->ReplaceAllUseWith(undef);
-//                 auto to_erase=it;
-//                 ++it;
-//                 bb->erase(*to_erase);
-//                 changed=true;
-//                 continue;
-//             }
-//             if(all_same){
-//                 inst->ReplaceAllUseWith(same);
-                
-//                 auto to_erase=it;
-//                 ++it;
-//                 bb->erase(*to_erase);
-                
-//                 changed=true;
-//                 continue;
-//             }
-//         }
-//         ++it;
-//     }
-//     return changed;
-// }
-
-//新消除无意义phi
-bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
+bool SimplifyCFG::mergeBlocks(Function* func){
     bool changed = false;
-    std::vector<PhiInst*> worklist;
 
-    //步骤1 收集所有phi指令
-    for(auto it=bb->begin();it!=bb->end();++it){
-        if(auto phi=dynamic_cast<PhiInst*>(*it)){
-            worklist.push_back(phi);
-        }else{
-            break;
+    for(auto bbIt = func->begin(); bbIt != func->end(); ++bbIt){
+        BasicBlock* bb = *bbIt;
+        if (!bb || bb->Size() == 0) continue;
+        // 条件1：只有一个后继（使用List方法判断）
+        BasicBlock* succ = nullptr;
+        int succCount = 0;
+        for(auto succit=bb->succ_begin();succit!=bb->succ_end();++succit){
+
+        }
+
+    }
+}
+
+//list √
+bool SimplifyCFG::simplifyBranch(Function* func){
+    bool changed=false;
+
+    for(auto it = func->begin(); it != func->end(); ++it){
+        BasicBlock* bb = *it;
+        if (!bb || bb->Size() == 0) continue;
+
+        auto* lastInst=*bb->rbegin();
+        if(lastInst==*bb->rend()) continue;
+
+        if(lastInst||lastInst->id !=Instruction::Op::Cond) continue;
+
+        auto* condInst=dynamic_cast<CondInst*>(lastInst);
+        if(!condInst) continue;
+
+        //获取条件操作数和两个基本块
+        Value* cond=condInst->GetUserUseList()[0]->GetValue();
+        BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(condInst->GetUserUseList()[1]->GetValue());
+        BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(condInst->GetUserUseList()[2]->GetValue());
+
+        if (!trueBlock || !falseBlock) continue;
+
+        //两目标块相同
+        if (trueBlock == falseBlock){
+            Instruction* uncondBr=new UnCondInst(trueBlock);
+
+            bb->erase(lastInst);
+            bb->push_back(uncondBr);
+
+            bb->RemoveNextBlock(trueBlock);
+            bb->RemoveNextBlock(falseBlock);
+            trueBlock->RemovePredBlock(bb);
+            falseBlock->RemovePredBlock(bb);
+            
+            bb->AddNextBlock(trueBlock);
+            trueBlock->AddPredBlock(bb);
+
+            changed=true;
+            continue;
+        }
+
+        //条件为常量bool
+        auto* c=dynamic_cast<ConstIRBoolean*>(cond);
+        if(c){
+            BasicBlock* targetBlock=c->GetVal() ? trueBlock : falseBlock;
+            BasicBlock* deadBlock = c->GetVal() ? falseBlock : trueBlock;
+
+            Instruction* uncondBr=new UnCondInst(targetBlock);
+            bb->erase(lastInst);
+            bb->push_back(uncondBr);
+
+            bb->RemoveNextBlock(trueBlock);
+            bb->RemoveNextBlock(falseBlock);
+            trueBlock->RemovePredBlock(bb);
+            falseBlock->RemovePredBlock(bb);
+
+            bb->AddNextBlock(targetBlock);
+            targetBlock->AddPredBlock(bb);
+
+            if(deadBlock->GetPredBlocks().empty()){
+                //在此就删
+                func->erase(deadBlock);
+            }
+
+            changed=true;
+            continue;
         }
     }
+    return changed;
+}
+//list √
+bool SimplifyCFG::eliminateTrivialPhi(Function* func){
+    bool changed=false;
 
-    //2 处理每个phi
-    for(auto phi:worklist){
-        Value* sameVal = nullptr;
-        bool allSame = true;
+    for(auto bbit=func->begin();bbit!=func->end();++bbit){
+        BasicBlock* bb=*bbit;
+        if(!bb||bb->Size()==0) continue;
 
-        // 检查所有输入值
-        for(size_t i = 0; i < phi->GetOperandNums(); i += 2){
-            Value* val = phi->GetUserUseList()[i]->GetValue();
-            if (dynamic_cast<UndefValue*>(val)) continue;
-
-            if(!sameVal){
-                sameVal=val;
-            }else if(val!=sameVal){
-                allSame=false;
-                break;
+        // 步骤1：收集当前块的所有phi指令
+        std::list<PhiInst*> worklist;
+        for (auto instIt = bb->begin(); instIt != bb->end(); ++instIt) {
+            if (auto phi = dynamic_cast<PhiInst*>(*instIt)) {
+                worklist.push_back(phi);
+            } else {
+                break; // phi只在块开头
             }
         }
 
-        //情况1 所有实际输入相同
-        if(allSame && sameVal){
-            phi->ReplaceAllUseWith(sameVal);
-            bb->erase(phi);
-            changed =true;
-        }
-        //2 所有输入都是undef
-        else if(!sameVal){
-            auto undef =UndefValue::Get(phi->GetType());
-            phi->ReplaceAllUseWith(undef);
-            bb->erase(phi);
-            changed=true;
+        // 步骤2：处理每个phi指令
+        for (auto phi : worklist){
+            Value* sameVal = nullptr;
+            bool allSame = true;
+
+            // 检查所有输入值
+            for (size_t i = 0; i < phi->GetOperandNums(); i += 2) {
+                Value* val = phi->GetUserUseList()[i]->GetValue();
+                if (dynamic_cast<UndefValue*>(val)) continue;
+
+                if (!sameVal) {
+                    sameVal = val;
+                } else if (val != sameVal) {
+                    allSame = false;
+                    break;
+                }
+            }
+
+            //1 所有实际输入相同
+            if (allSame && sameVal) {
+                phi->ReplaceAllUseWith(sameVal);
+                bb->erase(phi); // 使用List的erase方法
+                changed = true;
+                continue;
+            }
+            //2 所有输入都是undef
+            if (!sameVal) {
+                auto undef = UndefValue::Get(phi->GetType());
+                phi->ReplaceAllUseWith(undef);
+                bb->erase(phi); // 使用List的erase方法
+                changed = true;
+            }
         }
     }
     return changed;
