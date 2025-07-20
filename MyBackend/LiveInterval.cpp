@@ -178,7 +178,6 @@ void LiveInterval::CalcuLiveIntervals()
     }
 }
 
-
 void LiveInterval::FinalCalcu()
 {
     for(RISCVBlock* mbb :*curfunc)

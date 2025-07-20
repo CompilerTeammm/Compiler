@@ -18,7 +18,7 @@ class RegAllocation :public BackendPassBase
     std::list<std::pair<Register*,LiveInterval::rangeInfoptr>> active_list;
     std::vector<Register*> RegisterIntpool;                    // realReg  
     std::vector<Register*> RegisterFloatpool;                  // realReg  
-    std::unordered_map<Register*,Register*> activeRegs;  // map<vir,real>
+    std::map<Register*,Register*> activeRegs;  // map<vir,real>
     std::unordered_map<Register*,int> stackLocation;    // map<vir, offset>
 
 public:

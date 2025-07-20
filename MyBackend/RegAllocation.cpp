@@ -51,17 +51,18 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
     for(auto& oldInterval : tmpList)
     {
         if (oldInterval.second->end < newInterval.second->start) {
+            auto realReg = activeRegs[oldInterval.first];
             if (oldInterval.first->IsFflag())
-                RegisterFloatpool.emplace_back(oldInterval.first);
+                RegisterFloatpool.emplace_back(realReg);
             else   
-                RegisterIntpool.emplace_back(oldInterval.first);
+                RegisterIntpool.emplace_back(realReg );
 
             active_list.remove(oldInterval);
             // why???
-            if (oldInterval.first)
-            {
-                activeRegs.erase(oldInterval.first);
-            }
+            // if (oldInterval.first)
+            // {
+            //     activeRegs.erase(oldInterval.first);
+            // }
         } else {
             break;
         }
@@ -114,6 +115,7 @@ void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr> interval)
     }
 
     activeRegs[interval.first] = reg;
+ 
     active_list.emplace_back(interval);
 
     active_list.sort([](const auto &v1, const auto &v2){ 
@@ -156,6 +158,10 @@ bool RegAllocation::run()
 {
     fillLinerScaner();
     ScanLiveinterval();
+    for(auto [v,r] : activeRegs)
+    {
+        v->reWirteRegWithReal(r);
+    }
 
     return true;
 }

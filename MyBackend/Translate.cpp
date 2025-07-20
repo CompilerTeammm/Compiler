@@ -80,9 +80,10 @@ bool TransFunction::run(Function* func)
     if(!ret)   LOG(ERROR,"Phi failed");
 
     //寄存器分配算法
-    RegAllocation RA(mfunc,ctx);
-    ret = RA.run();
-    if(!ret)   LOG(ERROR,"RA failed");
+    // RegAllocation RA(mfunc, ctx);
+    // ret = RA.run();
+    // if (!ret)
+    //     LOG(ERROR, "RA failed");
 
     //约定与调用，前言与后序
     ProloAndEpilo PAE(mfunc);

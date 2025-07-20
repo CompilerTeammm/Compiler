@@ -128,8 +128,8 @@ class Register:public RISCVOp
 public:
     static int VirtualReg;
     enum FLAG {
-        real,
-        vir
+        real,   // 0
+        vir     // 1
     };
     enum realReg{
         // int  ABI name
@@ -151,12 +151,124 @@ public:
     Register(std::string _name,bool Flag = vir,int _Fflag=0 );
     Register(realReg _Regop,bool Flag = real,int _Fflag=0);
     int Fflag;
-    bool RVflag;
+    int RVflag;
     bool IsrealRegister() { return RVflag == real; }  // vir or real Reg
     bool IsFflag() { return Fflag == 1; }           // FloatReg or  IntReg
     realReg getRegop();
-
+    void setRVflag() { RVflag = real; }
+    void reWirteRegWithReal(Register* );
     static Register* GetRealReg(realReg);
+        std::string realRegToString(realReg reg) {
+    switch(reg) {
+        // 基础整数寄存器
+        case realReg::zero: return "zero";
+        case realReg::ra:   return "ra";
+        case realReg::sp:   return "sp";
+        case realReg::gp:   return "gp";
+        case realReg::tp:   return "tp";
+        case realReg::t0:   return "t0";
+        case realReg::t1:   return "t1";
+        case realReg::t2:   return "t2";
+        case realReg::s0:   return "s0";
+        case realReg::s1:   return "s1";
+        case realReg::a0:   return "a0";
+        case realReg::a1:   return "a1";
+        case realReg::a2:   return "a2";
+        case realReg::a3:   return "a3";
+        case realReg::a4:   return "a4";
+        case realReg::a5:   return "a5";
+        case realReg::a6:   return "a6";
+        case realReg::a7:   return "a7";
+        case realReg::s2:   return "s2";
+        case realReg::s3:   return "s3";
+        case realReg::s4:   return "s4";
+        case realReg::s5:   return "s5";
+        case realReg::s6:   return "s6";
+        case realReg::s7:   return "s7";
+        case realReg::s8:   return "s8";
+        case realReg::s9:   return "s9";
+        case realReg::s10:  return "s10";
+        case realReg::s11:  return "s11";
+        case realReg::t3:   return "t3";
+        case realReg::t4:   return "t4";
+        case realReg::t5:   return "t5";
+        case realReg::t6:   return "t6";
+
+        // 浮点寄存器
+        case realReg::ft0:  return "ft0";
+        case realReg::ft1:  return "ft1";
+        case realReg::ft2:  return "ft2";
+        case realReg::ft3:  return "ft3";
+        case realReg::ft4:  return "ft4";
+        case realReg::ft5:  return "ft5";
+        case realReg::ft6:  return "ft6";
+        case realReg::ft7:  return "ft7";
+        case realReg::ft8:  return "ft8";
+        case realReg::ft9:  return "ft9";
+        case realReg::ft10: return "ft10";
+        case realReg::ft11: return "ft11";
+        case realReg::fs0:  return "fs0";
+        case realReg::fs1:  return "fs1";
+        case realReg::fs2:  return "fs2";
+        case realReg::fs3:  return "fs3";
+        case realReg::fs4:  return "fs4";
+        case realReg::fs5:  return "fs5";
+        case realReg::fs6:  return "fs6";
+        case realReg::fs7:  return "fs7";
+        case realReg::fs8:  return "fs8";
+        case realReg::fs9:  return "fs9";
+        case realReg::fs10: return "fs10";
+        case realReg::fs11: return "fs11";
+        case realReg::fa0:  return "fa0";
+        case realReg::fa1:  return "fa1";
+        case realReg::fa2:  return "fa2";
+        case realReg::fa3:  return "fa3";
+        case realReg::fa4:  return "fa4";
+        case realReg::fa5:  return "fa5";
+        case realReg::fa6:  return "fa6";
+        case realReg::fa7:  return "fa7";
+
+        // 特殊别名（与基础寄存器共享值）
+        // case realReg::x0:   return "x0";   // = zero
+        // case realReg::x1:   return "x1";   // = ra
+        // case realReg::x2:   return "x2";   // = sp
+        // case realReg::x3:   return "x3";   // = gp
+        // case realReg::x4:   return "x4";   // = tp
+        // case realReg::x5:   return "x5";   // = t0
+        // case realReg::x6:   return "x6";   // = t1
+        // case realReg::x7:   return "x7";   // = t2
+        // case realReg::x8:   return "x8";   // = s0
+        // case realReg::x9:   return "x9";   // = s1
+        // case realReg::x10:  return "x10";  // = a0
+        // case realReg::x11:  return "x11";  // = a1
+        // case realReg::x12:  return "x12";  // = a2
+        // case realReg::x13:  return "x13";  // = a3
+        // case realReg::x14:  return "x14";  // = a4
+        // case realReg::x15:  return "x15";  // = a5
+        // case realReg::x16:  return "x16";  // = a6
+        // case realReg::x17:  return "x17";  // = a7
+        // case realReg::x18:  return "x18";  // = s2
+        // case realReg::x19:  return "x19";  // = s3
+        // case realReg::x20:  return "x20";  // = s4
+        // case realReg::x21:  return "x21";  // = s5
+        // case realReg::x22:  return "x22";  // = s6
+        // case realReg::x23:  return "x23";  // = s7
+        // case realReg::x24:  return "x24";  // = s8
+        // case realReg::x25:  return "x25";  // = s9
+        // case realReg::x26:  return "x26";  // = s10
+        // case realReg::x27:  return "x27";  // = s11
+        // case realReg::x28:  return "x28";  // = t3
+        // case realReg::x29:  return "x29";  // = t4
+        // case realReg::x30:  return "x30";  // = t5
+        // case realReg::x31:  return "x31";  // = t6
+
+        // 特殊值（如 _NULL）
+       // case realReg::_NULL: return "_NULL";
+
+        default:
+            throw std::invalid_argument("Invalid realReg value");
+        }
+    }
 };
 
 // 地址操作符

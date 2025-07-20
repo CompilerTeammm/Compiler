@@ -1,6 +1,9 @@
 #include "../include/MyBackend/MIR.hpp"
 #include "../include/IR/Analysis/Dominant.hpp"
 #include "../include/MyBackend/RISCVContext.hpp"
+#include <string>
+#include <sstream>
+
 
 int Register::VirtualReg = 0;
 Register::Register(std::string _name, bool Flag,int _Fflag) 
@@ -10,12 +13,8 @@ Register::Register(std::string _name, bool Flag,int _Fflag)
         VirtualReg++;
 }
 Register::Register(realReg _Regop,bool Flag,int _Fflag)
-               : realRegop(_Regop),RVflag(Flag),Fflag(_Fflag)
-{     
-    // auto x = magic_enum::enum_name(_Regop);
-    // std::string str(x);
-    // setName(str);
-}
+               : RVflag(Flag),Fflag(_Fflag),realRegop(_Regop)
+{      }
 Register::realReg Register::getRegop()  
 { 
     if(IsrealRegister()) 
@@ -32,6 +31,12 @@ Register*Register::GetRealReg(Register::realReg _Regop)
     return it->second;
 }
 
+void Register::reWirteRegWithReal(Register* _real)
+{
+    setRVflag();
+    auto op = _real->getRegop();
+    setName(realRegToString(op));
+}
 
 
 std::string  RISCVInst::ISAtoAsm()
