@@ -14,7 +14,7 @@ bool RISCVContext::dealGlobalVal(Value* val)
 {
     auto text = std::make_shared<TextSegment> (val);
     addText(text);
-    
+    valToText[val] = text; // val linked with text
     return true;
 }
 
@@ -121,6 +121,12 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
 RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 {
     RISCVInst* Inst = nullptr;
+
+    if( dynamic_cast<GepInst*>(inst->GetPrevNode()))
+    {
+        // really ??? 
+        return nullptr;
+    }
 
     if ( inst->GetOperand(0)->isGlobal())
     {   // global 的lw 应该不需要记录，因为这个全局加载
@@ -646,7 +652,22 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 // 处理数组
 RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
 {
-    return nullptr;
+    Value* globlVal = inst->GetOperand(0);
+    Value* num = inst->GetOperand(2);
+    auto text = valToText[globlVal];
+    std::vector<std::variant<int , float>>&  vec = text->getInitVec();
+    int offsetVec = std::stoi(num->GetName());
+    auto val = vec[offsetVec];
+
+    RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+    liInst->SetVirRegister();
+    if(text->setArrIntOrFloat() == 0 ) { // int
+        liInst->SetImmOp(std::to_string(std::get<int> (val)));
+    } else {  // float
+        liInst->SetImmOp(std::to_string(std::get<float> (val)));
+    }
+    
+    return liInst;
 }
 
 // maybe need not to deal those!!!

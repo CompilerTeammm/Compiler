@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11)
-project(Compiler)
+project(compiler)
 
 set(CMAKE_MESSAGE_LOG_LEVEL ERROR) 
 
@@ -53,5 +53,5 @@ list(REMOVE_ITEM ALL_HEADERS
     include/IR/Opt/AnalysisManager.hpp
 )
 
-add_executable(Compiler ${SOURCES})
+add_executable(compiler ${SOURCES})
 

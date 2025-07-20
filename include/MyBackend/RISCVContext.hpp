@@ -15,9 +15,10 @@ public:
 private:
     std::map<Value*,RISCVOp*> valToRiscvOp;
 
-    // texts
+    // texts  arr 的维护
     using TextPtr = std::shared_ptr<TextSegment>; 
     std::vector<TextPtr> Texts;
+    std::map<Value*,TextPtr> valToText;
 
     // moudle 里面维护好Mfuncs
     using MFuncPtr = std::shared_ptr<RISCVFunction>;

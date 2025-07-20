@@ -22,12 +22,12 @@ public:
 
     using ArrFlag = int;
     ArrFlag& getArrFlag() { return flag; }
-
+    int& setArrIntOrFloat() { return ArrIntOrFloat; }
     void TextInit();
     void TextPrint();
     std::string translateType();
     void generate_array_init(Initializer* arry_init, Type* basetype);
-    
+    std::vector<std::variant<int , float>>& getInitVec() { return init_vector; }
     template<typename T> 
     void arrPrint(int& zeroFlag, int& sum);
 private:
@@ -38,6 +38,7 @@ private:
     std::string word;
     ArrFlag flag;
     Value* value;
+    int ArrIntOrFloat;   // 0  --》 int    1  ---> float
     std::vector<std::variant<int , float>> init_vector;
 };
 

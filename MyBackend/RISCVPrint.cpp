@@ -2,6 +2,11 @@
 #include "../include/lib/Type.hpp"
 
 void TextSegment::generate_array_init(Initializer* arry_init, Type* basetype) {
+    if(basetype->GetTypeEnum() == IR_Value_INT) {
+        setArrIntOrFloat() = 0 ;
+    } else {
+        setArrIntOrFloat() = 1;
+    }
     int init_size = arry_init->size();
     int limi = dynamic_cast<ArrayType*>(arry_init->GetType())->GetNum();
     if (init_size == 0) {
@@ -132,12 +137,25 @@ void TextSegment::FillTheWord(size_t defaultSize)
 void TextSegment::TextInit()
 {
     auto var = dynamic_cast<Var*> (value);
-    if(var->GetInitializer() != nullptr      // Initializer 继承自 vector 
-      && dynamic_cast<Initializer*>(var->GetInitializer())->size()!=0) {   // type
+    Value* init = var->GetInitializer();
+    if(init != nullptr)  {
         type = data;
-    } else {
+        if(init->GetTypeEnum() == IR_ARRAY && 
+           dynamic_cast<Initializer*>(var->GetInitializer())->size() == 0) 
+        {
+            type = bss;
+        }
+    }
+    else {
         type = bss;
     }
+
+    // if(var->GetInitializer() != nullptr      // Initializer 继承自 vector 
+    //   && dynamic_cast<Initializer*>(var->GetInitializer())->size()!=0) {   // type
+    //     type = data;
+    // } else {
+    //     type = bss;
+    // }
     name = var->GetName();               // name
     if ( var->GetTypeEnum() == IR_PTR)
     {
