@@ -10,20 +10,21 @@ RegisterVec::RegisterVec()
     };
     // int      t2   a0-a7 t3-t6  s1-s11       24
     // t0 & t1 will not be regalloced, and it is real temp register
-    intRegVec.push_back(Register::GetRealReg(realReg::t2));
     while(regOp<=realReg::a7) {
       appendReg(intRegVec);
     }
-    regOp = realReg::t3;
-    while(regOp<=realReg::t6) {
-      appendReg(intRegVec);
-    }
+
     intRegVec.push_back(Register::GetRealReg(realReg::s1));
     regOp = realReg::s2;
     while(regOp<=realReg::s11) {
       appendReg(intRegVec);
     }
-
+    
+    intRegVec.push_back(Register::GetRealReg(realReg::t2));
+    regOp = realReg::t3;
+    while(regOp<=realReg::t6) {
+      appendReg(intRegVec);
+    }
     // float  ft0-ft11  fa0-fa7  fs0-fs11      32
     regOp = realReg::ft0;
     while(regOp<=realReg::ft11) {

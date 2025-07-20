@@ -45,6 +45,13 @@ void RegAllocation::fillLinerScaner()
               });
 }
 
+void RegAllocation::initializeRegisterPool()
+{
+    RegisterVec& vecs = RegisterVec::GetRegVecs();
+    RegisterIntpool = vecs.GetintRegVec();
+    RegisterFloatpool = vecs.GetfloatRegVec();
+}
+
 void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeInfoptr> newInterval)
 {
     auto tmpList = active_list;  // security
@@ -58,7 +65,7 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
                 RegisterIntpool.emplace_back(realReg );
 
             active_list.remove(oldInterval);
-            // why???
+            
             // if (oldInterval.first)
             // {
             //     activeRegs.erase(oldInterval.first);
@@ -67,6 +74,15 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
             break;
         }
     }
+}
+
+
+// Todo 溢出未考虑到， LiveReg 需要进行处理
+// activeRegs;     map<vir,real> --> 虚拟寄存器分配的实际寄存器
+// 如果发生溢出的话，应该有变量被搞出来，需要记录变量在那条语句被溢出了
+int RegAllocation::allocateStackLocation() 
+{
+    return 0;
 }
 
 void RegAllocation::spillInterval(std::pair<Register*,rangeInfoptr> interval)
@@ -123,17 +139,6 @@ void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr> interval)
                     });
 }
 
-void RegAllocation::initializeRegisterPool()
-{
-    RegisterVec& vecs = RegisterVec::GetRegVecs();
-    RegisterIntpool = vecs.GetintRegVec();
-    RegisterFloatpool = vecs.GetfloatRegVec();
-}
-
-int RegAllocation::allocateStackLocation() 
-{
-    return 0;
-}
 
 void RegAllocation::ScanLiveinterval()
 {
@@ -153,15 +158,20 @@ void RegAllocation::ScanLiveinterval()
         }
     }
 }
+// 溢出尚且未考虑到
+void RegAllocation::ReWriteRegs()
+{
+    for(auto [v,r] : activeRegs)
+    {
+        v->reWirteRegWithReal(r);
+    }
+}
 
 bool RegAllocation::run()
 {
     fillLinerScaner();
     ScanLiveinterval();
-    for(auto [v,r] : activeRegs)
-    {
-        v->reWirteRegWithReal(r);
-    }
+    ReWriteRegs();
 
     return true;
 }
