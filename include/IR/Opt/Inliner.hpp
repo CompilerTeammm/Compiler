@@ -60,7 +60,7 @@ class Inliner {
 public:
     explicit Inliner(Module* m);
 
-    bool Run();
+    bool run();
 
     bool Inline(Module* m);
     void init(Module* m);
@@ -69,7 +69,7 @@ public:
 private:
     bool InlineCall(CallInst* call);
 
-    std::vector<BasicBlock*> CopyBlocks(User* callSite);
+    std::vector<BasicBlock*> CopyBlocks(CallInst* callSite);
 
     void HandleVoidRet(BasicBlock* splitBlock, std::vector<BasicBlock*>& blocks);
 

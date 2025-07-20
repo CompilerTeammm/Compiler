@@ -1142,6 +1142,10 @@ Instruction *BasicBlock::GetLastInsts() const
     return this->GetBack();
 }
 
+Instruction* BasicBlock::GetFirstInsts() const {
+    return this->GetFront();  
+}
+
 void BasicBlock::ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
 {
     for (auto &block : NextBlocks)
@@ -1649,6 +1653,22 @@ Function &Module::GenerateFunction(IR_DataType _tp, std::string _id)
     return *functions.back();
 }
 
+bool Module::EraseDeadFunc() {
+  std::vector<Function *> erase;
+  bool changed = false;
+  for (auto &func : functions) {
+    if (func->GetValUseListSize() == 0 && func->GetName() != "main") {
+      erase.push_back(func.get());
+      changed = true;
+    }
+  }
+  if (!erase.empty())
+    for (auto func : erase) {
+      EraseFunction(func);
+    }
+  return changed;
+}
+
 UndefValue *UndefValue::Get(Type *_ty)
 {
     static std::map<Type *, UndefValue *> Undefs;
@@ -1771,6 +1791,32 @@ std::pair<size_t, size_t> &Function::GetInlineInfo() {
   }
   return inlineinfo;
 }
+
+void BasicBlock::ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor) {
+  for (auto *pred : PredBlocks) {
+    for (auto *instr = pred->GetFront(); instr != nullptr; instr = instr->GetNextNode()) {
+      visitor(instr);
+    }
+  }
+}
+  void BasicBlock::ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor) {
+    for (auto *succ : NextBlocks) {
+      for (auto *instr = succ->GetFront(); instr != nullptr; instr = instr->GetNextNode()) {
+        visitor(instr);
+      }
+    }
+  }
+
+void Function::InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb) {
+    for (auto it = this->begin(); it != this->end(); ++it) {
+        if (*it == pos) {
+            it.InsertAfter(new_bb);
+            return;
+        }
+    }
+    assert(false && "InsertBlockAfter: pos block not found in function");
+}
+
 
 std::pair<Value *, BasicBlock *> Function::InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping)
 {

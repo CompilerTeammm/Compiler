@@ -812,6 +812,7 @@ public:
   // 获取基本块的最后一条指令
   // 链表最后
   Instruction *GetLastInsts() const;
+  Instruction* GetFirstInsts() const;
 
   // 替换后继块中的某个基本块
   void ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
@@ -837,6 +838,9 @@ public:
   BasicBlock *GenerateNewBlock(std::string);
   bool IsEnd(); // 是否划分
   BasicBlock *SplitAt(User *inst);
+  //遍历前驱/后继块指令
+  void ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor);
+  void ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor);
 };
 
 class BuiltinFunc : public Value
@@ -902,6 +906,9 @@ public:
   std::pair<Value *, BasicBlock *> InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping);
   std::pair<size_t,size_t>& GetInlineInfo();
   inline void ClearInlineInfo(){inlineinfo.first=inlineinfo.second=0;};
+
+  //封装了一个链表操作ww
+  void InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb); 
 };
 
 class Module : public SymbolTable

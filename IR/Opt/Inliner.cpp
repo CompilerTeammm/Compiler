@@ -45,7 +45,7 @@ Inliner::Inliner(Module* m) : module_(m) {
     heuristic_ = InlineHeuristic::CreateDefaultHeuristic(module_);
 }
 
-bool Inliner::Run() {
+bool Inliner::run() {
     bool modified = false;
     init(module_);
     modified |= Inline(module_);
@@ -96,6 +96,13 @@ bool Inliner::InlineCall(CallInst* call) {
     if (copiedBlocks.empty())
         return false;
 
+    Function* caller = call->GetParent()->GetParent();
+    BasicBlock* insert_after = call->GetParent();
+    for (auto* new_bb : copiedBlocks) {
+        caller->InsertBlockAfter(insert_after, new_bb);
+        insert_after = new_bb; // 继续往后插入
+    }
+
     if (call->GetTypeEnum() == IR_Value_VOID) {
         HandleVoidRet(call->GetParent(), copiedBlocks);
     } else {
@@ -107,14 +114,14 @@ bool Inliner::InlineCall(CallInst* call) {
             }
         }
     }
-
+    call->DropAllUsesOfThis();
     call->GetParent()->erase(call);
     return true;
 }
 
-std::vector<BasicBlock *> Inliner::CopyBlocks(User *inst)
+std::vector<BasicBlock *> Inliner::CopyBlocks(CallInst *call)
 {
-    Function *Func = dynamic_cast<Function *>(inst->GetUserUseList()[0]->usee);
+    Function *Func = dynamic_cast<Function *>(call->GetCalledFunction());
     std::unordered_map<Operand, Operand> OperandMapping;
 
     std::vector<BasicBlock *> copied_bbs;
@@ -122,7 +129,7 @@ std::vector<BasicBlock *> Inliner::CopyBlocks(User *inst)
     for (auto &param : Func->GetParams())
     {
         Value *Param = param.get();
-        OperandMapping[Param] = inst->GetUserUseList()[num]->usee;
+        OperandMapping[Param] = call->GetUserUseList()[num]->usee;
         num++;
     }
     for (BasicBlock *block : *Func)
@@ -130,33 +137,33 @@ std::vector<BasicBlock *> Inliner::CopyBlocks(User *inst)
     return copied_bbs;
 }
 
-// void Inliner::HandleVoidRet(BasicBlock *spiltBlock, std::vector<BasicBlock *> &blocks)
-// {
-//     for (BasicBlock *block : blocks)
-//     {
-//         User *inst = block->back();
-//         if (dynamic_cast<RetInst *>(inst))
-//         {
-//             UnCondInst *Br = new UnCondInst(spiltBlock);
-//             inst->ClearRelation();
-//             inst->EraseFromParent();
-//             block->push_back(Br);
-//         }
-//     }
-// }
+void Inliner::HandleVoidRet(BasicBlock *spiltBlock, std::vector<BasicBlock *> &blocks)
+{
+    for (BasicBlock *block : blocks)
+    {
+        Instruction *inst = block->GetBack();
+        if (dynamic_cast<RetInst *>(inst))
+        {
+            UnCondInst *Br = new UnCondInst(spiltBlock);
+            inst->DropAllUsesOfThis();
+            inst->EraseFromManager();
+            block->push_back(Br);
+        }
+    }
+}
 
-// void Inliner::HandleRetPhi(BasicBlock *RetBlock, PhiInst *Phi, std::vector<BasicBlock *> &blocks)
-// {
-//     for (BasicBlock *block : blocks)
-//     {
-//         User *inst = block->back();
-//         if (dynamic_cast<RetInst *>(inst))
-//         {
-//             Phi->updateIncoming(inst->GetUserUseList()[0]->usee, block);
-//             UnCondInst *Br = new UnCondInst(RetBlock);
-//             inst->ClearRelation();
-//             inst->EraseFromParent();
-//             block->push_back(Br);
-//         }
-//     }
-// }
+void Inliner::HandleRetPhi(BasicBlock *RetBlock, PhiInst *Phi, std::vector<BasicBlock *> &blocks)
+{
+    for (BasicBlock *block : blocks)
+    {
+        Instruction *inst = block->GetBack();
+        if (dynamic_cast<RetInst *>(inst))
+        {
+            Phi->addIncoming(inst->GetUserUseList()[0]->usee, block);
+            UnCondInst *Br = new UnCondInst(RetBlock);
+            inst->DropAllUsesOfThis();
+            inst->EraseFromManager();
+            block->push_back(Br);
+        }
+    }
+}
