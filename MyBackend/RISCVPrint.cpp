@@ -209,7 +209,7 @@ void TextSegment::arrPrint(int& zeroFlag, int& zeroSizesum)
 
 void TextSegment::TextPrint()
 {
-    std::cout << "    " <<".global"<<"	"<< name << std::endl; 
+    std::cout << "    " <<".globl"<<"	"<< name << std::endl; 
     std::cout << "    " << translateType() <<std::endl; 
     std::cout << "    " <<".align"<<"	"<< std::to_string(align) << std::endl; 
     std::cout << "    " <<".type"<<"  "<< name <<", "<<"@object"<< std::endl; 
@@ -255,8 +255,6 @@ void RISCVPrint::printPrefix()
     std::cout << "    " <<".attribute unaligned_access, 0" << std::endl;
     std::cout << "    " <<".attribute stack_align, 16" << std::endl;
     std::cout << "    " <<".text" << std::endl;
-    std::cout << "    " <<".section	.text.startup,\"ax\",@progbits" << std::endl;
-
 }
 
 //	.size	main, .-main
@@ -314,6 +312,9 @@ void RISCVPrint::printAsm()
     for(auto func : funcs)
     {
         // RISCVFunction
+        std::cout << "    .align 1"<< std::endl;
+        std::cout << "    .globl " << func->getName() << std::endl;
+        std::cout << "    .type  "<< func->getName() << ", @function" << std::endl;
         std::cout  << func->getName() << ": " <<std::endl;
         printFuncPro(func.get());
 

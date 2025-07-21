@@ -129,7 +129,7 @@ void ProloAndEpilo::SetsdS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 }
 void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("sp",Register::real);
+    inst->SetRegisterOp("s0",Register::real);
     inst->SetRegisterOp("sp",Register::real);
     
     inst->SetImmOp(std::to_string(size));
