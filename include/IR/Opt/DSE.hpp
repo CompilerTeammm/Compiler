@@ -34,7 +34,9 @@ class DSE:public _PassBase<DSE,Function>{
     bool processBlock(BasicBlock* bb);
 
     //判断存储是否为死存储
-    bool isDeadStore(StoreInst* st);
-
+    bool isDeadStore(StoreInst* st,BasicBlock* bb);
+    bool isDeadAfter(Value* addr, BasicBlock* bb,
+        std::unordered_set<BasicBlock*>& visited,
+        Instruction* start);
     bool hasSideEffect(Instruction* inst);
 };

@@ -24,7 +24,7 @@
 #define sccp
 // #define gvn
 //#define pre
-#define SCFG
+//#define SCFG
 // define DSE
 // 循环优化
 // #define Loop_Simplifying
@@ -145,8 +145,12 @@ void PassManager::RunOnTest()
     }
 #endif
 #ifdef DSE
+
+    SideEffect SE(_mod);//在module级别做一次副作用分析
+    SE.GetResult();
+    
     for (auto &function : funcVec)
-    {
+    {   
         auto fun = function.get();
         DominantTree tree(fun);
         tree.BuildDominantTree();
