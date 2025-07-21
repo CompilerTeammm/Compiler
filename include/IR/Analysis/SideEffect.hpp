@@ -3,6 +3,6 @@
 #include "Dominant.hpp"
 #include "../Opt/AnalysisManager.hpp"
 
-class SideEffect:public _AnalysisBase<SideEffect, Moudle>{
+class SideEffect:public _AnalysisBase<SideEffect, Module>{
     
-}
+};
