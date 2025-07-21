@@ -30,7 +30,7 @@
 // #define Loop_Simplifying
 // #define Loop_Unrolling
 //内联优化
-#define inliner
+// #define inliner
 
 enum PassName
 {
@@ -158,5 +158,4 @@ void PassManager::RunOnTest()
     Inliner inlinerPass(&Singleton<Module>());
     inlinerPass.run();
 #endif
-
 }
