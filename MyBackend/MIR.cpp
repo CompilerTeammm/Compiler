@@ -1,6 +1,43 @@
 #include "../include/MyBackend/MIR.hpp"
+#include "../include/IR/Analysis/Dominant.hpp"
+#include "../include/MyBackend/RISCVContext.hpp"
+#include <string>
+#include <sstream>
+
 
 int Register::VirtualReg = 0;
+Register::Register(std::string _name, bool Flag,int _Fflag) 
+                  :RISCVOp(_name), RVflag(Flag),Fflag(_Fflag)
+{
+    if (Flag)
+        VirtualReg++;
+}
+Register::Register(realReg _Regop,bool Flag,int _Fflag)
+               : RVflag(Flag),Fflag(_Fflag),realRegop(_Regop)
+{      }
+Register::realReg Register::getRegop()  
+{ 
+    if(IsrealRegister()) 
+        return realRegop;
+    LOG(ERROR, "this is virtual reg!!!");
+}
+// global is only one
+Register*Register::GetRealReg(Register::realReg _Regop)
+{
+    static std::unordered_map<realReg,Register*> realRegMap;
+    auto it = realRegMap.find(_Regop);
+    if (it == realRegMap.end()) 
+        it = realRegMap.emplace(_Regop,new Register(_Regop)).first;  
+    return it->second;
+}
+
+void Register::reWirteRegWithReal(Register* _real)
+{
+    setRVflag();
+    auto op = _real->getRegop();
+    setName(realRegToString(op));
+}
+
 
 std::string  RISCVInst::ISAtoAsm()
 {
@@ -40,6 +77,20 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _feq_s) { return "feq.s"; }
     if(opCode == _seqz) { return "seqz"; }
     if(opCode == _divw )  {return "divw";}
-    
+    if(opCode == _call)  { return "call"; }
+    if(opCode == _lui) { return "lui"; }
+
     return nullptr;
+}
+
+
+
+std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
+{
+    succBlocks.clear();
+    auto it = cur_bb->GetParent();
+    DominantTree tree(cur_bb->GetParent());
+    tree.BuildDominantTree();
+    auto succBlocks = tree.getSuccBBs(cur_bb);
+    return succBlocks;
 }

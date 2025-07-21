@@ -5,18 +5,15 @@
 #include "RISCVPrint.hpp"
 #include <memory>
 
-// example.c:
-// int main()  { return 0; }
-
 template<typename TYPE>
-class TranBase 
+class TransBase 
 {
 public:
     virtual bool run(TYPE*) = 0;
 };
 
 // ctx printer this is only one in the pragram
-class TransModule:public TranBase<Module>
+class TransModule:public TransBase<Module>
 {
     // ctx 存储所有的内容  printer 打印需要打印的东西
     std::shared_ptr<RISCVContext> ctx;
@@ -29,7 +26,7 @@ public:
     ~TransModule() = default;
 };
 
-class TransFunction:public TranBase<Function>
+class TransFunction:public TransBase<Function>
 {
     std::shared_ptr<RISCVContext>& ctx;
     std::shared_ptr<RISCVPrint>& printer;
@@ -41,14 +38,16 @@ public:
     bool run(Function*) override;
 };
 
-class TransBlock:public TranBase<BasicBlock>
+class TransGlobalVal:public TransBase<Var>
 {
     std::shared_ptr<RISCVContext>& ctx;
     std::shared_ptr<RISCVPrint>& printer;
+
 public:
-    TransBlock(std::shared_ptr<RISCVContext> &_ctx,
-               std::shared_ptr<RISCVPrint> &_printer)
-              : ctx(_ctx), printer(_printer) {}
-            
-    bool run(BasicBlock *) override;
+    TransGlobalVal(std::shared_ptr<RISCVContext> &_ctx,
+                  std::shared_ptr<RISCVPrint> &_printer)
+        : ctx(_ctx), printer(_printer) {}
+        
+    bool run(Var *) override;
 };
+

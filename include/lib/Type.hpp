@@ -1,5 +1,4 @@
 #pragma once
-#include <memory>
 #include <iostream>
 #include <cassert>
 #include <map>
@@ -21,7 +20,7 @@ class Type
 {
 public:
     IR_DataType type;
-    size_t size;
+    size_t size;   // 占据的字节数
 
     // 构造&析构默认
     Type(IR_DataType _type) : type(_type) {}

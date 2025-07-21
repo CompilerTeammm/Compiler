@@ -111,10 +111,10 @@ public:
         : _func(func), Nodes(func->Size()), count(1),
           BBsNum(func->Size()), DSU(func->Size() + 1)
     {
-        for (auto &e : _func->GetBBs())
+        for (auto e : *_func)
         {
             // 用release太危险了，之后我也会用func，去调用BBs，如果销毁了还去调用太危险了
-            BasicBlocks.push_back(e.get());
+            BasicBlocks.push_back(e);
         }
     }
 

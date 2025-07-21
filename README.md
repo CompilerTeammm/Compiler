@@ -16,5 +16,3 @@ build this project :
 2.cmake -B build -G Ninja
 3.cmake --build build //告诉CMake在build目录中查找Ninja构建文件，并使用Ninja执行构建操作
 
-
-// for dh +700

@@ -1,21 +1,27 @@
 #include "../include/MyBackend/ProloAndEpilo.hpp"
+#include "../include/MyBackend/MIR.hpp"
 #define INITSIZE 1
 
 // 栈帧的开辟是定死的，我对此进行一个封装
+// 函数如果调用其他函数才会存储 ra
 // addi   sp,sp,-Malloc
-// sd  s0,offset
+// sd  ra,offset1
+// sd  s0,offset2
 // addi s0,sp,Malloc
 // ....
-// ld s0,offset
+// ld  ra,offset1
+// ld s0,offset2
 // addi   sp,sp,Malloc
 
 // I think the std::move is not the must, Compiler will do this
-// I hope th search it.
+// I hope to search it.
 
+// array  stack 传参
 bool ProloAndEpilo:: DealStoreInsts()
 {
     auto MallocVec = mfunc->getStoreInsts();
-    auto StoreRecord = mfunc->getStoreRecord();
+    // auto StoreRecord = mfunc->getStoreRecord();
+    auto& AOffsetRecord = mfunc->getAOffsetRecord();
     size_t offset = 16;
     std::set<AllocaInst*> tmp;
     for(auto[StackInst,alloc] : MallocVec)
@@ -24,8 +30,12 @@ bool ProloAndEpilo:: DealStoreInsts()
         {
             tmp.emplace(alloc);
             offset += 4;
+            StackInst->setStoreStackOp(offset);
+            AOffsetRecord.emplace(alloc,offset);
         }
-        StackInst->setStoreStackOp(offset);
+        else {
+            StackInst->setStoreStackOp(AOffsetRecord[alloc]);
+        }
     }
 
     return true;
@@ -33,6 +43,16 @@ bool ProloAndEpilo:: DealStoreInsts()
 
 bool ProloAndEpilo:: DealLoadInsts()
 {
+    // auto LoadInsts = mfunc->getLoadInsts();
+    // auto record = mfunc->getLoadRecord();
+    // auto& offset = mfunc->getAOffsetRecord();
+    // for (auto Inst : LoadInsts)
+    // {
+    //     auto Alloc = record[Inst];
+    //     size_t off = offset[Alloc];
+    //     Inst->setStoreStackOp(off);
+    // }
+
     auto LoadInsts = mfunc->getLoadInsts();
     auto record = mfunc->getLoadRecord();
     auto storeRecord = mfunc->getStoreRecord();
@@ -61,25 +81,31 @@ bool ProloAndEpilo::run()
 
 size_t ProloAndEpilo::caculate()
 {
-    auto MallocVec = mfunc->getStoreInsts();
     int N = INITSIZE;
     int sumMallocSize = 0;
-    
-    // 需要处理 sd  sw  fsw, 根据存储的指令数 开辟栈帧的大小
-    for(auto [e,_1] : MallocVec)
-    {
-        RISCVInst::ISA op = e->getOpcode();
-        if( op == RISCVInst::_sw || op == RISCVInst ::_fsw) {
-            sumMallocSize += sizeof(int32_t);
-        }
-    } 
 
-    while( N * ALIGN < sumMallocSize)
-        N++;
+    for(auto allocInst : mfunc->getAllocas())
+    {
+        if(allocInst->GetTypeEnum() == IR_PTR) 
+        {
+            auto PType = dynamic_cast<PointerType*> (allocInst->GetType());
+            if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
+            {
+                size_t arrSize = PType->GetSubType()->GetSize();
+                sumMallocSize += arrSize;
+            }
+            else if(PType->GetSubType()->GetTypeEnum() == IR_Value_Float ||
+                  PType->GetSubType()->GetTypeEnum() == IR_Value_INT ) {
+                sumMallocSize += sizeof(int32_t);
+            }
+        }
+    }
+    while (N * ALIGN < sumMallocSize)   N++;
 
     size_t size = (N + INITSIZE) * ALIGN;
     return size; 
 }
+
 
 void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool flag)
 {
@@ -91,26 +117,34 @@ void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool fla
     else 
         inst->SetImmOp(std::move(std::to_string(size)));
 }
-
-void ProloAndEpilo::SetSDOp(std::shared_ptr<RISCVInst> inst,size_t size)
+void ProloAndEpilo::SetsdRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("s0",Register::real);
+    inst->SetRegisterOp("ra",Register::real);
     inst->SetRegisterOp(std::to_string(size-8)+"(sp)",Register::real);
 }
-
+void ProloAndEpilo::SetsdS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
+{
+    inst->SetRegisterOp("s0",Register::real);
+    inst->SetRegisterOp(std::to_string(size-16)+"(sp)",Register::real);
+}
 void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("sp",Register::real);
+    inst->SetRegisterOp("s0",Register::real);
     inst->SetRegisterOp("sp",Register::real);
     
     inst->SetImmOp(std::to_string(size));
 
 }
 
-void ProloAndEpilo::SetLDOp(std::shared_ptr<RISCVInst> inst,size_t size)
+void ProloAndEpilo::SetldRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
+{
+    inst->SetRegisterOp("ra",Register::real);
+    inst->SetRegisterOp (std::to_string(size-8)+"(sp)",Register::real);
+}
+void ProloAndEpilo::SetldS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
     inst->SetRegisterOp("s0",Register::real);
-    inst->SetRegisterOp (std::to_string(size-8)+"(sp)",Register::real);
+    inst->SetRegisterOp (std::to_string(size-16)+"(sp)",Register::real);
 }
 
 void ProloAndEpilo::CreateProlo(size_t size)
@@ -123,10 +157,14 @@ void ProloAndEpilo::CreateProlo(size_t size)
     SetSPOp(spinst,size);
     InstVec.push_back(spinst);
 
+    auto sdRaInst = std::make_shared<RISCVInst> (RISCVInst::_sd);
+    SetsdRaOp(sdRaInst, size);
+    InstVec.push_back(sdRaInst);
+
     // 这个存储我认为可能是需要for函数去遍历这个
-    auto sdinst = std::make_shared<RISCVInst> (RISCVInst::_sd); 
-    SetSDOp(sdinst,size);
-    InstVec.push_back(sdinst);
+    auto sdS0inst = std::make_shared<RISCVInst> (RISCVInst::_sd); 
+    SetsdS0Op(sdS0inst,size);
+    InstVec.push_back(sdS0inst);
 
     // 栈指针的赋值
     auto s0inst = std::make_shared<RISCVInst> (RISCVInst::_addi);
@@ -135,15 +173,18 @@ void ProloAndEpilo::CreateProlo(size_t size)
 
     mfunc->setPrologue(it);
 }
-
 void ProloAndEpilo::CreateEpilo(size_t size)
 {
     auto it = std::make_shared<RISCVEpilogue> ();
     auto& InstVec = it->getInstsVec();
 
-    auto ldinst = std::make_shared<RISCVInst> (RISCVInst::_ld);
-    SetLDOp(ldinst,size); 
-    InstVec.push_back(ldinst);
+    auto ldRaInst = std::make_shared<RISCVInst> (RISCVInst::_ld);
+    SetldRaOp(ldRaInst,size); 
+    InstVec.push_back(ldRaInst);
+
+    auto ldS0inst = std::make_shared<RISCVInst> (RISCVInst::_ld);
+    SetldS0Op(ldS0inst,size); 
+    InstVec.push_back(ldS0inst);
 
     auto spinst = std::make_shared<RISCVInst> (RISCVInst::_addi);
     SetSPOp(spinst,size,_free);

@@ -138,6 +138,7 @@ Operand Initializer::GetInitVal(std::vector<int> &idx, int dep)
     return handle;
 }
 
+// var 构造时候构造的就是 Pointer 类型
 Var::Var(UsageTag tag, Type *_tp, std::string _id)
     : User(tag == Param ? _tp : PointerType::NewPointerTypeGet(_tp)),
       usage(tag)

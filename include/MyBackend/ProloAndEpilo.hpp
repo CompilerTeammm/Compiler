@@ -33,13 +33,15 @@ public:
 
     // 在这里设置他们的操作符, 开辟栈帧用的
     void SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool flag = _malloc);
-    void SetSDOp(std::shared_ptr<RISCVInst> inst,size_t size);
+    void SetsdRaOp(std::shared_ptr<RISCVInst> inst,size_t size);
+    void SetsdS0Op(std::shared_ptr<RISCVInst> inst,size_t size);
     void SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size);
-    void SetLDOp(std::shared_ptr<RISCVInst> inst,size_t size);
+    void SetldRaOp(std::shared_ptr<RISCVInst> inst,size_t size);
+    void SetldS0Op(std::shared_ptr<RISCVInst> inst,size_t size);
+
 
     // 计算 mfunc 里面需要开辟多大的栈空间，来存储临时变量
     size_t caculate();
     bool DealStoreInsts();
     bool DealLoadInsts();
-
 };

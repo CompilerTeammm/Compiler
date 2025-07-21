@@ -22,7 +22,6 @@
 // 互不影响，完全没问题再放出来
 #define dce
 #define sccp
-// #define gvn
 //#define pre
 //#define SCFG
 // define DSE

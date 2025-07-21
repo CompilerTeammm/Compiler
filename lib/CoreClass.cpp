@@ -197,8 +197,9 @@ void Value::print()
 {
   if (isConst())
     std::cout << GetName();
-  else if (isGlobal())
+  else if (isGlobal()) {
     std::cout << "@" << GetName();
+  }
   else if (auto temp = dynamic_cast<Function *>(this))
     std::cout << "@" << temp->GetName();
   else if (auto temp = dynamic_cast<BuiltinFunc *>(this))

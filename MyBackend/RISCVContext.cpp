@@ -1,4 +1,5 @@
 #include "../include/MyBackend/RISCVContext.hpp"
+#include "../include/MyBackend/MIR.hpp"
 #include <memory>
 
 // Deal RetInst 
@@ -6,8 +7,17 @@
 // 寄存器分配可以先分配虚拟寄存器，之后使用寄存器分配算法
 // 将虚拟寄存器转化为实际寄存器去接受
 
+// 数组，全局变量未进行处理 
+// call 函数未进行处理  全部支持  class RISCVInst
 
-//现在为止，float，数组类型都没有进行处理
+bool RISCVContext::dealGlobalVal(Value* val)
+{
+    auto text = std::make_shared<TextSegment> (val);
+    addText(text);
+    valToText[val] = text; // val linked with text
+    return true;
+}
+
 
 RISCVInst* RISCVContext::CreateInstAndBuildBind(RISCVInst::ISA op, Instruction *inst)
 {
@@ -59,8 +69,16 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
             auto newOp = LoadInst->getOpreand(0); 
             Inst0->setRetOp(newOp);
         }else {
-            Inst0 = CreateInstAndBuildBind(RISCVInst::_li,inst);
-            Inst0->setRetOp(op);
+            auto Inst = dynamic_cast<Instruction*> (op);
+            if (Inst == nullptr) {
+                Inst0 = CreateInstAndBuildBind(RISCVInst::_li,inst);
+                Value* val = inst->GetOperand(0);
+                Inst0->setRetOp(val);
+            }else {
+                Inst0 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+                RISCVInst* PreInst = Inst0->GetPrevNode();
+                Inst0->setRetOp(PreInst->getOpreand(0));
+            }
         }
         auto Inst1 = CreateInstAndBuildBind(RISCVInst::_ret,inst);
         Inst0->DealMore(Inst1);
@@ -103,27 +121,71 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
 RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 {
     RISCVInst* Inst = nullptr;
-    if(inst->GetType() == IntType::NewIntTypeGet()) {
-        Inst = CreateInstAndBuildBind(RISCVInst::_lw,inst);
-        Inst->setLoadOp();
-        extraDealLoadInst(Inst,inst);
-    }
-    else if(inst->GetType() == FloatType::NewFloatTypeGet()) 
+
+    if( dynamic_cast<GepInst*>(inst->GetPrevNode()))
     {
-        Inst = CreateInstAndBuildBind(RISCVInst::_flw,inst);
-        Inst->setLoadOp();
-        extraDealLoadInst(Inst,inst);
+        // really ??? 
+        return nullptr;
     }
-    else 
-        LOG(ERROR,"other conditions");
+
+    if ( inst->GetOperand(0)->isGlobal())
+    {   // global 的lw 应该不需要记录，因为这个全局加载
+        RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+        luiInst->SetVirRegister();
+        luiInst->SetAddrOp("%hi",inst->GetOperand(0));
+
+        RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->SetAddrOp("%lo", inst->GetOperand(0));
+
+        Inst = CreateInstAndBuildBind(RISCVInst::_lw,inst);
+        Inst->SetVirRegister();
+        Inst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        // One Or More
+        Inst->DealMore(luiInst);
+        Inst->DealMore(addInst);
+    }
+    else
+    {
+        if (inst->GetType() == IntType::NewIntTypeGet())
+        {
+            Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
+            Inst->setLoadOp();
+            extraDealLoadInst(Inst, inst);
+        }
+        else if (inst->GetType() == FloatType::NewFloatTypeGet())
+        {
+            Inst = CreateInstAndBuildBind(RISCVInst::_flw, inst);
+            Inst->setLoadOp();
+            extraDealLoadInst(Inst, inst);
+        }
+        else
+            LOG(ERROR, "other conditions");
+    }
     return Inst;
 }
 
 // StoreInst ----> 要被翻译为 li, sw 两条语句
+// 如果是 参数的store  ----> 要被翻译为 mv，sw 两天语句
 RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
 {
     Value* val = inst->GetOperand(0);
     RISCVInst* Inst = nullptr;
+    if (auto var = dynamic_cast<Var*>(val))
+    {
+        if(var->isParam())
+        {
+            Inst = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+            Inst->SetVirRegister();
+            Inst->SetRealRegister("a0");
+            RISCVInst* SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+            Inst->DealMore(SwInst);
+            SwInst->setStoreOp(Inst);
+            extraDealStoreInst(SwInst, inst);
+            return Inst;
+        }
+    }
 
     // float -> int
     if(dynamic_cast<FP2SIInst*>(inst->GetPrevNode()))
@@ -196,6 +258,7 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
 RISCVInst* RISCVContext::CreateAInst(AllocaInst *inst)
 {
     // auto type = inst->GetType()->GetSize();
+    curMfunc->getAllocas().push_back(inst);
     auto storeRecord = curMfunc->getStoreRecord();
     storeRecord[inst] = nullptr;
     return storeRecord[inst];
@@ -204,14 +267,19 @@ RISCVInst* RISCVContext::CreateAInst(AllocaInst *inst)
 // problem solved
 // todo Deal the problem
 void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,
-                                    Instruction* CmpInst,RISCVInst::op cmpOp2)
+                                    Instruction* CmpInst)
 {
     if (inst->GetPrevNode()->GetOperand(0)->GetType() == IntType::NewIntTypeGet())
     {
         RInst = CreateInstAndBuildBind(op, inst);
         auto val = CmpInst->GetOperand(0);
+        auto val2 = CmpInst->GetOperand(1);
         auto LoadRInst = mapTrans(val)->as<RISCVInst>();
         auto cmpOp1 = LoadRInst->getOpreand(0);
+
+        auto val2Inst = mapTrans(val2)->as<RISCVInst>();
+        auto cmpOp2 = val2Inst->getOpreand(0);
+
         RInst->push_back(cmpOp1);
         RInst->push_back(cmpOp2);
         auto Label = inst->GetOperand(2);
@@ -245,28 +313,29 @@ RISCVInst* RISCVContext::CreateCondInst(CondInst *inst)
     if (condition->GetType() == IntType::NewIntTypeGet())
     {
         if (CmpInst && CmpInst->IsCmpInst())  {
-            RISCVInst *RInst = mapTrans(CmpInst)->as<RISCVInst>();
-            auto cmpOp2 = RInst->getOpreand(0);
+            // RISCVInst *RInst = mapTrans(CmpInst)->as<RISCVInst>();
+            // if (RInst == nullptr)
+            //     auto cmpOp2 = RInst->getOpreand(0);
             // Instruction
             switch (CmpInst->GetInstId())
             {
             case Instruction::Eq:
-                extraDealBrInst(RInst, RISCVInst::_bne, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_bne, inst, CmpInst);
                 break;
             case Instruction::Ne:
-                extraDealBrInst(RInst, RISCVInst::_bqe, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_bqe, inst, CmpInst);
                 break;
             case Instruction::Ge:
-                extraDealBrInst(RInst, RISCVInst::_blt, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_blt, inst, CmpInst);
                 break;
             case Instruction::L:
-                extraDealBrInst(RInst, RISCVInst::_bge, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_bge, inst, CmpInst);
                 break;
             case Instruction::Le:
-                extraDealBrInst(RInst, RISCVInst::_bgt, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_bgt, inst, CmpInst);
                 break;
             case Instruction::G:
-                extraDealBrInst(RInst, RISCVInst::_ble, inst, CmpInst, cmpOp2);
+                extraDealBrInst(RInst,RISCVInst::_ble, inst, CmpInst);
                 break;
             default:
                 break;
@@ -442,12 +511,18 @@ RISCVInst* RISCVContext::CreateBInst(BinaryInst *inst)
         case BinaryInst::Op_GE:
         case BinaryInst::Op_E:
         case BinaryInst::Op_NE:
-            if (valOp1->GetType() == IntType::NewIntTypeGet())
-                extraDealCmp(RInst, inst);
-            else if (valOp1->GetType() == FloatType::NewFloatTypeGet())
-                extraDealCmp(RInst, inst);
-            else{
-                assert("other conditions");
+            if (dynamic_cast<Instruction*>(valOp1) && dynamic_cast<Instruction*>(valOp2)) {
+                break;
+            }
+            else {
+                if (valOp1->GetType() == IntType::NewIntTypeGet())
+                    extraDealCmp(RInst, inst);
+                else if (valOp1->GetType() == FloatType::NewFloatTypeGet())
+                    extraDealCmp(RInst, inst);
+                else
+                {
+                    assert("other conditions");
+                }
             }
             break;
         case BinaryInst::Op_And:
@@ -510,17 +585,89 @@ RISCVInst* RISCVContext::CreateI2Fnst(SI2FPInst *inst)
     return Inst;
 }
 
-// Todo:
-// 函数调用相关的语句
 RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 {
-    return nullptr;
+    RISCVInst* Inst = nullptr;
+    RISCVInst* param = nullptr;
+    RISCVInst* ret = nullptr;
+    auto name = inst->GetOperand(0)->GetName();
+    if (name == "llvm.memcpy.p0.p0.i32")
+    {
+        Value* val = inst->GetOperand(3);
+        RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+        luiInst->SetVirRegister();
+        luiInst->SetAddrOp("%hi",inst->GetOperand(2));
+
+        RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->SetAddrOp("%lo", inst->GetOperand(2));
+
+        RISCVInst* saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+        saveS0Inst->SetVirRegister();
+        saveS0Inst->SetRealRegister("s0");
+        saveS0Inst->SetImmOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
+        // how to imm
+
+        RISCVInst* para0 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+        para0->SetRealRegister("a0");
+        para0->getOpsVec().push_back(saveS0Inst->getOpreand(0));
+        
+        RISCVInst* para1 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+        para1->SetRealRegister("a1");
+        para1->getOpsVec().push_back(addInst->getOpreand(0));
+
+        RISCVInst* para2 = CreateInstAndBuildBind(RISCVInst::_li,inst);
+        para2->SetRealRegister("a2");
+        para2->SetImmOp(val);
+
+        Inst = CreateInstAndBuildBind(RISCVInst::_call, inst);
+        Inst->push_back(std::make_shared<RISCVOp>("memcpy@plt"));
+
+        return Inst;
+    }
+    // param
+    for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
+    {
+        Value* val = inst->GetOperand(paramNum);
+        auto lwInst = mapTrans(val)->as<RISCVInst>();
+        param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+        param->SetRealRegister("a"+std::to_string(paramNum-1));
+        param->push_back(lwInst->getOpreand(0));
+    }
+    // call
+    Inst = CreateInstAndBuildBind(RISCVInst::_call,inst);
+    Inst->push_back(std::make_shared<RISCVOp>(inst->GetOperand(0)->GetName()));
+    if (param != nullptr)
+        Inst->DealMore(param);
+    // ret
+    ret = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+    ret->SetVirRegister();
+    ret->SetRealRegister("a0");
+    Inst->DealMore(ret);
+   
+    return Inst;
 }
 
 // 处理数组
 RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
 {
-    return nullptr;
+    Value* globlVal = inst->GetOperand(0);
+    Value* num = inst->GetOperand(2);
+    auto text = valToText[globlVal];
+    std::vector<std::variant<int , float>>&  vec = text->getInitVec();
+    int offsetVec = std::stoi(num->GetName());
+    auto val = vec[offsetVec];
+
+    RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+    liInst->SetVirRegister();
+    if(text->setArrIntOrFloat() == 0 ) { // int
+        liInst->SetImmOp(std::to_string(std::get<int> (val)));
+    } else {  // float
+        liInst->SetImmOp(std::to_string(std::get<float> (val)));
+    }
+    
+    return liInst;
 }
 
 // maybe need not to deal those!!!
@@ -581,9 +728,13 @@ RISCVOp* RISCVContext::Create(Value* val)
 
 RISCVOp* RISCVContext::mapTrans(Value* val)
 {
+    if(val->isGlobal() && valToRiscvOp.find(val) == valToRiscvOp.end()) {
+        auto op  = new RISCVOp(val->GetName(),RISCVOp::Global);
+        valToRiscvOp[val] = op;   // bug:: delete when???
+    }
+
     if(valToRiscvOp.find(val) == valToRiscvOp.end()){
         valToRiscvOp[val] = Create(val);
     }
-
     return valToRiscvOp[val];
 };

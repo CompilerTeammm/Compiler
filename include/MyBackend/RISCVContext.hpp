@@ -1,10 +1,12 @@
 #pragma once
 #include"MIR.hpp"
 #include "../../Log/log.hpp"
+#include "RISCVPrint.hpp"
 
 // RISCVContext 存储所有的信息
 // value*   ->  RISCVOp*   这个主要问题是 Value  与 RISCVOp 不是一一匹配的
 class RISCVInst;
+class TextSegment;
 class RISCVContext
 {
     // Value*   ---->    RISCVOp*
@@ -13,15 +15,31 @@ public:
 private:
     std::map<Value*,RISCVOp*> valToRiscvOp;
 
+    // texts  arr 的维护
+    using TextPtr = std::shared_ptr<TextSegment>; 
+    std::vector<TextPtr> Texts;
+    std::map<Value*,TextPtr> valToText;
+
     // moudle 里面维护好Mfuncs
     using MFuncPtr = std::shared_ptr<RISCVFunction>;
     std::vector<MFuncPtr> Mfuncs;
     RISCVFunction* curMfunc;
 public:
+    void addText(TextPtr text) {
+        Texts.push_back(text);
+    }
     void addFunc(MFuncPtr func) {
         Mfuncs.push_back(func);
     }
 
+    // static RISCVContext& getCTX()
+    // {
+    //     static RISCVContext ctx;
+    //     return ctx;
+    // }
+    bool dealGlobalVal(Value* val);
+
+    std::vector<TextPtr>& getTexts() { return Texts; }
     std::vector<MFuncPtr>& getMfuncs() {    return Mfuncs;  }
 
     void setCurFunction(RISCVFunction* func) {   curMfunc = func;  }
@@ -66,7 +84,7 @@ public:
     void extraDealLoadInst(RISCVInst* RISCVinst,LoadInst* inst);
 
     void extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,
-                                        Instruction* CmpInst,RISCVInst::op cmpOp2);
+                                        Instruction* CmpInst);
     void extraDealBeqInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst);    
 
 
