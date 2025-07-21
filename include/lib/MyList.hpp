@@ -49,7 +49,7 @@ public:
   }
 
   void SetManager(Manager *_manager) { manager = _manager; }
-  Manager *GetParent() const { return manager; }
+  Manager *GetParent() const { return manager; }//命名逻辑不一致，后面统一改一下
   Staff *GetNextNode() const { return next; }
   Staff *GetPrevNode() const { return prev; }
 

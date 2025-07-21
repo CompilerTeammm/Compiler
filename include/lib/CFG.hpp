@@ -202,7 +202,7 @@ class CallInst : public Instruction
 public:
   CallInst(Type *_tp);
   CallInst(Value *_func, std::vector<Operand> &_args, std::string label = "");
-
+  Value* GetCalledFunction() const { return CalledFunction; }
   CallInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
   void print() final
   {
@@ -224,6 +224,8 @@ public:
     }
     std::cout << ")\n";
   }
+private:
+    Value* CalledFunction;
 };
 
 class RetInst : public Instruction
@@ -738,7 +740,14 @@ public:
   Value *ReturnValIn(BasicBlock *bb);
   void Del_Incomes(int CurrentNum);
   void FormatPhi();
-
+  void ModifyBlock(BasicBlock *Old, BasicBlock *New);
+  void ReplaceVal(Use *use, Value *new_val);
+  void RSUW(Use *u, Operand val)
+  {
+    u->RemoveFromValUseList(this);
+    u->usee = val;
+    val->add_use(u);
+  }
   // hu1 do it
   // 删去phiinst的一个引用块实现
   //  %r = phi i32 [ %a, %bb ], [ %b, %bb2 ]
@@ -762,7 +771,6 @@ public:
   bool visited;      // 是否被访问过
   // int index;      // 基本块序号
   bool reachable; // 是否可达
-  int size_Inst = 0;
   // BasicBlock包含Instruction
   using InstPtr = std::shared_ptr<Instruction>;
   // 当前基本块的指令
@@ -804,6 +812,7 @@ public:
   // 获取基本块的最后一条指令
   // 链表最后
   Instruction *GetLastInsts() const;
+  Instruction* GetFirstInsts() const;
 
   // 替换后继块中的某个基本块
   void ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
@@ -828,6 +837,10 @@ public:
   BasicBlock *GenerateNewBlock();
   BasicBlock *GenerateNewBlock(std::string);
   bool IsEnd(); // 是否划分
+  BasicBlock *SplitAt(User *inst);
+  //遍历前驱/后继块指令
+  void ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor);
+  void ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor);
 };
 
 class BuiltinFunc : public Value
@@ -851,8 +864,8 @@ public:
 private:
   std::vector<ParamPtr> params;
   std::vector<BBPtr> BBs;
+  std::pair<size_t,size_t> inlineinfo;
   std::string id;
-  int size_BB = 0;
 
 public:
   Function(IR_DataType _type, const std::string &_id);
@@ -888,9 +901,14 @@ public:
   void InitBBs();
   void PushParam(std::string, Var *);
   void UpdateParam(Var *var) { params.emplace_back(var); }
-  int &GetSize() { return size_BB; }
+  size_t GetSize() { return BBs.size();}
+  size_t GetInstructionCount() const;//链表
+  std::pair<Value *, BasicBlock *> InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping);
+  std::pair<size_t,size_t>& GetInlineInfo();
+  inline void ClearInlineInfo(){inlineinfo.first=inlineinfo.second=0;};
 
-  int bb_num = 0;
+  //封装了一个链表操作ww
+  void InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb); 
 };
 
 class Module : public SymbolTable
@@ -918,7 +936,9 @@ public:
   Function &GenerateFunction(IR_DataType _tp, std::string _id);
 
   // 死代码消除，只有声明，中端待定义
-  void EraseFunction(Function *func);
+  void EraseFunction(Function *func)
+  {
+  }
   bool EraseDeadFunc();
   void Test()
   {

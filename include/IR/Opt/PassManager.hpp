@@ -16,15 +16,20 @@
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
+#include "DSE.hpp"
+#include "Inliner.hpp"
 
 // 互不影响，完全没问题再放出来
 #define dce
 #define sccp
-// #define gvn
-// #define pre
-// #define SCFG
+//#define pre
+//#define SCFG
+// define DSE
 // 循环优化
+// #define Loop_Simplifying
 // #define Loop_Unrolling
+//内联优化
+// #define inliner
 
 enum PassName
 {
@@ -65,12 +70,12 @@ void PassManager::RunOnTest()
     {
         // Function;
         auto fun = function.get();
-        fun->GetSize() = 0;
+        int bb_index = 0;
         fun->GetBBs().clear();
         for (auto bb : *fun)
         {
             // BasicBlock
-            bb->index = fun->GetSize()++;
+            bb->index = bb_index++;
             std::shared_ptr<BasicBlock> shared_bb(bb);
             fun->GetBBs().push_back(shared_bb);
         }
@@ -104,6 +109,14 @@ void PassManager::RunOnTest()
         GVN(fun, &tree).run();
     }
 #endif
+#ifdef Loop_Simplying
+    for (auto &function : funcVec)
+    {
+        auto fun = function.get();
+        AnalysisManager *AM;
+        Loop_Simplying(fun, AM).run();
+    }
+#endif
 #ifdef Loop_Unrolling
     for (auto &function : funcVec)
     {
@@ -129,5 +142,23 @@ void PassManager::RunOnTest()
         tree.BuildDominantTree();
         SimplifyCFG(fun, &tree).run();
     }
+#endif
+#ifdef DSE
+
+    SideEffect SE(_mod);//在module级别做一次副作用分析
+    SE.GetResult();
+    
+    for (auto &function : funcVec)
+    {   
+        auto fun = function.get();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        DSE(fun, &tree).run();
+    }
+#endif
+#ifdef inliner
+    // 直接在 module 上运行 inlinerPass
+    Inliner inlinerPass(&Singleton<Module>());
+    inlinerPass.run();
 #endif
 }

@@ -32,4 +32,5 @@ private:
   CallInst *GetLoopBody(Loop *loop);
   BasicBlock *Unroll(Loop *loop, CallInst *UnrollBody);
   int CaculatePrice(std::vector<BasicBlock *> body, Function *curfunc, int Lit_count);
+  void CleanUp(Loop *loop, BasicBlock *clean);
 };

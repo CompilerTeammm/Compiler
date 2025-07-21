@@ -42,8 +42,9 @@ public:
 
   // 单个循环重写成一个“基本块列表”
   void addHeader(BasicBlock *BB) { Header = BB; }
-  void addLoopBody(BasicBlock *BB) { 
-        //PushVecSingleVal(BBs, BB); 
+  void addLoopBody(BasicBlock *BB)
+  {
+    // PushVecSingleVal(BBs, BB);
   }
   void addLatch(BasicBlock *BB)
   {
@@ -105,7 +106,6 @@ private:
   BasicBlock *Header = nullptr;  // 单个循环头
   BasicBlock *Latch = nullptr;   // 单个循环尾
   Loop *Parent = nullptr;
-
   // 嵌套循环
   std::vector<Loop *> Loops;   // 嵌套循环列表
   Loop *LoopsHeader = nullptr; // 嵌套循环的父循环
@@ -128,11 +128,19 @@ public:
   };
   LoopInfoAnalysis(Function *func, DominantTree *dom, std::vector<Loop *> &deleteLoop) : _func(func), _dom(dom), _deleteloop(deleteLoop)
   {
-    setBBs();
-    // setDest();
+    _BBs = &(_func->GetBBs());
+    for (auto &bb : *_BBs)
+    {
+      PostOrderDT(bb.get());
+    }
+    run();
   }
-  void setBBs() { _BBs = &_func->GetBBs(); }
-  // void setDest(BasicBlock *bb) { Dest = &_dom->getSuccBBs(bb); }
+
+  /*   void setBBs()
+    {
+      _BBs = &(_func->GetBBs());
+    } */
+  // void setDest() { Dest = &_dom->BuildDominantTree(); }
 
   virtual bool run() override
   {
@@ -160,7 +168,7 @@ public:
   std::vector<BasicBlock *> getExitingBlocks(Loop *loop);
 
   // 删除
-  // void deleteLoop(Loop *loop);
+  void deleteLoop(Loop *loop);
   void deleteBB(BasicBlock *bb);
 
   // 功能
@@ -194,6 +202,7 @@ private:
   std::vector<BasicBlock *> PostOrder;  // 存储后序遍历的基本块
   std::map<BasicBlock *, Loop *> Loops; // 基本块与循环的映射
   // std::vector<BasicBlock *> *Dest; // CFG中的后继
+  // std::vector<std::vector<int>> *Dest; // CFG中的后继
   int depth = 0;
   int index = 0;
 };
