@@ -20,6 +20,7 @@ Register::realReg Register::getRegop()
     if(IsrealRegister()) 
         return realRegop;
     LOG(ERROR, "this is virtual reg!!!");
+    return _NULL;
 }
 // global is only one
 Register*Register::GetRealReg(Register::realReg _Regop)

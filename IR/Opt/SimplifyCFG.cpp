@@ -45,6 +45,7 @@ bool SimplifyCFG::SimplifyCFGFunction(Function* func){
 
         changed |= localChanged;
     }while(localChanged);//持续迭代直到收敛
+    return true;
 }
 //暂时没考虑无返回值情况
 bool SimplifyCFG::hasOtherRetInst(Function* func,BasicBlock* bb_){
