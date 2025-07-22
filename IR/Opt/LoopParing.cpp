@@ -6,23 +6,23 @@ bool LoopParing::run()
   dom.BuildDominantTree();
   auto loopTest = std::make_shared<LoopInfoAnalysis>(_func, &dom, DeleteLoop);
 
-  // 1.´¦ÀínormalºÍmainº¯Êı£¬Ö÷ÒªÊÇ8/2Ô­Ôò
+  // 1.ï¿½ï¿½ï¿½ï¿½normalï¿½ï¿½mainï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½8/2Ô­ï¿½ï¿½
   if (_func->tag != Function::Normal || _func->GetName() != "main")
     return false;
 
-  // ÆäËûPhiÓÅ»¯Pass¿ÉÄÜÎ´ÔÚLoopParallelÖ®Ç°Ö´ĞĞ,½ö´¦ÀíÑ­»·Í·²¿µÄPhi
-  //  2.Ïû³ıÇ°ÃæµÄÈßÓàphiÖ¸Áî£¬Ñ­»·Èë¿Ú¼ò»¯
+  // ï¿½ï¿½ï¿½ï¿½Phiï¿½Å»ï¿½Passï¿½ï¿½ï¿½ï¿½Î´ï¿½ï¿½LoopParallelÖ®Ç°Ö´ï¿½ï¿½,ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½Í·ï¿½ï¿½ï¿½ï¿½Phi
+  //  2.ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½phiÖ¸ï¿½î£¬Ñ­ï¿½ï¿½ï¿½ï¿½Ú¼ï¿½
   deletephi(_func);
-  // 3.ÏÈ²¢ĞĞÍâ²ãËùÓĞµÄÑ­»·£¬ÔÙÒÀ´Î´¦ÀíÄÚ²¿
+  // 3.ï¿½È²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğµï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î´ï¿½ï¿½ï¿½ï¿½Ú²ï¿½
 
-  // 3.1¸ù¾İÖ§Åä¹ØÏµÅÅĞò£¬ÀûÓÃlambda±í´ïÊ½
+  // 3.1ï¿½ï¿½ï¿½ï¿½Ö§ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½lambdaï¿½ï¿½ï¿½ï¿½Ê½
   std::vector<Loop *> loops{_loop_analysis->loopsBegin(), _loop_analysis->loopsEnd()};
   std::sort(loops.begin(), loops.end(),
             [&](Loop *a, Loop *b)
             { return _dominatortree->dominates(a->getHeader(), b->getHeader()); });
-  // 3.2ÔÚĞÂÁĞ±íÖĞ£¬ÒÀ´ÎÅĞ¶ÏÊÇ·ñ¿ÉÒÔ²¢ĞĞ
-  // 3.5¿É²¢ĞĞµÄÑ­»·£¬Æäµü´ú´ÎÊıÊÇÈ·¶¨µÄ
-  // 4.0½«¿ÉÒÔ²¢ĞĞµÄÑ­»·£¬½øĞĞÑ­»·ÌåÌáÈ¡£¬´´½¨Ïß³Ìthread
+  // 3.2ï¿½ï¿½ï¿½ï¿½ï¿½Ğ±ï¿½ï¿½Ğ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¶ï¿½ï¿½Ç·ï¿½ï¿½ï¿½Ô²ï¿½ï¿½ï¿½
+  // 3.5ï¿½É²ï¿½ï¿½Ğµï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È·ï¿½ï¿½ï¿½ï¿½
+  // 4.0ï¿½ï¿½ï¿½ï¿½ï¿½Ô²ï¿½ï¿½Ğµï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß³ï¿½thread
   makeit(loops);
   return false;
 }
@@ -31,10 +31,10 @@ bool LoopParing::makeit(std::vector<Loop *> loops)
 {
   for (auto loop : loops)
   {
-    // 3.3Ã¿¸öÑ­»·²¢ĞĞÒ»´Î¾Í¿ÉÒÔ£¬´¦ÀíÇ°ÏÈ¼ì²é
-    // 3.4ÎŞÑ­»·ÒÀÀµ£¨²»´æÔÚĞèÒªÉÏ´Îi = i - 1 Ö®ÀàµÄ£©
-    // 3.5¿É²¢ĞĞµÄÑ­»·£¬Æäµü´ú´ÎÊıÊÇÈ·¶¨µÄ
-    // ÃæÏòcanbeprallel
+    // 3.3Ã¿ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Î¾Í¿ï¿½ï¿½Ô£ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½È¼ï¿½ï¿½
+    // 3.4ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Ï´ï¿½i = i - 1 Ö®ï¿½ï¿½Ä£ï¿½
+    // 3.5ï¿½É²ï¿½ï¿½Ğµï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È·ï¿½ï¿½ï¿½ï¿½
+    // ï¿½ï¿½ï¿½ï¿½canbeprallel
     if (processed_Loops.find(loop->getHeader()) == processed_Loops.end() && CanBeParallel(loop))
     {
       every_new_looptrait.Init();
@@ -54,7 +54,7 @@ void LoopParing::deletephi(Function *_func)
     {
       auto phi = dynamic_cast<PhiInst *>(*iter);
       ++iter;
-      // Èç¹ûÈ·ÊµÊÇÓĞÒâÒåµÄphiÖ¸Áî£¬val×îÖÕÎªnullptr
+      // ï¿½ï¿½ï¿½È·Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½phiÖ¸ï¿½î£¬valï¿½ï¿½ï¿½ï¿½Îªnullptr
       Value *val = nullptr;
       for (auto &use : phi->GetUserUseList())
       {
@@ -66,11 +66,11 @@ void LoopParing::deletephi(Function *_func)
           break;
         }
       }
-      // ÄÜ½øÈ¥£¬ËµÃ÷×îÖÕÊÇÎŞÒâÒåµÄphiÖ¸Áî
+      // ï¿½Ü½ï¿½È¥ï¿½ï¿½Ëµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½phiÖ¸ï¿½ï¿½
       if (val)
       {
-        phi->RAUW(val); // ÓÃÍ³Ò»ÖµÌæ»»ËùÓĞPhiµÄÊ¹ÓÃ
-        delete phi;     // É¾³ıPhiÖ¸Áî
+        //phi->RAUW(val); // ï¿½ï¿½Í³Ò»Öµï¿½æ»»ï¿½ï¿½ï¿½ï¿½Phiï¿½ï¿½Ê¹ï¿½ï¿½
+        delete phi;     // É¾ï¿½ï¿½PhiÖ¸ï¿½ï¿½
       }
     }
   }
@@ -78,21 +78,21 @@ void LoopParing::deletephi(Function *_func)
 
 bool LoopParing::CanBeParallel(Loop *loop)
 {
-  // 1.»ñÈ¡Ñ­»·»ù±¾ĞÅÏ¢
+  // 1.ï¿½ï¿½È¡Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢
   BasicBlock *header = loop->getHeader();
   if (!header)
     return false;
 
-  // 2.¼ì²éÊÇ·ñÎª±ê×¼while½á¹¹£º
-  // headerÓĞÁ½ÌõÈë±ß£¨Ñ­»·ÍâÈë¿ÚºÍÑ­»·Î²²¿£©
-  // ÖÁÉÙÓĞÒ»¸öÌõ¼ş·ÖÖ§
+  // 2.ï¿½ï¿½ï¿½ï¿½Ç·ï¿½Îªï¿½ï¿½×¼whileï¿½á¹¹ï¿½ï¿½
+  // headerï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß£ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úºï¿½Ñ­ï¿½ï¿½Î²ï¿½ï¿½ï¿½ï¿½
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö§
   if (header->GetPredBlocks().size() != 2)
   {
     std::cerr << "Loop header does not have exactly two predecessors" << std::endl;
     return false;
   }
 
-  // 3.²éÕÒÑ­»·Î²²¿£¨¿ÉÄÜÃ»ÓĞÏÔÊ½latch£¬ĞèÍ¨¹ıÖ§Åä¹ØÏµ²éÕÒ£©
+  // 3.ï¿½ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½Î²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½Ê½latchï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½Ö§ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½Ò£ï¿½
   BasicBlock *tail = nullptr;
   for (auto bb : loop->getLoopBody())
   {
@@ -113,8 +113,8 @@ bool LoopParing::CanBeParallel(Loop *loop)
     return false;
   }
 
-  // 4.Phi½Úµã´¦Àí£¨·Å¿íÏŞÖÆ£©
-  // ¼ì²éphiº¯Êı½áµãµÄÊıÁ¿
+  // 4.Phiï¿½Úµã´¦ï¿½ï¿½ï¿½ï¿½ï¿½Å¿ï¿½ï¿½ï¿½ï¿½Æ£ï¿½
+  // ï¿½ï¿½ï¿½phiï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   PhiInst *resPhi = nullptr;
   int phiCnt = 0;
   for (auto inst : *header)
@@ -125,7 +125,7 @@ bool LoopParing::CanBeParallel(Loop *loop)
       if (inst == loop->trait.indvar)
         continue;
       resPhi = phi;
-      // ·Å¿íµ½×î¶à3¸öPhi£¨Ô­Îª2¸ö£©
+      // ï¿½Å¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½3ï¿½ï¿½Phiï¿½ï¿½Ô­Îª2ï¿½ï¿½ï¿½ï¿½
       if (phiCnt > 3)
       {
         std::cerr << "Too many Phi nodes: " << phiCnt << std::endl;
@@ -138,8 +138,8 @@ bool LoopParing::CanBeParallel(Loop *loop)
     }
   }
 
-  // ÖÕÖ¹Ìõ¼ş¼ì²é,¶şÔªÖ¸Áî > < >= <=
-  // £¨Ñ­»·Õ¹¿ªºÍÏòÁ¿»¯¿ÉÄÜÓĞµãÓÃ£©
+  // ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½ÔªÖ¸ï¿½ï¿½ > < >= <=
+  // ï¿½ï¿½Ñ­ï¿½ï¿½Õ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğµï¿½ï¿½Ã£ï¿½
   auto cmp = dynamic_cast<BinaryInst *>(loop->trait.cmp);
   if (!cmp)
     return false;
@@ -154,12 +154,12 @@ bool LoopParing::CanBeParallel(Loop *loop)
     return false;
   }
 
-  // ÌØÊâ£º¼ÆËãÒ»ÏÂµü´ú´ÎÊı£¬ºóÃæÓÃÓÚÅĞ¶ÏÊÇ·ñ½øĞĞ
+  // ï¿½ï¿½ï¿½â£ºï¿½ï¿½ï¿½ï¿½Ò»ï¿½Âµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¶ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½
   calculate_iteration(loop);
-  // ¼ì²éPhi½ÚµãµÄÊ¹ÓÃÄ£Ê½
+  // ï¿½ï¿½ï¿½Phiï¿½Úµï¿½ï¿½Ê¹ï¿½ï¿½Ä£Ê½
   CheckPhiNodeUsage(resPhi, loop, tail);
 
-  // ×îºó¼ì²éÒ»ÏÂÊı¾İÁ÷·ÖÎö
+  // ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   checkDataFlowAnalysis(loop);
   return true;
 }
@@ -204,60 +204,61 @@ bool LoopParing::calculate_iteration(Loop *loop)
     if (iteration <= 100)
       return false;
   }
+  return true;
 }
 
-// ¼ì²éPhi½ÚµãµÄÊ¹ÓÃÄ£Ê½ÊÇ·ñ·ûºÏÓÅ»¯ÒªÇó
+// ï¿½ï¿½ï¿½Phiï¿½Úµï¿½ï¿½Ê¹ï¿½ï¿½Ä£Ê½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½Å»ï¿½Òªï¿½ï¿½
 bool LoopParing::CheckPhiNodeUsage(PhiInst *resPhi, Loop *loop, BasicBlock *latch)
 {
-  // ³õÊ¼»¯×´Ì¬±ê¼Ç
-  bool usedOutsideLoop = false; // ±ê¼ÇÊÇ·ñÔÚÑ­»·Íâ±»Ê¹ÓÃ
-  bool usedInsideLoop = false;  // ±ê¼ÇÊÇ·ñÔÚÑ­»·ÄÚ±»ºÏ·¨Ê¹ÓÃ
-  bool hasBinaryUse = false;    // ±ê¼ÇÊÇ·ñ±»¶şÔªÖ¸ÁîÊ¹ÓÃ
+  // ï¿½ï¿½Ê¼ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½
+  bool usedOutsideLoop = false; // ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½â±»Ê¹ï¿½ï¿½
+  bool usedInsideLoop = false;  // ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½Ú±ï¿½ï¿½Ï·ï¿½Ê¹ï¿½ï¿½
+  bool hasBinaryUse = false;    // ï¿½ï¿½ï¿½ï¿½Ç·ñ±»¶ï¿½ÔªÖ¸ï¿½ï¿½Ê¹ï¿½ï¿½
 
-  // Èç¹ûÃ»ÓĞPhi½ÚµãÖ±½ÓÍ¨¹ı¼ì²é
+  // ï¿½ï¿½ï¿½Ã»ï¿½ï¿½Phiï¿½Úµï¿½Ö±ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½
   if (!resPhi)
     return true;
 
-  // »ñÈ¡Phi½ÚµãÔÚlatch¿éÖĞµÄ·µ»ØÖµ
+  // ï¿½ï¿½È¡Phiï¿½Úµï¿½ï¿½ï¿½latchï¿½ï¿½ï¿½ĞµÄ·ï¿½ï¿½ï¿½Öµ
   Value *phiResult = resPhi->ReturnValIn(latch);
 
-  // ¼ì²é·µ»ØÖµ±ØĞëÊÇ¼Ó·¨Ö¸Áî
+  // ï¿½ï¿½é·µï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½Ç¼Ó·ï¿½Ö¸ï¿½ï¿½
   BinaryInst *resultBinOp = dynamic_cast<BinaryInst *>(phiResult);
   if (!resultBinOp || resultBinOp->GetOp() != BinaryInst::Op_Add)
   {
     return false;
   }
 
-  // ×¼±¸ÒªºöÂÔµÄÖ¸Áî¼¯ºÏ£¨±ÜÃâÖØ¸´¼ì²é£©
+  // ×¼ï¿½ï¿½Òªï¿½ï¿½ï¿½Ôµï¿½Ö¸ï¿½î¼¯ï¿½Ï£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø¸ï¿½ï¿½ï¿½é£©
   std::set<Value *> ignoredValues = {resPhi, phiResult};
 
-  // ¼ì²é·µ»ØÖµµÄÊ¹ÓÃÇé¿ö
+  // ï¿½ï¿½é·µï¿½ï¿½Öµï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½
   for (auto use : phiResult->GetValUseList())
   {
     auto test1 = dynamic_cast<Instruction *>(use->GetUser());
     BasicBlock *userBB = test1->GetParent();
 
-    // ¼ì²éÊÇ·ñÔÚÑ­»·ÍâÊ¹ÓÃ
+    // ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½
     if (!loop->ContainBB(userBB))
     {
       usedOutsideLoop = true;
       continue;
     }
 
-    // ¼ì²éÑ­»·ÄÚÊ¹ÓÃÊÇ·ñºÏ·¨
+    // ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½Ç·ï¿½Ï·ï¿½
     if (ignoredValues.find(use->GetUser()) == ignoredValues.end())
     {
       BinaryInst *userBinOp = dynamic_cast<BinaryInst *>(use->GetUser());
       if (!userBinOp || userBinOp->GetOp() != BinaryInst::Op_Add)
       {
-        return false; // Ñ­»·ÄÚÊ¹ÓÃ±ØĞëÒ²ÊÇ¼Ó·¨Ö¸Áî
+        return false; // Ñ­ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½Ã±ï¿½ï¿½ï¿½Ò²ï¿½Ç¼Ó·ï¿½Ö¸ï¿½ï¿½
       }
       usedInsideLoop = true;
       hasBinaryUse = true;
     }
   }
 
-  // ¼ì²éPhi½Úµã±¾ÉíµÄÊ¹ÓÃÇé¿ö
+  // ï¿½ï¿½ï¿½Phiï¿½Úµã±¾ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½
   for (auto use : resPhi->GetValUseList())
   {
     auto test2 = dynamic_cast<Instruction *>(use->GetUser());
@@ -272,17 +273,17 @@ bool LoopParing::CheckPhiNodeUsage(PhiInst *resPhi, Loop *loop, BasicBlock *latc
     }
   }
 
-  // ×îÖÕºÏ·¨ĞÔÅĞ¶Ï
+  // ï¿½ï¿½ï¿½ÕºÏ·ï¿½ï¿½ï¿½ï¿½Ğ¶ï¿½
   if (usedOutsideLoop && usedInsideLoop)
   {
-    return false; // ½ûÖ¹Í¬Ê±ÔÚÑ­»·ÄÚÍâÊ¹ÓÃ
+    return false; // ï¿½ï¿½Ö¹Í¬Ê±ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½
   }
   if (!hasBinaryUse)
   {
-    return false; // ±ØĞë±»ÖÁÉÙÒ»¸ö¶şÔªÖ¸ÁîÊ¹ÓÃ
+    return false; // ï¿½ï¿½ï¿½ë±»ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ÔªÖ¸ï¿½ï¿½Ê¹ï¿½ï¿½
   }
 
-  return true; // Í¨¹ıËùÓĞ¼ì²é
+  return true; // Í¨ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¼ï¿½ï¿½
 }
 
 bool LoopParing::checkDataFlowAnalysis(Loop *loop)

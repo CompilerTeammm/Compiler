@@ -16,7 +16,6 @@
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
-#include "DSE.hpp"
 #include "Inliner.hpp"
 
 // 互不影响，完全没问题再放出来
@@ -63,7 +62,7 @@ public:
     }
 };
 
-void PassManager::RunOnTest()
+inline void PassManager::RunOnTest()
 {
     auto &funcVec = _mod->GetFuncTion();
     for (auto &function : funcVec)

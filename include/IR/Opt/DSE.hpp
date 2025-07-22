@@ -13,10 +13,6 @@ class DSE:public _PassBase<DSE,Function>{
     private:
     Function* func;
     DominantTree* tree;
-    //还应该有别名分析结果(用于指针分析)
-    //AliasAnalysis* aa;
-    //还有副作用分析,判断函数调用影响
-    //SideEffect* se;
     public:
     bool run();
     DSE(Function* _func,DominantTree* _tree): tree(_tree),func(_func){}//待补参数aa,se
