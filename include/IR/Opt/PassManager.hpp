@@ -20,8 +20,8 @@
 #include "Inliner.hpp"
 
 // 互不影响，完全没问题再放出来
-#define dce
-#define sccp
+// #define dce
+// #define sccp
 //#define pre
 //#define SCFG
 // define DSE
@@ -29,12 +29,12 @@
 // #define Loop_Simplifying
 // #define Loop_Unrolling
 //内联优化
-// #define inliner
+#define MY_INLINE_PASS
 
 enum PassName
 {
     mem2reg_pass,
-    inline_pass,
+    // inline_pass,
     dce_pass,
 };
 
@@ -156,8 +156,7 @@ void PassManager::RunOnTest()
         DSE(fun, &tree).run();
     }
 #endif
-#ifdef inliner
-    // 直接在 module 上运行 inlinerPass
+#ifdef MY_INLINE_PASS
     Inliner inlinerPass(&Singleton<Module>());
     inlinerPass.run();
 #endif

@@ -283,7 +283,17 @@ bool User::remove_use(Use *_use)
 void User::clear_use() { useruselist.clear(); }
 
 void User::DropAllUsesOfThis() {
-  assert(this->GetValUseList().is_empty() && "The user list (who I use) must be empty before dropping users of me!");
+  auto &useList = this->GetValUseList();
+  for (auto it = useList.begin(); it != useList.end(); ) {
+    Use* currentUse = *it;
+    ++it;
+    currentUse->RemoveFromValUseList(currentUse->GetUser());
+  }
+  assert(useList.is_empty() && "The user list (who I use) must be empty before dropping users of me!");
+}
+
+void User::ClearRelation() {
+  assert(this->GetValUseList().is_empty() && "the head must be nullptr!");
   for (auto &use : useruselist)
     use->RemoveFromValUseList(use->GetUser());
 }

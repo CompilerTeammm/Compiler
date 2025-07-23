@@ -1,127 +1,185 @@
 #include "../../include/IR/Opt/Inliner.hpp"
 #include "../../include/lib/CFG.hpp"
 
-std::unique_ptr<InlineHeuristic> InlineHeuristic::CreateDefaultHeuristic(Module* m) {
-    auto heuristic = std::make_unique<InlineHeuristicManager>(m);
-    heuristic->push_back(std::make_unique<NoRecursiveHeuristic>(m));
-    heuristic->push_back(std::make_unique<SizeLimitHeuristic>());
+std::unique_ptr<InlineHeuristic> InlineHeuristic::get(Module *m)
+{
+    auto heuristic = std::make_unique<InlineHeuristicManager>();
+    heuristic->push_back(std::make_unique<NoRecursive>(m));
+    heuristic->push_back(std::make_unique<SizeLimit>());
     return heuristic;
 }
 
-SizeLimitHeuristic::SizeLimitHeuristic(size_t maxSize) : maxSize_(maxSize) {}
-
-bool SizeLimitHeuristic::CanBeInlined(CallInst* call) {
-    if (!call) return false; 
-
-    Function* callee = dynamic_cast<Function*>(call->GetCalledFunction());
-    if (!callee) return false;
-
-    size_t calleeSize = callee->GetInstructionCount();
-
-    return calleeSize <= maxSize_;
+InlineHeuristicManager::InlineHeuristicManager()
+{
 }
 
-NoRecursiveHeuristic::NoRecursiveHeuristic(Module* m) : module_(m) {}
-
-bool NoRecursiveHeuristic::CanBeInlined(CallInst* call) {
-    if (!call) return false;
-
-    Function* callee = dynamic_cast<Function*>(call->GetCalledFunction());
-    if (!callee) return false;
-
-    BasicBlock* parentBB = call->GetParent();
-    if (!parentBB) return false;
-    Function* caller = parentBB->GetParent();
-    if (!caller) return false;
-
-    if (callee == caller) {
-        return false;
-    }
-
+bool InlineHeuristicManager::CanBeInlined(CallInst *call)
+{
+    for (auto &heuristic : *this)
+        if (!heuristic->CanBeInlined(call))
+            return false;
     return true;
 }
 
-Inliner::Inliner(Module* m) : module_(m) {
-    heuristic_ = InlineHeuristic::CreateDefaultHeuristic(module_);
+SizeLimit::SizeLimit()
+{
 }
 
-bool Inliner::run() {
+bool SizeLimit::CanBeInlined(CallInst *call)
+{
+    // static size_t cost = 0;
+    auto master = call->GetParent()->GetParent();
+    auto inline_func = call->GetOperand(0)->as<Function>();
+    assert(master != nullptr && inline_func != nullptr);
+    auto &[master_code_size, master_frame_size] = master->GetInlineInfo();
+    auto &[inline_code_size, inline_frame_size] = inline_func->GetInlineInfo();
+    if (inline_frame_size + master_frame_size > maxframesize)
+        return false;
+    if (inline_code_size + cost > maxsize)
+        return false;
+    cost += inline_code_size;
+    master_code_size += inline_code_size;
+    master_frame_size += inline_frame_size;
+    return true;
+}
+
+NoRecursive::NoRecursive(Module *_m) : m(_m)
+{
+}
+
+bool NoRecursive::CanBeInlined(CallInst *call)
+{
+    auto &&slave = call->GetOperand(0)->as<Function>();
+    auto &&master = call->GetParent()->GetParent();
+    if (slave->tag == Function::Tag::ParallelBody || master->tag == Function::Tag::UnrollBody || slave->tag == Function::Tag::BuildIn)
+        return false;
+    if (Singleton<Inline_Recursion>().flag)
+    {
+        static int InlineTimes = 0;
+        if (!master->isRecursive() && !slave->isRecursive())
+            return true;
+        if (InlineTimes<3&&(master->Size()+slave->Size())*3<100)
+        {
+            InlineTimes++;
+            return true;
+        }
+    }
+    else
+    {
+        if (!master->isRecursive() && !slave->isRecursive())
+            return true;
+    }
+    return false;
+}
+
+bool Inliner::run()
+{
     bool modified = false;
-    init(module_);
-    modified |= Inline(module_);
-    module_->EraseDeadFunc();
-
-    for (auto& func : module_->GetFuncTion())
+    init(m);
+    modified |= Inline(m);
+    m->EraseDeadFunc();
+    for (auto &func : m->GetFuncTion())
         func->ClearInlineInfo();
-
     return modified;
 }
 
-void Inliner::init(Module* m) {
-    for (auto it = m->GetFuncTion().begin(); it != m->GetFuncTion().end(); ) {
-        if ((*it)->GetValUseListSize() == 0 && (*it)->GetName() != "main")
+void Inliner::init(Module *m)
+{
+    for (auto it = m->GetFuncTion().begin(); it != m->GetFuncTion().end();)
+    {
+        if (it->get()->GetValUseListSize() == 0 && it->get()->GetName() != "main")
             it = m->GetFuncTion().erase(it);
         else
-            ++it;
+            it++;
     }
 
-    for (auto& funcptr : m->GetFuncTion()) {
-        Function* func = funcptr.get();
-        for (auto* user : func->GetValUseList()) {
-            auto* call = dynamic_cast<CallInst*>(user->GetUser());
-            if (!call) continue;
-            if (heuristic_->CanBeInlined(call))
-                callsToInline_.push_back(call);
+    auto judge = InlineHeuristic::get(m);
+
+    for (auto &funcptr : m->GetFuncTion())
+    {
+        Function *func = funcptr.get();
+        auto &calllists = func->GetValUseList();
+        for (auto callinst : calllists)
+        {
+            auto call = callinst->GetUser()->as<CallInst>();
+            assert(call != nullptr);
+            if (judge->CanBeInlined(call))
+                NeedInlineCall.push_back(call);
         }
     }
 }
 
-bool Inliner::Inline(Module* m) {
-    bool changed = false;
-    for (auto* call : callsToInline_) {
-        changed |= InlineCall(call);
-    }
-    return changed;
-}
+bool Inliner::Inline(Module *m)
+{
+    bool modified = false;
+    while (!NeedInlineCall.empty())
+    {
+        modified |= true;
+        Instruction *inst = NeedInlineCall.front();
+        NeedInlineCall.erase(NeedInlineCall.begin());
+        BasicBlock *block = inst->GetParent();
+        Function *func = block->GetParent();
+        BasicBlock *SplitBlock = block->SplitAt(inst);
+        if (inst->GetUserUseList()[0]->usee == func)
+        {
+            auto Br = new UnCondInst(SplitBlock);
+            block->push_back(Br);
+        }
+        BasicBlock::List<Function, BasicBlock>::iterator Block_Pos(block);
+        Block_Pos.InsertAfter(SplitBlock);
+        ++Block_Pos;
+        std::vector<BasicBlock *> blocks = CopyBlocks(inst);
+        if (inst->GetUserUseList()[0]->usee != func)
+        {
+            UnCondInst *Br = new UnCondInst(blocks[0]);
+            block->push_back(Br);
+        }
+        else
+        {
+            delete block->GetBack();
+            UnCondInst *Br = new UnCondInst(blocks[0]);
+            block->push_back(Br);
+        }
 
-bool Inliner::InlineCall(CallInst* call) {
-    if (!call || !call->GetCalledFunction())
-        return false;
-
-    Function* callee = dynamic_cast<Function*>(call->GetCalledFunction());
-    if (callee->GetTag() == Function::BuildIn)
-        return false;
-
-    std::vector<BasicBlock*> copiedBlocks = CopyBlocks(call);
-    if (copiedBlocks.empty())
-        return false;
-
-    Function* caller = call->GetParent()->GetParent();
-    BasicBlock* insert_after = call->GetParent();
-    for (auto* new_bb : copiedBlocks) {
-        caller->InsertBlockAfter(insert_after, new_bb);
-        insert_after = new_bb; // 继续往后插入
-    }
-
-    if (call->GetTypeEnum() == IR_Value_VOID) {
-        HandleVoidRet(call->GetParent(), copiedBlocks);
-    } else {
-        for (auto* bb : copiedBlocks) {
-            for (auto* inst : *bb) {
-                if (auto* phi = dynamic_cast<PhiInst*>(inst)) {
-                    HandleRetPhi(bb, phi, copiedBlocks);
-                }
+        for (auto it = blocks[0]->begin(); it != blocks[0]->end();)
+        {
+            auto shouldmvinst = dynamic_cast<AllocaInst *>(*it);
+            ++it;
+            if (shouldmvinst)
+            {
+                BasicBlock *front_block = func->GetFront();
+                shouldmvinst->EraseFromManager();
+                front_block->push_front(shouldmvinst);
             }
         }
+        for (BasicBlock *block_ : blocks)
+            Block_Pos.InsertBefore(block_);
+        if (inst->GetTypeEnum() != IR_DataType::IR_Value_VOID)
+        {
+            PhiInst *Phi = PhiInst::Create(SplitBlock->GetFront(), SplitBlock, inst->GetType());
+            HandleRetPhi(SplitBlock, Phi, blocks);
+            if (Phi->GetUserUseList().size() == 1)
+            {
+                Value *val = Phi->GetUserUseList()[0]->usee;
+                inst->ReplaceAllUseWith(val);
+                delete Phi;
+            }
+            else
+                inst->ReplaceAllUseWith(Phi);
+        }
+        else
+            HandleVoidRet(SplitBlock, blocks);
+        auto &&inlined_func = inst->GetOperand(0)->as<Function>();
+        if (inlined_func->GetValUseListSize() == 0)
+            m->EraseFunction(inlined_func);
+        delete inst;
     }
-    call->DropAllUsesOfThis();
-    call->GetParent()->erase(call);
-    return true;
+    return modified;
 }
 
-std::vector<BasicBlock *> Inliner::CopyBlocks(CallInst *call)
+std::vector<BasicBlock *> Inliner::CopyBlocks(Instruction *inst)
 {
-    Function *Func = dynamic_cast<Function *>(call->GetCalledFunction());
+    Function *Func = dynamic_cast<Function *>(inst->GetUserUseList()[0]->usee);
     std::unordered_map<Operand, Operand> OperandMapping;
 
     std::vector<BasicBlock *> copied_bbs;
@@ -129,7 +187,7 @@ std::vector<BasicBlock *> Inliner::CopyBlocks(CallInst *call)
     for (auto &param : Func->GetParams())
     {
         Value *Param = param.get();
-        OperandMapping[Param] = call->GetUserUseList()[num]->usee;
+        OperandMapping[Param] = inst->GetUserUseList()[num]->usee;
         num++;
     }
     for (BasicBlock *block : *Func)

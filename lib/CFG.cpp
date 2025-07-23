@@ -870,6 +870,19 @@ bool PhiInst::IsReplaced()
     return ret;
 }
 
+PhiInst *PhiInst::clone(std::unordered_map<Operand, Operand> &mapping)
+  {
+      if (mapping.find(this) != mapping.end())
+      return dynamic_cast<PhiInst *>(mapping[this]);
+      auto to = new PhiInst(GetType());
+      mapping[this] = to;
+      for (auto &[i, data] : PhiRecord) {
+        to->addIncoming(data.first->clone(mapping), data.second->clone(mapping));
+      }
+      to->FormatPhi();
+      return to;
+  }
+
 //////// end
 
 ConstantData *ConstantData::clone(std::unordered_map<Operand, Operand> &mapping)
@@ -1818,6 +1831,27 @@ void Function::InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb) {
     assert(false && "InsertBlockAfter: pos block not found in function");
 }
 
+bool Function::isRecursive(bool useMem) {
+  static std::unordered_map<Function *, bool> visited;
+
+  auto calcOnce = [&]() {
+    auto usrlist = GetValUseList();
+    bool suc = false;
+    for (auto use : usrlist) {
+      if (auto call = use->GetUser()->as<CallInst>()) {
+        if (call->GetParent()->GetParent() == this) {
+          suc = true;
+          break;
+        }
+      }
+    }
+    return suc;
+  };
+
+  if (!useMem || visited.find(this) == visited.end())
+    visited[this] = calcOnce();
+  return visited[this];
+}
 
 std::pair<Value *, BasicBlock *> Function::InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping)
 {

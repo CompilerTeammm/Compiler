@@ -717,11 +717,8 @@ public:
   PhiInst(Instruction *BeforeInst, Type *_tp);
   PhiInst(Instruction *BeforeInst);
   std::map<int, std::pair<Value *, BasicBlock *>> PhiRecord;
-  // 暂时使不报错
-  PhiInst *clone(std::unordered_map<Operand, Operand> &) override
-  {
-    return this;
-  }
+  // 暂时使不报错//添完整了ww
+  PhiInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
   void print() final;
 
   static PhiInst *Create(Instruction *BeforeInst, BasicBlock *currentBB, std::string Name = "");
@@ -909,6 +906,7 @@ public:
 
   //封装了一个链表操作ww
   void InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb); 
+  bool isRecursive(bool=true);
 };
 
 class Module : public SymbolTable

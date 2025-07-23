@@ -184,7 +184,7 @@ public:
   template <typename T>
   T *as() { return dynamic_cast<T *>(this); }
   // UNROLLING要用
-  void RAUW(Value *val);
+  //void RAUW(Value *val);//注销了，ReplaceAllUseWith
 };
 
 class User : public Value
@@ -213,6 +213,7 @@ public:
   bool remove_use(Use *_use);
   void clear_use();
   void DropAllUsesOfThis();
+  void ClearRelation();
   int GetOperandNums()
   {
     return useruselist.size();
