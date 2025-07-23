@@ -27,25 +27,25 @@ void copyFile(const std::string &sourcePath,
 
 int main(int argc, char **argv)
 {
-   std::string output_path = argv[4];
+   std::string output_path = argv[1];
    output_path += ".ll";
 
-   std::string filename = argv[4];
+   std::string filename = argv[1];
    size_t lastSlashPos = filename.find_last_of("/\\") + 1;
    filename = filename.substr(lastSlashPos);
 
-   asmoutput_path = argv[3];
+   asmoutput_path = argv[1];
    size_t lastPointPos = asmoutput_path.find_last_of(".");
    asmoutput_path = asmoutput_path.substr(0, lastPointPos) + ".s";
 
 
-   // copyFile("runtime.ll", output_path);
+   copyFile("runtime.ll", output_path);
    // clear the file 
-   std::ofstream ofs(output_path, std::ios::trunc); 
-   ofs.close();
+   // std::ofstream ofs(output_path, std::ios::trunc); 
+   // ofs.close();
 
    freopen(output_path.c_str(), "a", stdout);
-   yyin = fopen(argv[4], "r");
+   yyin = fopen(argv[1], "r");
    yy::parser parse;
    parse();
    Singleton<CompUnit *>()->codegen();
