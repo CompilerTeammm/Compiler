@@ -113,9 +113,9 @@ void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool fla
     inst->SetRegisterOp (std::move("sp"),Register::real);
 
     if(flag == _malloc)
-        inst->SetImmOp(std::move("-"+std::to_string(size)));
+        inst->SetstackOffsetOp(std::move("-"+std::to_string(size)));
     else 
-        inst->SetImmOp(std::move(std::to_string(size)));
+        inst->SetstackOffsetOp(std::move(std::to_string(size)));
 }
 void ProloAndEpilo::SetsdRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
@@ -132,7 +132,7 @@ void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
     inst->SetRegisterOp("s0",Register::real);
     inst->SetRegisterOp("sp",Register::real);
     
-    inst->SetImmOp(std::to_string(size));
+    inst->SetstackOffsetOp(std::to_string(size));
 
 }
 

@@ -1,14 +1,26 @@
 #include "../include/MyBackend/MIR.hpp"
 #include "../include/IR/Analysis/Dominant.hpp"
 #include "../include/MyBackend/RISCVContext.hpp"
+#include "../include/MyBackend/RISCVType.hpp"
 #include <memory>
 #include <string>
 #include <sstream>
 
 Imm::Imm(ConstantData* _data) :type(TransType(_data->GetType())),
-                                data(_data) {  }
+                                data(_data) { ImmInit(); }
+ConstantData* Imm::getData() { return data; }
 
-static std::shared_ptr<Imm> GetImm(ConstantData* _data)
+void Imm::ImmInit() {
+    if(type == riscv_32int) {
+        int val = dynamic_cast<ConstIRInt*> (data)->GetVal();
+        setName(std::to_string(val));
+    } else if(type == riscv_32float) {
+        float fval = dynamic_cast<ConstIRFloat*> (data)->GetVal();
+        setName(floatToString(fval));
+    }
+}
+
+std::shared_ptr<Imm> Imm::GetImm(ConstantData* _data)
 {
     static std::map<ConstantData*,std::shared_ptr<Imm>> Immpool;
     if(Immpool.find(_data) == Immpool.end())

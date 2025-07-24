@@ -93,9 +93,17 @@ class Imm: public RISCVOp
     public:
     Imm(ConstantData* _data);
     ConstantData* getData();
+    void ImmInit();
     static std::shared_ptr<Imm> GetImm(ConstantData* _data);
 };
 
+class stackOffset:public RISCVOp
+{
+    Value *val;
+public:
+    stackOffset(Value *_val) : val(_val), RISCVOp(_val->GetName()) {}
+    stackOffset(std::string name) : RISCVOp(name) {}
+};
 
 // 虚拟实际寄存器封装到一起
 // 我将 虚拟寄存器和 物理实际寄存器进行了封装
@@ -449,22 +457,13 @@ public:
     void SetRealRegister(std::string&& str) {
         SetRegisterOp(std::move(str),Register::real);   
     }
-    void SetImmOp(std::string &&str)
-    {
-        auto Immop = std::make_shared<Imm>(str);
+    void SetstackOffsetOp(std::string &&str) {
+        auto Immop = std::make_shared<stackOffset>(str);
         opsVec.push_back(Immop);
     }
     void SetImmOp(Value *val)
     {
-        std::shared_ptr<Imm> Immop = nullptr;
-        if (val->GetType() == FloatType::NewFloatTypeGet())
-        {
-            auto it = (val->as<ConstIRFloat>());
-            if (it)
-                Immop = std::make_shared<Imm>(val->as<ConstIRFloat>());
-        }
-        else
-            Immop = std::make_shared<Imm>(val);
+        std::shared_ptr<Imm> Immop = Imm::GetImm(val->as<ConstantData>());
         opsVec.push_back(Immop);
     }
     

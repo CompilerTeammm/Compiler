@@ -606,7 +606,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         RISCVInst* saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
         saveS0Inst->SetVirRegister();
         saveS0Inst->SetRealRegister("s0");
-        saveS0Inst->SetImmOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
+        saveS0Inst->SetstackOffsetOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
         // how to imm
 
         RISCVInst* para0 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
@@ -662,9 +662,9 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
     RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
     liInst->SetVirRegister();
     if(text->setArrIntOrFloat() == 0 ) { // int
-        liInst->SetImmOp(std::to_string(std::get<int> (val)));
+        liInst->SetstackOffsetOp(std::to_string(std::get<int> (val)));
     } else {  // float
-        liInst->SetImmOp(std::to_string(std::get<float> (val)));
+        liInst->SetstackOffsetOp(std::to_string(std::get<float> (val)));
     }
     
     return liInst;

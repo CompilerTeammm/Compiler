@@ -9,4 +9,11 @@ RISCVType TransType(Type* tp) {
     return RISCVType::_nono;
 }
 
-std::string floatToString(float tmpf);
+std::string floatToString(float tmpf)
+{
+
+    uint32_t n;
+    memcpy(&n, &tmpf, sizeof(float)); // 直接复制内存位模式
+    std::string name = std::to_string(n);
+    return name;
+}
