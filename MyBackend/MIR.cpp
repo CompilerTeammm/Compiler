@@ -89,7 +89,10 @@ std::string  RISCVInst::ISAtoAsm()
     return nullptr;
 }
 
-
+int RISCVBlock::counter = 0;
+std::string RISCVBlock:: getCounter() { 
+    return std::to_string(counter++); 
+}
 
 std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
 {

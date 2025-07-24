@@ -90,3 +90,4 @@ bool TransFunction::run(Function* func)
 
     return ret;
 }
+

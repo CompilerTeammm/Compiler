@@ -369,9 +369,9 @@ void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVIns
     Value *valOp2 = inst->GetOperand(1);
     auto RISCVop1 = mapTrans(valOp1)->as<RISCVInst>();
     auto RISCVop2 = mapTrans(valOp2)->as<RISCVInst>();
-    if(RISCVop1 == nullptr)
+    // if(RISCVop1 == nullptr)
         
-    if(RISCVop2 == nullptr)
+    // if(RISCVop2 == nullptr)
 
     if (inst->GetType() == IntType::NewIntTypeGet())
     {
@@ -690,7 +690,7 @@ RISCVOp* RISCVContext::Create(Value* val)
     }
     // 这个用智能指针会导致释放问题，，恶心了
     if(auto block = dynamic_cast<BasicBlock*> (val)){
-        auto it = new RISCVBlock(block,".BB"+block->GetName());
+        auto it = new RISCVBlock(block,".BB"+RISCVBlock::getCounter());
         //离谱的api
         // auto  func = block->GetParent();
         auto parent = mapTrans(block->GetParent())->as<RISCVFunction> ();

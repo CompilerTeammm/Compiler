@@ -149,13 +149,6 @@ void TextSegment::TextInit()
     else {
         type = bss;
     }
-
-    // if(var->GetInitializer() != nullptr      // Initializer 继承自 vector 
-    //   && dynamic_cast<Initializer*>(var->GetInitializer())->size()!=0) {   // type
-    //     type = data;
-    // } else {
-    //     type = bss;
-    // }
     name = var->GetName();               // name
     if ( var->GetTypeEnum() == IR_PTR)
     {
