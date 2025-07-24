@@ -38,11 +38,10 @@ int main(int argc, char **argv)
    size_t lastPointPos = asmoutput_path.find_last_of(".");
    asmoutput_path = asmoutput_path.substr(0, lastPointPos) + ".s";
 
-
-   copyFile("runtime.ll", output_path);
+   // copyFile("runtime.ll", output_path);
    // clear the file 
-   // std::ofstream ofs(output_path, std::ios::trunc); 
-   // ofs.close();
+   std::ofstream ofs(output_path, std::ios::trunc); 
+   ofs.close();
 
    freopen(output_path.c_str(), "a", stdout);
    yyin = fopen(argv[1], "r");

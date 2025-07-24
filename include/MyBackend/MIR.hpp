@@ -116,8 +116,13 @@ public:
     Imm(Value* _val): val(_val),RISCVOp(_val->GetName()) { }
     Imm(ConstIRFloat *_fdata) : fdata(_fdata),RISCVOp(_fdata->GetVal())
                                 { }
-
+    static Imm* GetImm();
     Imm(std::string name):RISCVOp(name) { }
+    // ConstantData* data;
+    // public:
+    // Imm(ConstantData* _data):
+    // ConstantData* getData();
+    // static Imm* GetImm(ConstantData* _data);
 };
 
 
@@ -158,7 +163,7 @@ public:
     void setRVflag() { RVflag = real; }
     void reWirteRegWithReal(Register* );
     static Register* GetRealReg(realReg);
-        std::string realRegToString(realReg reg) {
+    std::string realRegToString(realReg reg) {
     switch(reg) {
         // 基础整数寄存器
         case realReg::zero: return "zero";

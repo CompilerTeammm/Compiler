@@ -62,8 +62,7 @@ bool TransFunction::run(Function* func)
     // RISCVFunc 与 RISCVBlock 建立了联系
     for (BasicBlock *BB : *func)
     {
-        // 把 BB 存储起来
-        ctx->mapTrans(BB);
+        ctx->mapTrans(BB);   // 把 BB 存储起来
     }
 
     //auto RISCVbb = ctx->mapTrans(BB)->as<RISCVBlock>(); 如何找到被存储的BB呢！

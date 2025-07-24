@@ -367,20 +367,20 @@ void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVIns
 {
     Value *valOp1 = inst->GetOperand(0);
     Value *valOp2 = inst->GetOperand(1);
+    auto RISCVop1 = mapTrans(valOp1)->as<RISCVInst>();
+    auto RISCVop2 = mapTrans(valOp2)->as<RISCVInst>();
+    if(RISCVop1 == nullptr)
+        
+    if(RISCVop2 == nullptr)
+
     if (inst->GetType() == IntType::NewIntTypeGet())
     {
         RInst = CreateInstAndBuildBind(Op, inst);
-        auto RISCVop1 = mapTrans(valOp1)->as<RISCVInst>();
-        auto RISCVop2 = mapTrans(valOp2)->as<RISCVInst>();
-
         RInst->setThreeRigs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
     }
     else if (inst->GetType() == FloatType::NewFloatTypeGet())
     {
         RInst = CreateInstAndBuildBind(Op, inst);
-        auto RISCVop1 = mapTrans(valOp1)->as<RISCVInst>();
-        auto RISCVop2 = mapTrans(valOp2)->as<RISCVInst>();
-
         RInst->setThreeRigs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
     }
     else {

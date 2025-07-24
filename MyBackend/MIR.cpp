@@ -4,6 +4,11 @@
 #include <string>
 #include <sstream>
 
+static Imm* GetImm(ConstantData* _data)
+{
+    //static std::map<ConstantData*,std::make_shared<Imm>(_data)> Immpool;
+
+}
 
 int Register::VirtualReg = 0;
 Register::Register(std::string _name, bool Flag,int _Fflag) 

@@ -254,7 +254,6 @@ void RISCVPrint::printPrefix()
     \"rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0\"" << std::endl;
     std::cout << "    " <<".attribute unaligned_access, 0" << std::endl;
     std::cout << "    " <<".attribute stack_align, 16" << std::endl;
-    std::cout << "    " <<".text" << std::endl;
 }
 
 //	.size	main, .-main
@@ -303,12 +302,15 @@ void RISCVPrint::printAsm()
 {
     printPrefix();   
     //  global values
+    if(_context->getTexts().size() != 0)
+        std::cout << "    " <<".text" << std::endl;
     for(auto text :_context->getTexts()) 
     {
         text->TextPrint();
     }
     // funcs
     auto funcs = _context->getMfuncs();
+    std::cout << "    " <<".text" << std::endl;
     for(auto func : funcs)
     {
         // RISCVFunction
