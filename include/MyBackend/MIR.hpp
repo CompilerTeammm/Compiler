@@ -10,6 +10,7 @@
 #include <string.h>
 #include <string>
 #include "../../Log/log.hpp"
+#include "RISCVType.hpp"
 
 /// 目标机器语言只有一种，RISCV，所以将 MIR -> RISCV
 /// llvm 中端万物皆是 value ， 后端  万物都是 RISCVOp
@@ -68,61 +69,31 @@
 
 class RISCVFunction;
 class RISCVBlock;
-
 class RISCVOp 
 {
-public:
-    enum Type
-    {
-        Global,
-        Local
-    };
 private:
     std::string name;
-    Type type;
 public:
     RISCVOp() = default;
-    RISCVOp(std::string _name,Type _type= Local):name(_name),type(_type) {}
-    RISCVOp(float tmpf,Type _type= Local) : type(_type)  
-    {
-        uint32_t n;
-        memcpy(&n, &tmpf, sizeof(float)); // 直接复制内存位模式
-        name = std::to_string(n);
-    }
+    RISCVOp(std::string _name):name(_name)  { }   
     virtual ~RISCVOp() = default;
     
     template<typename T>
-    T* as()
-    {
+    T* as() {
         return static_cast<T*> (this);
     }
-
-    void setName(std::string _string)
-    {
-        name = _string;
-    }
-
-    std::string& getName()
-    {
-        return name;
-    }
+    void setName(std::string _string) {  name = _string;  }
+    std::string& getName() {   return name;  }
 };
 
 class Imm: public RISCVOp
 {
-    Value* val;
-    ConstIRFloat* fdata;
-public:
-    Imm(Value* _val): val(_val),RISCVOp(_val->GetName()) { }
-    Imm(ConstIRFloat *_fdata) : fdata(_fdata),RISCVOp(_fdata->GetVal())
-                                { }
-    static Imm* GetImm();
-    Imm(std::string name):RISCVOp(name) { }
-    // ConstantData* data;
-    // public:
-    // Imm(ConstantData* _data):
-    // ConstantData* getData();
-    // static Imm* GetImm(ConstantData* _data);
+    RISCVType type;
+    ConstantData* data;
+    public:
+    Imm(ConstantData* _data);
+    ConstantData* getData();
+    static std::shared_ptr<Imm> GetImm(ConstantData* _data);
 };
 
 
@@ -280,7 +251,7 @@ public:
 class RISCVAddrOp:public RISCVOp 
 {
 public:
-    RISCVAddrOp(std::string name) :RISCVOp(name,RISCVOp::Global) { }
+    RISCVAddrOp(std::string name) :RISCVOp(name) { }
 };
 
 class RISCVInst:public RISCVOp,public Node<RISCVBlock,RISCVInst>
@@ -495,8 +466,8 @@ public:
         else
             Immop = std::make_shared<Imm>(val);
         opsVec.push_back(Immop);
-        // std::cout << opsVec[1]->getName() << std:: endl;
     }
+    
     void SetAddrOp(std::string hi_lo,Value* val)
     {
         std::string s1(hi_lo+"(" + val->GetName() + ")");

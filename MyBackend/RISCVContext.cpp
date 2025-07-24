@@ -729,7 +729,7 @@ RISCVOp* RISCVContext::Create(Value* val)
 RISCVOp* RISCVContext::mapTrans(Value* val)
 {
     if(val->isGlobal() && valToRiscvOp.find(val) == valToRiscvOp.end()) {
-        auto op  = new RISCVOp(val->GetName(),RISCVOp::Global);
+        auto op  = new RISCVOp(val->GetName());
         valToRiscvOp[val] = op;   // bug:: delete when???
     }
 

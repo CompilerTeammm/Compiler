@@ -1,13 +1,19 @@
 #include "../include/MyBackend/MIR.hpp"
 #include "../include/IR/Analysis/Dominant.hpp"
 #include "../include/MyBackend/RISCVContext.hpp"
+#include <memory>
 #include <string>
 #include <sstream>
 
-static Imm* GetImm(ConstantData* _data)
-{
-    //static std::map<ConstantData*,std::make_shared<Imm>(_data)> Immpool;
+Imm::Imm(ConstantData* _data) :type(TransType(_data->GetType())),
+                                data(_data) {  }
 
+static std::shared_ptr<Imm> GetImm(ConstantData* _data)
+{
+    static std::map<ConstantData*,std::shared_ptr<Imm>> Immpool;
+    if(Immpool.find(_data) == Immpool.end())
+        Immpool[_data] = std::make_shared<Imm>(_data);
+    return Immpool[_data];
 }
 
 int Register::VirtualReg = 0;
