@@ -2,6 +2,7 @@
 #include"MIR.hpp"
 #include "../../Log/log.hpp"
 #include "RISCVPrint.hpp"
+#include <memory>
 
 // RISCVContext 存储所有的信息
 // value*   ->  RISCVOp*   这个主要问题是 Value  与 RISCVOp 不是一一匹配的
@@ -24,6 +25,7 @@ private:
     using MFuncPtr = std::shared_ptr<RISCVFunction>;
     std::vector<MFuncPtr> Mfuncs;
     RISCVFunction* curMfunc;
+    RISCVContext() = default;
 public:
     void addText(TextPtr text) {
         Texts.push_back(text);
@@ -32,11 +34,12 @@ public:
         Mfuncs.push_back(func);
     }
 
-    // static RISCVContext& getCTX()
-    // {
-    //     static RISCVContext ctx;
-    //     return ctx;
-    // }
+    static std::shared_ptr<RISCVContext>& getCTX()
+    {
+        static std::shared_ptr<RISCVContext> ctx(new RISCVContext);
+        return ctx;
+    }
+
     bool dealGlobalVal(Value* val);
 
     std::vector<TextPtr>& getTexts() { return Texts; }

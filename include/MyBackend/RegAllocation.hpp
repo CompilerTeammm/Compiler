@@ -23,7 +23,7 @@ class RegAllocation :public BackendPassBase
 
 public:
     bool run() override; 
-    RegAllocation(RISCVFunction* _mfunc,std::shared_ptr<RISCVContext> _ctx)
+    RegAllocation(RISCVFunction* _mfunc,std::shared_ptr<RISCVContext>& _ctx)
                 :mfunc(_mfunc),ctx(_ctx),interval(_mfunc,_ctx) { }
     void fillLinerScaner();
     void ScanLiveinterval();

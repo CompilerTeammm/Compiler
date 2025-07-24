@@ -11,7 +11,7 @@ extern std::string asmoutput_path;
 
 void TransModule::InitPrintAndCtx(Module* mod)
 {
-    ctx = std::make_shared<RISCVContext> ();
+    ctx =RISCVContext::getCTX();
     printer = std::make_shared<RISCVPrint>(asmoutput_path,mod,ctx);
 }
 
