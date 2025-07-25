@@ -16,6 +16,8 @@ private:
     DominantTree *tree;
 
 public:
+
+
     bool run() override;
     SimplifyCFG(Function *_func, DominantTree *_tree) : tree(_tree), func(_func) {}
     ~SimplifyCFG() = default;
