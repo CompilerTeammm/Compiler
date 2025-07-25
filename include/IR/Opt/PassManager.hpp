@@ -18,6 +18,7 @@
 #include "SimplifyCFG.hpp"
 #include "DSE.hpp"
 #include "Inliner.hpp"
+#include "TRE.hpp"
 
 // 互不影响，完全没问题再放出来
 // #define dce
@@ -29,7 +30,9 @@
 // #define Loop_Simplifying
 // #define Loop_Unrolling
 //内联优化
-#define MY_INLINE_PASS
+// #define MY_INLINE_PASS
+//TRE
+// #define MY_TRE_PASS
 
 enum PassName
 {
@@ -159,5 +162,13 @@ void PassManager::RunOnTest()
 #ifdef MY_INLINE_PASS
     Inliner inlinerPass(&Singleton<Module>());
     inlinerPass.run();
+#endif
+#ifdef MY_TRE_PASS
+for (auto &function : funcVec)
+{
+    auto fun = function.get();
+    TRE TREPass(fun);
+    TREPass.run();
+}
 #endif
 }

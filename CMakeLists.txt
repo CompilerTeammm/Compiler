@@ -45,6 +45,7 @@ file(GLOB_RECURSE SOURCES
   IR/Analysis/LoopInfo.cpp
 
   IR/Opt/Inliner.cpp
+  IR/Opt/TRE.cpp
 
   MyBackend/*.cpp
   Log/log.cpp
