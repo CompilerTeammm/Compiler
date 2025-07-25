@@ -455,8 +455,8 @@ public:
     }
     void SetRealRegister(std::string&& str) {
         SetRegisterOp(std::move(str),Register::real);   
-    }
-    void SetstackOffsetOp(std::string &&str) {
+    } 
+    void SetstackOffsetOp(std::string &&str) {   // prolo  epilo
         auto stackOff = std::make_shared<stackOffset>(str);
         opsVec.push_back(stackOff);
     }
@@ -490,6 +490,20 @@ public:
     std::string ISAtoAsm();
     ~RISCVInst() = default;
 
+    // 涉及store 语句的需要单独处理
+    void setStoreOp(RISCVInst* Inst)  // sw  sd
+    {
+        auto reg = Inst->getOpreand(0);
+        if (reg == nullptr)
+            LOG(ERROR,"the reg must not to be nullptr");
+        
+        opsVec.push_back(reg);
+    }
+    void setStoreStackOp(size_t offset)
+    {
+       opsVec.push_back(std::make_shared<RISCVOp> 
+                       ("-" + std::to_string(offset) + "(s0)"));
+    }
 
     void setThreeRigs(op op1, op op2) // addw
     {
@@ -540,21 +554,6 @@ public:
         SetRegisterOp("%." + std::to_string(Register::VirtualReg));
         auto reg = Inst->getOpreand(0);
         opsVec.push_back(reg);
-    }
-
-    // 涉及store 语句的需要单独处理
-    void setStoreOp(RISCVInst* Inst)  // sw  sd
-    {
-        auto reg = Inst->getOpreand(0);
-        if (reg == nullptr)
-            LOG(ERROR,"the reg must not to be nullptr");
-        
-        opsVec.push_back(reg);
-    }
-    void setStoreStackOp(size_t offset)
-    {
-       opsVec.push_back(std::make_shared<RISCVOp> 
-                       ("-" + std::to_string(offset) + "(s0)"));
     }
 };
 
@@ -632,13 +631,14 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     using matchLoadInstPtr = RISCVInst*;
     std::map<matchLoadInstPtr,AllocaInst*> StackLoadRecord;
     using offset = size_t;
-    std::map<AllocaInst*,size_t> AllocaOffsetRecord;
+    std::map<AllocaInst*,offset> AllocaOffsetRecord;
 
     std::map<RISCVInst*,AllocaInst*> StoreInsts;
     std::vector<RISCVInst*> LoadInsts;
     std::vector<AllocaInst*> AllocaInsts;
     
     std::vector<RISCVBlock*> recordBBs;  // 记录顺序
+    offset arroffset = 16;
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
@@ -654,6 +654,8 @@ public:
     {
         StoreInsts.emplace( std::make_pair(inst,alloca) );
     }
+
+    void getCurFuncArrStack(RISCVInst*& ,Value* val);
 
     void setPrologue(std::shared_ptr<RISCVPrologue>& it ) { prologue = it;}
     void setEpilogue(std::shared_ptr<RISCVEpilogue>& it ) { epilogue = it;}

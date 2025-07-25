@@ -122,3 +122,9 @@ std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
     auto succBlocks = tree.getSuccBBs(cur_bb);
     return succBlocks;
 }
+
+void RISCVFunction::getCurFuncArrStack(RISCVInst*& RInst,Value* val)
+{
+    arroffset += std::stoi(val->GetName());
+    RInst->SetstackOffsetOp("-"+std::to_string(arroffset));
+}

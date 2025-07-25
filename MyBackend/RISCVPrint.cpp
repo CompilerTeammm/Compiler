@@ -261,28 +261,37 @@ void RISCVPrint::printInsts(RISCVInst* inst)
 {
     std::cout << "    " << inst->ISAtoAsm() << "  ";
     int count = inst->getOpsVec().size() -1 ;
-    if ((inst->getOpcode() == RISCVInst::_lw || inst->getOpcode() == RISCVInst::_sw) 
-                          && dynamic_cast<Register*>( inst->getOpreand(1).get())) 
+    // if ((inst->getOpcode() == RISCVInst::_lw || inst->getOpcode() == RISCVInst::_sw) 
+    //                       && dynamic_cast<Register*>( inst->getOpreand(1).get())) 
+    // {
+    //     for (auto &op : inst->getOpsVec())
+    //     {
+    //         if (op == inst->getOpreand(1)) {
+    //             std::cout <<"0"<<"("<<op->getName() <<")";
+    //             break;
+    //         }
+    //         std::cout << op->getName();
+    //         if (count != 0) {
+    //             std::cout << ",";
+    //             count--;
+    //         }
+    //     }
+    // } else {
+    //     for (auto &op : inst->getOpsVec()){
+    //         std::cout << op->getName();
+    //         if (count != 0)  {
+    //             std::cout << ",";
+    //             count--;
+    //         }
+    //     }
+    // }
+    for (auto &op : inst->getOpsVec())
     {
-        for (auto &op : inst->getOpsVec())
+        std::cout << op->getName();
+        if (count != 0)
         {
-            if (op == inst->getOpreand(1)) {
-                std::cout <<"0"<<"("<<op->getName() <<")";
-                break;
-            }
-            std::cout << op->getName();
-            if (count != 0) {
-                std::cout << ",";
-                count--;
-            }
-        }
-    } else {
-        for (auto &op : inst->getOpsVec()){
-            std::cout << op->getName();
-            if (count != 0)  {
-                std::cout << ",";
-                count--;
-            }
+            std::cout << ",";
+            count--;
         }
     }
     std::cout << std::endl;

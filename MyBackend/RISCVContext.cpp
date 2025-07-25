@@ -122,32 +122,12 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 {
     RISCVInst* Inst = nullptr;
 
-    if( dynamic_cast<GepInst*>(inst->GetPrevNode()))
-    {
-        // really ??? 
-        return nullptr;
-    }
-
-    if ( inst->GetOperand(0)->isGlobal())
+    if ( dynamic_cast<GepInst*>(inst->GetOperand(0)))
     {   
         // global 的lw 应该不需要记录，因为这个全局加载
-        RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
-        luiInst->SetVirRegister();
-        luiInst->SetAddrOp("%hi",inst->GetOperand(0));
-
-        RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->SetAddrOp("%lo", inst->GetOperand(0));
-
         Inst = CreateInstAndBuildBind(RISCVInst::_lw,inst);
         Inst->SetVirRegister();
-        auto it = addInst->GetPrevNode()->getOpreand(0);
-        // Inst->SetstackOffsetOp(std::string("0(" + it->getName() +")"));
-        Inst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        // One Or More
-        Inst->DealMore(luiInst);
-        Inst->DealMore(addInst);
+        Inst->getOpsVec().push_back(Inst->GetPrevNode()->getOpreand(0));
     }
     else
     {
@@ -175,26 +155,22 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
 {
     Value* val = inst->GetOperand(0);
     RISCVInst* Inst = nullptr;
-    if (inst->GetOperand(1)->isGlobal()) {
+    if (dynamic_cast<GepInst*>(inst->GetOperand(1)) ) {
         // Value* Gval = inst->GetOperand(1);
         // TextPtr it = valToText[Gval];
-
-        RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
-        luiInst->SetVirRegister();
-        luiInst->SetAddrOp("%hi",inst->GetOperand(1));
-
-        RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->SetAddrOp("%lo", inst->GetOperand(1));
-
         RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
         liInst->SetVirRegister();
         liInst->SetImmOp(val);
 
         Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
         Inst->push_back(liInst->getOpreand(0));
-        Inst->push_back(addInst->getOpreand(0));
+        Inst->push_back(liInst->GetPrevNode()->getOpreand(0));
+        return Inst;
+    } else if (dynamic_cast<LoadInst*>(val) && 
+              dynamic_cast<GepInst*>(val->as<LoadInst>()->GetOperand(0))) {
+        Inst = CreateInstAndBuildBind(RISCVInst::_sw,inst);
+        Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
+        extraDealStoreInst(Inst, inst);
         return Inst;
     }
 
@@ -667,7 +643,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     RISCVInst* param = nullptr;
     RISCVInst* ret = nullptr;
     auto name = inst->GetOperand(0)->GetName();
-    if (name == "llvm.memcpy.p0.p0.i32")
+    if (name == "llvm.memcpy.p0.p0.i32")  // 特殊函数从处理
     {
         Value* val = inst->GetOperand(3);
         RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
@@ -682,7 +658,8 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         RISCVInst* saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
         saveS0Inst->SetVirRegister();
         saveS0Inst->SetRealRegister("s0");
-        saveS0Inst->SetstackOffsetOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
+        // saveS0Inst->SetstackOffsetOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
+        getCurFunction()->getCurFuncArrStack(saveS0Inst,val);
         // how to imm
 
         RISCVInst* para0 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
@@ -702,6 +679,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 
         return Inst;
     }
+
     // param
     for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
     {
@@ -729,22 +707,37 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
 {
     Value* globlVal = inst->GetOperand(0);
-    bool it = globlVal->isGlobal();
-    Value* num = inst->GetOperand(2);
-    auto text = valToText[globlVal];
-    std::vector<std::variant<int , float>>&  vec = text->getInitVec();
-    int offsetVec = std::stoi(num->GetName());
-    auto val = vec[offsetVec];
+    RISCVInst* RInst = nullptr;
+    if (globlVal->isGlobal()) {
+        auto text = valToText[globlVal];
 
-    RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
-    liInst->SetVirRegister();
-    if(text->setArrIntOrFloat() == 0 ) { // int
-        liInst->SetstackOffsetOp(std::to_string(std::get<int> (val)));
-    } else {  // float
-        liInst->SetstackOffsetOp(std::to_string(std::get<float> (val)));
+        RInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
+        RInst->SetVirRegister();
+        RInst->SetAddrOp("%hi", inst->GetOperand(0));
+
+        RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->SetAddrOp("%lo", inst->GetOperand(0));
+    } else {
+
     }
+    // bool it = globlVal->isGlobal();
+    // Value* num = inst->GetOperand(2);
+    // auto text = valToText[globlVal];
+    // std::vector<std::variant<int , float>>&  vec = text->getInitVec();
+    // int offsetVec = std::stoi(num->GetName());
+    // auto val = vec[offsetVec];
+
+    // RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+    // liInst->SetVirRegister();
+    // if(text->setArrIntOrFloat() == 0 ) { // int
+    //     liInst->SetstackOffsetOp(std::to_string(std::get<int> (val)));
+    // } else {  // float
+    //     liInst->SetstackOffsetOp(std::to_string(std::get<float> (val)));
+    // }
     
-    return liInst;
+    return RInst;
 }
 
 // maybe need not to deal those!!!
