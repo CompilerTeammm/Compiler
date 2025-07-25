@@ -129,7 +129,8 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
     }
 
     if ( inst->GetOperand(0)->isGlobal())
-    {   // global 的lw 应该不需要记录，因为这个全局加载
+    {   
+        // global 的lw 应该不需要记录，因为这个全局加载
         RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
         luiInst->SetVirRegister();
         luiInst->SetAddrOp("%hi",inst->GetOperand(0));
@@ -141,6 +142,8 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 
         Inst = CreateInstAndBuildBind(RISCVInst::_lw,inst);
         Inst->SetVirRegister();
+        auto it = addInst->GetPrevNode()->getOpreand(0);
+        // Inst->SetstackOffsetOp(std::string("0(" + it->getName() +")"));
         Inst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
         // One Or More
         Inst->DealMore(luiInst);
@@ -172,6 +175,29 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
 {
     Value* val = inst->GetOperand(0);
     RISCVInst* Inst = nullptr;
+    if (inst->GetOperand(1)->isGlobal()) {
+        // Value* Gval = inst->GetOperand(1);
+        // TextPtr it = valToText[Gval];
+
+        RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+        luiInst->SetVirRegister();
+        luiInst->SetAddrOp("%hi",inst->GetOperand(1));
+
+        RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->SetAddrOp("%lo", inst->GetOperand(1));
+
+        RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+        liInst->SetVirRegister();
+        liInst->SetImmOp(val);
+
+        Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+        Inst->push_back(liInst->getOpreand(0));
+        Inst->push_back(addInst->getOpreand(0));
+        return Inst;
+    }
+
     if (auto var = dynamic_cast<Var*>(val))
     {
         if(var->isParam())
@@ -269,23 +295,56 @@ RISCVInst* RISCVContext::CreateAInst(AllocaInst *inst)
 void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,
                                     Instruction* CmpInst)
 {
+    // RISCVFunction
     if (inst->GetPrevNode()->GetOperand(0)->GetType() == IntType::NewIntTypeGet())
     {
         RInst = CreateInstAndBuildBind(op, inst);
         auto val = CmpInst->GetOperand(0);
         auto val2 = CmpInst->GetOperand(1);
         auto LoadRInst = mapTrans(val)->as<RISCVInst>();
-        auto cmpOp1 = LoadRInst->getOpreand(0);
-
         auto val2Inst = mapTrans(val2)->as<RISCVInst>();
-        auto cmpOp2 = val2Inst->getOpreand(0);
+        std::shared_ptr<RISCVOp> cmpOp1 = RInst->GetPrevNode()->GetPrevNode()->getOpreand(0);
+        std::shared_ptr<RISCVOp> cmpOp2 = RInst->GetPrevNode()->getOpreand(0);
+        // if(LoadRInst == nullptr) {
+        //     if (val2Inst == nullptr) {
+        //         cmpOp1 = Imm::GetImm(val->as<ConstantData>());
+        //         cmpOp2 = Imm::GetImm(val2->as<ConstantData>());
+        //     } else {
+        //         cmpOp1 = Imm::GetImm(val->as<ConstantData>());
+        //         cmpOp2 = val2Inst->getOpreand(0);
+        //     }
+        // } else {
+        //     if (val2Inst == nullptr) {
+        //         cmpOp1 = LoadRInst->getOpreand(0);
+        //         cmpOp2 = Imm::GetImm(val2->as<ConstantData>());
+        //     } else {
+        //         cmpOp1 = LoadRInst->getOpreand(0);
+        //         cmpOp2 = val2Inst->getOpreand(0);
+        //     }
+        // }
 
         RInst->push_back(cmpOp1);
         RInst->push_back(cmpOp2);
+
         auto Label = inst->GetOperand(2);
         auto bb = mapTrans(Label);
         auto ptr = std::make_shared<RISCVOp>(bb->getName());
         RInst->push_back(ptr);
+
+        RISCVBlock *nextbb = mapTrans(inst->GetOperand(1))->as<RISCVBlock>();
+        RISCVBlock *nowbb = mapTrans(inst->GetParent()->GetNextNode())->as<RISCVBlock>();
+        if (nowbb != nullptr)
+        {
+            auto &bbVec = RInst->GetParent()->GetParent()->getRecordBBs();
+            auto it1 = std::find(bbVec.begin(), bbVec.end(), nextbb);
+            auto it2 = std::find(bbVec.begin(), bbVec.end(), nowbb);
+
+            // 计算索引位置
+            size_t index1 = std::distance(bbVec.begin(), it1);
+            size_t index2 = std::distance(bbVec.begin(), it2);
+            // 交换元素（标准库方式）
+            std::swap(bbVec[index1], bbVec[index2]);
+        }
     } 
     else  
         assert("failed");
@@ -323,7 +382,7 @@ RISCVInst* RISCVContext::CreateCondInst(CondInst *inst)
                 extraDealBrInst(RInst,RISCVInst::_bne, inst, CmpInst);
                 break;
             case Instruction::Ne:
-                extraDealBrInst(RInst,RISCVInst::_bqe, inst, CmpInst);
+                extraDealBrInst(RInst,RISCVInst::_beq, inst, CmpInst);
                 break;
             case Instruction::Ge:
                 extraDealBrInst(RInst,RISCVInst::_blt, inst, CmpInst);
@@ -367,25 +426,39 @@ void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVIns
 {
     Value *valOp1 = inst->GetOperand(0);
     Value *valOp2 = inst->GetOperand(1);
+    auto Immop1 = dynamic_cast<ConstantData*> (valOp1);
+    auto Immop2 = dynamic_cast<ConstantData*> (valOp2);
+    RISCVInst* ImmOneInst = nullptr;
+    RISCVInst* ImmTwoInst = nullptr;
+
     auto RISCVop1 = mapTrans(valOp1)->as<RISCVInst>();
     auto RISCVop2 = mapTrans(valOp2)->as<RISCVInst>();
-    // if(RISCVop1 == nullptr)
-        
-    // if(RISCVop2 == nullptr)
 
-    if (inst->GetType() == IntType::NewIntTypeGet())
-    {
-        RInst = CreateInstAndBuildBind(Op, inst);
-        RInst->setThreeRigs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
+    if (Immop1 != nullptr) {
+        ImmOneInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+        ImmOneInst->SetVirRegister();
+        ImmOneInst->SetImmOp(Immop1);
     }
-    else if (inst->GetType() == FloatType::NewFloatTypeGet())
-    {
-        RInst = CreateInstAndBuildBind(Op, inst);
-        RInst->setThreeRigs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
+
+    if (Immop2 != nullptr) {
+        ImmTwoInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+        ImmTwoInst->SetVirRegister();
+        ImmTwoInst->SetImmOp(Immop2);
     }
-    else {
-        std::cout << Op << std::endl;
-        assert("Op_Add || Op_Sub || ... failed");
+
+    RInst = CreateInstAndBuildBind(Op, inst);
+    if(RISCVop1 == nullptr) {
+        if (RISCVop2 == nullptr) {
+            RInst->setThreeRigs(ImmOneInst->getOpreand(0), ImmTwoInst->getOpreand(0));
+        } else {
+            RInst->setThreeRigs(ImmOneInst->getOpreand(0), RISCVop2->getOpreand(0));
+        }
+    } else {  // RISCVop1 != nullptr
+        if(RISCVop2 == nullptr){
+            RInst->setThreeRigs(RISCVop1->getOpreand(0),ImmTwoInst->getOpreand(0));
+        } else {
+            RInst->setThreeRigs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
+        }
     }
 }
 
@@ -528,6 +601,9 @@ RISCVInst* RISCVContext::CreateBInst(BinaryInst *inst)
         case BinaryInst::Op_And:
         case BinaryInst::Op_Or:
         case BinaryInst::Op_Xor:
+            {
+                int a = 10;
+            }
             break;
         default:
             break;
@@ -653,6 +729,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
 {
     Value* globlVal = inst->GetOperand(0);
+    bool it = globlVal->isGlobal();
     Value* num = inst->GetOperand(2);
     auto text = valToText[globlVal];
     std::vector<std::variant<int , float>>&  vec = text->getInitVec();
@@ -671,7 +748,15 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
 }
 
 // maybe need not to deal those!!!
-RISCVInst* RISCVContext::CreateZInst(ZextInst *inst) {  return nullptr; }
+RISCVInst* RISCVContext::CreateZInst(ZextInst *inst) 
+{   // andi a5, a5, 1
+    RISCVInst* andiInst = CreateInstAndBuildBind(RISCVInst::_andi, inst);
+    andiInst->SetVirRegister();
+    andiInst->push_back(andiInst->getOpreand(0));
+    andiInst->SetImmOp(ConstIRInt::GetNewConstant(1));
+    return andiInst; 
+}
+
 RISCVInst* RISCVContext::CreateSInst(SextInst *inst)  {  return nullptr; }
 RISCVInst* RISCVContext::CreateTInst(TruncInst *inst) {  return nullptr;  }
 RISCVInst* RISCVContext::CreateMaxInst(MaxInst *inst)  {  return nullptr;  }
@@ -698,6 +783,7 @@ RISCVOp* RISCVContext::Create(Value* val)
         // 把BB父亲设置为func
         // func 插入 BB
         parent->push_back(it);
+        parent->getRecordBBs().push_back(it);  // 打印顺序
         return it;
     }
 

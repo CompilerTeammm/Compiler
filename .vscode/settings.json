@@ -92,7 +92,8 @@
     "scoped_allocator": "cpp",
     "shared_mutex": "cpp",
     "typeindex": "cpp",
-    "valarray": "cpp"
+    "valarray": "cpp",
+    "*.def": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",
   "C_Cpp_Runner.cppCompilerPath": "g++",

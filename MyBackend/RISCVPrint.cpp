@@ -261,13 +261,28 @@ void RISCVPrint::printInsts(RISCVInst* inst)
 {
     std::cout << "    " << inst->ISAtoAsm() << "  ";
     int count = inst->getOpsVec().size() -1 ;
-    for (auto &op : inst->getOpsVec())
+    if ((inst->getOpcode() == RISCVInst::_lw || inst->getOpcode() == RISCVInst::_sw) 
+                          && dynamic_cast<Register*>( inst->getOpreand(1).get())) 
     {
-        std::cout << op->getName();
-
-        if(count != 0){
-            std::cout <<"," ;
-            count--;
+        for (auto &op : inst->getOpsVec())
+        {
+            if (op == inst->getOpreand(1)) {
+                std::cout <<"0"<<"("<<op->getName() <<")";
+                break;
+            }
+            std::cout << op->getName();
+            if (count != 0) {
+                std::cout << ",";
+                count--;
+            }
+        }
+    } else {
+        for (auto &op : inst->getOpsVec()){
+            std::cout << op->getName();
+            if (count != 0)  {
+                std::cout << ",";
+                count--;
+            }
         }
     }
     std::cout << std::endl;
@@ -312,8 +327,7 @@ void RISCVPrint::printAsm()
         std::cout << "    .type  "<< func->getName() << ", @function" << std::endl;
         std::cout  << func->getName() << ": " <<std::endl;
         printFuncPro(func.get());
-
-        for(auto bb : *func.get())
+        for(auto bb : func->getRecordBBs())
         {
             std::cout << bb -> getName() <<": " << std::endl;
             // 这个仅仅只要被执行一次即可

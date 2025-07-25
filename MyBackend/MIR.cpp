@@ -80,7 +80,7 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _bgt) { return "bgt"; }
     if(opCode == _blt) { return "blt"; }
     if(opCode == _bne) { return "bne"; }
-    if(opCode == _bqe) { return "bqe"; }
+    if(opCode == _beq) { return "beq"; }
     if(opCode == _addw ) { return "addw"; }
     if(opCode == _subw) { return "subw"; }
     if(opCode == _mulw) { return "mulw"; }
@@ -103,6 +103,7 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _divw )  {return "divw";}
     if(opCode == _call)  { return "call"; }
     if(opCode == _lui) { return "lui"; }
+    if(opCode == _andi )  { return "andi"; }
 
     return nullptr;
 }

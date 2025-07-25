@@ -349,7 +349,6 @@ public:
         _bltz,
         _bne,
         _bnez,
-        _bqe,
 
         // 调用
         _call,
@@ -458,8 +457,8 @@ public:
         SetRegisterOp(std::move(str),Register::real);   
     }
     void SetstackOffsetOp(std::string &&str) {
-        auto Immop = std::make_shared<stackOffset>(str);
-        opsVec.push_back(Immop);
+        auto stackOff = std::make_shared<stackOffset>(str);
+        opsVec.push_back(stackOff);
     }
     void SetImmOp(Value *val)
     {
@@ -638,11 +637,12 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::map<RISCVInst*,AllocaInst*> StoreInsts;
     std::vector<RISCVInst*> LoadInsts;
     std::vector<AllocaInst*> AllocaInsts;
-
+    
+    std::vector<RISCVBlock*> recordBBs;  // 记录顺序
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
-
+    std::vector<RISCVBlock*>& getRecordBBs()  { return recordBBs; }
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
     std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    }
     std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
