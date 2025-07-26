@@ -120,14 +120,33 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
 
 RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 {
-    RISCVInst* Inst = nullptr;
+    RISCVInst *Inst = nullptr;
 
-    if ( dynamic_cast<GepInst*>(inst->GetOperand(0)))
-    {   
+    if (dynamic_cast<GepInst *>(inst->GetOperand(0)))
+    {
         // global 的lw 应该不需要记录，因为这个全局加载
-        Inst = CreateInstAndBuildBind(RISCVInst::_lw,inst);
+        Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
         Inst->SetVirRegister();
         Inst->getOpsVec().push_back(Inst->GetPrevNode()->getOpreand(0));
+    }
+    else if (inst->GetOperand(0)->isGlobal())
+    {
+        Value *globlVal = inst->GetOperand(0);
+
+        RISCVInst *luiInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
+        luiInst->SetVirRegister();
+        luiInst->SetAddrOp("%hi", globlVal);
+
+        RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        addInst->SetAddrOp("%lo", globlVal);
+
+        Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
+        Inst->SetVirRegister();
+        Inst->getOpsVec().push_back(Inst->GetPrevNode()->getOpreand(0));
+
+        getCurFunction()->getGloblValRecord().push_back(inst);
     }
     else
     {
@@ -179,6 +198,49 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
         Inst = CreateInstAndBuildBind(RISCVInst::_sw,inst);
         Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
         extraDealStoreInst(Inst, inst);
+        return Inst;
+    }
+
+    if (inst->GetOperand(1)->isGlobal())
+    {
+        Value* globlVal = inst->GetOperand(1);
+        if(dynamic_cast<ConstantData*> (val)) {
+            RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+            luiInst->SetVirRegister();
+            luiInst->SetAddrOp("%hi",globlVal);
+
+            RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+            addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+            addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+            addInst->SetAddrOp("%lo", globlVal);
+
+            RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+            liInst->SetVirRegister();
+            liInst->SetImmOp(val);
+
+            Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+            Inst->push_back(liInst->getOpreand(0));
+            Inst->push_back(liInst->GetPrevNode()->getOpreand(0));
+
+            getCurFunction()->getGloblValRecord().push_back(inst);
+
+        } else {
+            RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+            luiInst->SetVirRegister();
+            luiInst->SetAddrOp("%hi",globlVal);
+
+            RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+            addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+            addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+            addInst->SetAddrOp("%lo", globlVal);
+
+            Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+            auto it = mapTrans(inst->GetOperand(0))->as<RISCVInst>();
+            Inst->push_back(it->getOpreand(0));
+            Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
+       
+            getCurFunction()->getGloblValRecord().push_back(inst);
+        }
         return Inst;
     }
 
@@ -770,7 +832,6 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
     return RInst;
 }
 
-// maybe need not to deal those!!!
 RISCVInst* RISCVContext::CreateZInst(ZextInst *inst) 
 {   // andi a5, a5, 1
     RISCVInst* andiInst = CreateInstAndBuildBind(RISCVInst::_andi, inst);
@@ -780,6 +841,7 @@ RISCVInst* RISCVContext::CreateZInst(ZextInst *inst)
     return andiInst; 
 }
 
+// maybe need not to deal those!!!
 RISCVInst* RISCVContext::CreateSInst(SextInst *inst)  {  return nullptr; }
 RISCVInst* RISCVContext::CreateTInst(TruncInst *inst) {  return nullptr;  }
 RISCVInst* RISCVContext::CreateMaxInst(MaxInst *inst)  {  return nullptr;  }

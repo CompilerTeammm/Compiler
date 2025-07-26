@@ -640,9 +640,11 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     
     std::vector<RISCVBlock*> recordBBs;  // 记录顺序
     offset arroffset = 16;
-
+    // 处理数组，局部与全局的处理
     std::map<Instruction*,offset> recordGepOffset;
     std::map<Value*,Value*> GepLoaclToGlobl;
+    // 全局变量，除了数组
+    std::vector<Instruction*> globlValRecord; 
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
@@ -650,6 +652,7 @@ public:
     std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
     std::map<Value*,Value*>&getGepLocalToGlobl()  { return GepLoaclToGlobl;}
+    std::vector<Instruction*>& getGloblValRecord() { return globlValRecord; }
     std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    }
     std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
     std::map<AllocaInst*,lastStoreInstPtr>& getStoreRecord() {   return StackStoreRecord;   }

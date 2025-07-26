@@ -84,6 +84,15 @@ bool TransFunction::run(Function* func)
     if (!ret)
         LOG(ERROR, "RA failed");
 
+    auto gloValRecord = mfunc->getGloblValRecord();
+    for(auto& inst : gloValRecord) 
+    {
+        auto RInst = ctx->mapTrans(inst)->as<RISCVInst>();
+        std::string regName = RInst->getOpreand(1)->getName();
+        RInst->deleteOp(1);
+        RInst->SetstackOffsetOp("0(" + regName + ")");
+    }
+
     // 重写 gep 的ops
     auto gepRecord = mfunc->getRecordGepOffset();
     for(auto& [inst,off] : gepRecord)
