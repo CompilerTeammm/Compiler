@@ -158,13 +158,21 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
     if (dynamic_cast<GepInst*>(inst->GetOperand(1)) ) {
         // Value* Gval = inst->GetOperand(1);
         // TextPtr it = valToText[Gval];
-        RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
-        liInst->SetVirRegister();
-        liInst->SetImmOp(val);
-
-        Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
-        Inst->push_back(liInst->getOpreand(0));
-        Inst->push_back(liInst->GetPrevNode()->getOpreand(0));
+        if (dynamic_cast<LoadInst*>(val) == nullptr) {
+            RISCVInst *liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+            liInst->SetVirRegister();
+            liInst->SetImmOp(val);
+            Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+            Inst->push_back(liInst->getOpreand(0));
+            Inst->push_back(liInst->GetPrevNode()->getOpreand(0));
+        } else {
+            Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+            auto it = mapTrans(inst->GetOperand(0))->as<RISCVInst>();
+            Inst->push_back(it->getOpreand(0));
+            Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
+            // extraDealStoreInst(Inst, inst);
+            return Inst;
+        }
         return Inst;
     } else if (dynamic_cast<LoadInst*>(val) && 
               dynamic_cast<GepInst*>(val->as<LoadInst>()->GetOperand(0))) {
@@ -645,6 +653,10 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     auto name = inst->GetOperand(0)->GetName();
     if (name == "llvm.memcpy.p0.p0.i32")  // 特殊函数从处理
     {
+        Value* tmpAlloc = inst->GetOperand(1);
+        Value* glVal = inst->GetOperand(2);
+        getCurFunction()->getGepLocalToGlobl()[tmpAlloc] = glVal;
+
         Value* val = inst->GetOperand(3);
         RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
         luiInst->SetVirRegister();
@@ -708,35 +720,53 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
 {
     Value* globlVal = inst->GetOperand(0);
     RISCVInst* RInst = nullptr;
-    if (globlVal->isGlobal()) {
-        auto text = valToText[globlVal];
+    if (!globlVal->isGlobal()) {
+        globlVal = getCurFunction()->getGepLocalToGlobl()[globlVal];
+    }
 
+    if (globlVal->isGlobal()) {
+        //auto text = valToText[globlVal];
         RInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
         RInst->SetVirRegister();
-        RInst->SetAddrOp("%hi", inst->GetOperand(0));
+        RInst->SetAddrOp("%hi", globlVal);
 
         RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
         addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
         addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->SetAddrOp("%lo", inst->GetOperand(0));
+        addInst->SetAddrOp("%lo", globlVal);
+
+        Instruction* nextInst = inst->GetNextNode();
+        if (dynamic_cast<LoadInst*>(nextInst) || dynamic_cast<StoreInst*>(nextInst))
+        {
+            size_t sum = 0;             
+            int counter = 2;
+            int size = 0;
+            std::vector<int> numsRecord, findRecord;
+            PointerType *Pointer = dynamic_cast<PointerType *>(globlVal->GetType());
+            ArrayType* arry = dynamic_cast<ArrayType*> (Pointer->GetSubType());
+            int layer = arry->GetLayer();
+            while (arry && arry->GetLayer() != 0)
+            {
+                numsRecord.emplace_back(arry->GetNum());
+                arry = dynamic_cast<ArrayType*> (arry->GetSubType());
+            }
+            while (layer--)
+            {
+                findRecord.emplace_back(inst->GetOperand(counter)->as<ConstIRInt>()->GetVal());
+                counter++;
+            }
+            size = findRecord.size();
+            for(int i = 0; i < size-1; i ++)
+            {
+                sum = numsRecord[i+1]  * findRecord[i];
+            }
+            sum += findRecord[size-1], sum *= 4;
+            auto &gepRecord = getCurFunction()->getRecordGepOffset();
+            gepRecord[nextInst] = sum;
+        }
     } else {
-
+        LOG(ERROR,"WHAT FUCK!!!");
     }
-    // bool it = globlVal->isGlobal();
-    // Value* num = inst->GetOperand(2);
-    // auto text = valToText[globlVal];
-    // std::vector<std::variant<int , float>>&  vec = text->getInitVec();
-    // int offsetVec = std::stoi(num->GetName());
-    // auto val = vec[offsetVec];
-
-    // RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
-    // liInst->SetVirRegister();
-    // if(text->setArrIntOrFloat() == 0 ) { // int
-    //     liInst->SetstackOffsetOp(std::to_string(std::get<int> (val)));
-    // } else {  // float
-    //     liInst->SetstackOffsetOp(std::to_string(std::get<float> (val)));
-    // }
-    
     return RInst;
 }
 

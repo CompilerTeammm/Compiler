@@ -84,6 +84,16 @@ bool TransFunction::run(Function* func)
     if (!ret)
         LOG(ERROR, "RA failed");
 
+    // 重写 gep 的ops
+    auto gepRecord = mfunc->getRecordGepOffset();
+    for(auto& [inst,off] : gepRecord)
+    {
+        auto RInst = ctx->mapTrans(inst)->as<RISCVInst>();
+        std::string regName = RInst->getOpreand(1)->getName();
+        RInst->deleteOp(1);
+        RInst->SetstackOffsetOp(std::to_string(off) +"(" + regName + ")");
+    }
+
     //约定与调用，前言与后序
     ProloAndEpilo PAE(mfunc);
     ret = PAE.run();

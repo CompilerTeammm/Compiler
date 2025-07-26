@@ -472,6 +472,7 @@ public:
         std::shared_ptr<RISCVAddrOp> addrOp = std::make_shared<RISCVAddrOp> (s1);
         opsVec.push_back(addrOp);
     }
+    void deleteOp(int index)  { opsVec.erase(opsVec.begin() + index); }
 
     void push_back(op Op) { opsVec.push_back(Op); }
     std::vector<op> &getOpsVec() { return opsVec; }
@@ -639,11 +640,16 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     
     std::vector<RISCVBlock*> recordBBs;  // 记录顺序
     offset arroffset = 16;
+
+    std::map<Instruction*,offset> recordGepOffset;
+    std::map<Value*,Value*> GepLoaclToGlobl;
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
     std::vector<RISCVBlock*>& getRecordBBs()  { return recordBBs; }
+    std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
+    std::map<Value*,Value*>&getGepLocalToGlobl()  { return GepLoaclToGlobl;}
     std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    }
     std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
     std::map<AllocaInst*,lastStoreInstPtr>& getStoreRecord() {   return StackStoreRecord;   }
