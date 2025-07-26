@@ -13,13 +13,13 @@ class SimplifyCFG : public _PassBase<SimplifyCFG, Function>
 {
 private:
     Function *func;
-    DominantTree *tree;
 
+    //为了以防万一,要在每个优化前都进行一个_tree(func)的重建支配树,用到的vector不用回传tree,只需要新建即可
 public:
 
 
     bool run() override;
-    SimplifyCFG(Function *_func, DominantTree *_tree) : tree(_tree), func(_func) {}
+    SimplifyCFG(Function *_func) : func(_func) {}
     ~SimplifyCFG() = default;
     // 分层次组织子优化
     bool SimplifyCFGFunction();

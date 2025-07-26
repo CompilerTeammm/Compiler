@@ -22,9 +22,9 @@
 
 // 互不影响，完全没问题再放出来
 // #define dce
-// #define sccp
+#define sccp
 //#define pre
-//#define SCFG
+// #define SCFG
 // define DSE
 // 循环优化
 // #define Loop_Simplifying
@@ -141,9 +141,7 @@ void PassManager::RunOnTest()
     for (auto &function : funcVec)
     {
         auto fun = function.get();
-        DominantTree tree(fun);
-        tree.BuildDominantTree();
-        SimplifyCFG(fun, &tree).run();
+        SimplifyCFG(fun).run();
     }
 #endif
 #ifdef DSE
