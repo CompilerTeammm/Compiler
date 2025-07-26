@@ -223,10 +223,8 @@ public:
 
   inline void SetOperand(int i, Value *val)
   {
-    useruselist[i]->usee->GetValUseList().GetSize()--;
-
-    useruselist[i]->usee = val;
-    //  useruselist[i]->usee.
+    assert(i < this->useruselist.size());
+    this->ReplaceSomeUseWith(i, val);
   }
 
   // 默认调用Value的print
@@ -243,6 +241,8 @@ public:
     u->usee = val;
     val->add_use(u);
   }
+  void ReplaceSomeUseWith(int num, Operand val);//ww RSUW
+  void ReplaceSomeUseWith(Use *use, Operand val);
 };
 
 class Instruction : public User, public Node<BasicBlock, Instruction>

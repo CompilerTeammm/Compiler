@@ -401,6 +401,18 @@ User *User::CloneInst()
 bool User::is_empty() const { return useruselist.empty(); }
 
 size_t User::GetUserUseListSize() const { return useruselist.size(); }
+void User::ReplaceSomeUseWith(Use *use, Operand val) {
+  use->RemoveFromValUseList(this);
+  use->usee = val;
+  val->add_use(use);
+}
+void User::ReplaceSomeUseWith(int num, Operand val) {
+  auto &uselist = GetUserUseList();
+  assert(0 <= num && num < uselist.size() && "Invalid Location!");
+  uselist[num]->RemoveFromValUseList(this);
+  uselist[num]->usee = val;
+  val->add_use(uselist[num].get());
+}
 
 // Instruction
 

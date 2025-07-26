@@ -739,12 +739,12 @@ public:
   void FormatPhi();
   void ModifyBlock(BasicBlock *Old, BasicBlock *New);
   void ReplaceVal(Use *use, Value *new_val);
-  void RSUW(Use *u, Operand val)
-  {
-    u->RemoveFromValUseList(this);
-    u->usee = val;
-    val->add_use(u);
-  }
+  // void RSUW(Use *u, Operand val)//移到基类User了，更通用
+  // {
+  //   u->RemoveFromValUseList(this);
+  //   u->usee = val;
+  //   val->add_use(u);
+  // }
   // hu1 do it
   // 删去phiinst的一个引用块实现
   //  %r = phi i32 [ %a, %bb ], [ %b, %bb2 ]

@@ -1979,6 +1979,6 @@ void PhiInst::ReplaceVal(Use *use, Value *new_val)
 {
     assert(UseRecord.find(use) != UseRecord.end());
     auto index = UseRecord[use];
-    RSUW(use, new_val);
+    ReplaceSomeUseWith(use, new_val);
     PhiRecord[index].first = new_val;
 }
