@@ -1507,9 +1507,9 @@ bool BasicBlock::IsEnd()
 
 // Function
 Function::Function(IR_DataType _type, const std::string &_id)
-    : Value(NewTypeFromIRDataType(_type), _id)
+    : Value(NewTypeFromIRDataType(_type), (_id == "main" ? _id : "_user_" + _id))
 {
-    // 构造默认vector和mylist双开
+    // 构造默认vector和mylist双开？//nono这个写法是只开了list
     push_back(new BasicBlock());
 }
 

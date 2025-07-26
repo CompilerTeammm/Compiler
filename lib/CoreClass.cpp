@@ -124,6 +124,27 @@ void ValUseList::clear()
   size = 0;
 }
 
+void ValUseList::remove(Use *target) {
+    if (!target || !head) return;
+
+    Use *prev = nullptr;
+    Use *curr = head;
+
+    while (curr) {
+        if (curr == target) {
+            if (prev) {
+                prev->next = curr->next;
+            } else {
+                head = curr->next;
+            }
+            size--;
+            return;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+}
+
 // Value
 bool Value::isGlobal() { return false; }
 bool Value::isConst() { return false; }

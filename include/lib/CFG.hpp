@@ -862,7 +862,7 @@ private:
   std::vector<ParamPtr> params;
   std::vector<BBPtr> BBs;
   std::pair<size_t,size_t> inlineinfo;
-  std::string id;
+  // std::string id;
 
 public:
   Function(IR_DataType _type, const std::string &_id);

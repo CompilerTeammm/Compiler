@@ -135,6 +135,7 @@ public:
 
   void print() const; // 调试
   void clear();
+  void remove(Use *target);
 };
 
 class Value
