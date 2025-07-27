@@ -19,6 +19,7 @@
 #include "DSE.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
+#include "SOGE.hpp"
 
 // 互不影响，完全没问题再放出来
 // #define dce
@@ -33,6 +34,8 @@
 // #define MY_INLINE_PASS
 //TRE
 // #define MY_TRE_PASS
+//SOGE
+// #define MY_SOGE_PASS
 
 enum PassName
 {
@@ -168,5 +171,9 @@ for (auto &function : funcVec)
     TRE TREPass(fun);
     TREPass.run();
 }
+#endif
+#ifdef MY_SOGE_PASS
+    SOGE sogePass(&Singleton<Module>());
+    sogePass.run();
 #endif
 }
