@@ -118,6 +118,7 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
     }
 }
 
+// 数组（局部和全局）      全局 int,float 单独处理需要
 RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 {
     RISCVInst *Inst = nullptr;
@@ -128,6 +129,7 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
         Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
         Inst->SetVirRegister();
         Inst->getOpsVec().push_back(Inst->GetPrevNode()->getOpreand(0));
+       // getCurFunction()->getRecordGepOffset().push_back(inst);
     }
     else if (inst->GetOperand(0)->isGlobal())
     {
@@ -236,9 +238,14 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
 
             Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
             auto it = mapTrans(inst->GetOperand(0))->as<RISCVInst>();
-            Inst->push_back(it->getOpreand(0));
-            Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
-       
+            if (dynamic_cast<CallInst*>(inst->GetOperand(0))){
+                Inst->SetRealRegister("a0");
+                Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
+            }
+            else {
+                Inst->push_back(it->getOpreand(0));
+                Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
+            }
             getCurFunction()->getGloblValRecord().push_back(inst);
         }
         return Inst;
@@ -378,18 +385,21 @@ void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instructi
         RInst->push_back(ptr);
 
         RISCVBlock *nextbb = mapTrans(inst->GetOperand(1))->as<RISCVBlock>();
-        RISCVBlock *nowbb = mapTrans(inst->GetParent()->GetNextNode())->as<RISCVBlock>();
-        if (nowbb != nullptr)
+        if (inst->GetParent()->GetNextNode() != nullptr)
         {
-            auto &bbVec = RInst->GetParent()->GetParent()->getRecordBBs();
-            auto it1 = std::find(bbVec.begin(), bbVec.end(), nextbb);
-            auto it2 = std::find(bbVec.begin(), bbVec.end(), nowbb);
+            RISCVBlock *nowbb = mapTrans(inst->GetParent()->GetNextNode())->as<RISCVBlock>();
+            if (nowbb != nullptr)
+            {
+                auto &bbVec = RInst->GetParent()->GetParent()->getRecordBBs();
+                auto it1 = std::find(bbVec.begin(), bbVec.end(), nextbb);
+                auto it2 = std::find(bbVec.begin(), bbVec.end(), nowbb);
 
-            // 计算索引位置
-            size_t index1 = std::distance(bbVec.begin(), it1);
-            size_t index2 = std::distance(bbVec.begin(), it2);
-            // 交换元素（标准库方式）
-            std::swap(bbVec[index1], bbVec[index2]);
+                // 计算索引位置
+                size_t index1 = std::distance(bbVec.begin(), it1);
+                size_t index2 = std::distance(bbVec.begin(), it2);
+                // 交换元素（标准库方式）
+                std::swap(bbVec[index1], bbVec[index2]);
+            }
         }
     } 
     else  
@@ -758,6 +768,8 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
     {
         Value* val = inst->GetOperand(paramNum);
+        if (dynamic_cast<CallInst*>(val))
+            continue;
         auto lwInst = mapTrans(val)->as<RISCVInst>();
         param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
         param->SetRealRegister("a"+std::to_string(paramNum-1));
@@ -807,6 +819,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             PointerType *Pointer = dynamic_cast<PointerType *>(globlVal->GetType());
             ArrayType* arry = dynamic_cast<ArrayType*> (Pointer->GetSubType());
             int layer = arry->GetLayer();
+            // if (dynamic_cast<ConstIRInt*> (inst->GetOperand(counter))) 
             while (arry && arry->GetLayer() != 0)
             {
                 numsRecord.emplace_back(arry->GetNum());
@@ -814,8 +827,28 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             }
             while (layer--)
             {
-                findRecord.emplace_back(inst->GetOperand(counter)->as<ConstIRInt>()->GetVal());
-                counter++;
+                if (dynamic_cast<ConstIRInt*> (inst->GetOperand(counter))) {  // 取值确定
+                    findRecord.emplace_back(inst->GetOperand(counter)->as<ConstIRInt>()->GetVal());
+                    counter++;
+                }else {   // i 变化值
+                    auto it = dynamic_cast<LoadInst*> (inst->GetOperand(counter));
+                    RISCVInst* loadInst = mapTrans(it)->as<RISCVInst>();
+                    RISCVInst* newLoad =CreateInstAndBuildBind(RISCVInst::_lw, inst);
+                    newLoad->SetVirRegister();
+                    extraDealLoadInst(newLoad, it);
+                    
+                    RISCVInst* slliInst = CreateInstAndBuildBind(RISCVInst::_slli,inst);
+                    slliInst->push_back(newLoad->getOpreand(0));
+                    slliInst->push_back(newLoad->getOpreand(0));
+                    slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+                    RISCVInst* newaddInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    newaddInst->SetVirRegister();
+                    newaddInst->push_back(addInst->getOpreand(0));
+                    newaddInst->push_back(slliInst->getOpreand(0));
+
+                    return nullptr;
+                }
             }
             size = findRecord.size();
             for(int i = 0; i < size-1; i ++)
@@ -899,7 +932,7 @@ RISCVOp* RISCVContext::Create(Value* val)
 
 RISCVOp* RISCVContext::mapTrans(Value* val)
 {
-    if(val->isGlobal() && valToRiscvOp.find(val) == valToRiscvOp.end()) {
+    if(valToRiscvOp.find(val) == valToRiscvOp.end() && val->isGlobal()) {
         auto op  = new RISCVOp(val->GetName());
         valToRiscvOp[val] = op;   // bug:: delete when???
     }

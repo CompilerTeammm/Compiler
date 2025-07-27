@@ -84,6 +84,7 @@ bool TransFunction::run(Function* func)
     if (!ret)
         LOG(ERROR, "RA failed");
 
+    // 重写 global int and float
     auto gloValRecord = mfunc->getGloblValRecord();
     for(auto& inst : gloValRecord) 
     {

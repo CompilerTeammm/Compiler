@@ -41,7 +41,7 @@ void RegAllocation::fillLinerScaner()
     std::sort(LinerScaner.begin(), LinerScaner.end(),
               [](const auto &v1, const auto &v2)
               {
-                  return v1.second->start < v1.second->start;
+                  return v1.second->start < v2.second->start;
               });
 }
 

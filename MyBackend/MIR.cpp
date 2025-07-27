@@ -104,7 +104,9 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _call)  { return "call"; }
     if(opCode == _lui) { return "lui"; }
     if(opCode == _andi )  { return "andi"; }
-
+    if(opCode == _slli)  { return "slli"; }
+    if(opCode == _add)  { return "add"; }
+ 
     return nullptr;
 }
 
