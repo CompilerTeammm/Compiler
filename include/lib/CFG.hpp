@@ -338,6 +338,8 @@ public:
   BinaryInst(Operand _A, Operation __op, Operand _B, bool Atom = false);
   BinaryInst *clone(std::unordered_map<Operand, Operand> &) override;
 
+  bool IsAtomic() const {return Atomic;}//hu1 add it
+  
   const Operation &GetOp() { return op; }
   void print() final
   {
