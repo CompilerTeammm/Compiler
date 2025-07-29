@@ -129,7 +129,7 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
         Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
         Inst->SetVirRegister();
         Inst->getOpsVec().push_back(Inst->GetPrevNode()->getOpreand(0));
-       // getCurFunction()->getRecordGepOffset().push_back(inst);
+       getCurFunction()->getRecordGepOffset().emplace(inst,0);
     }
     else if (inst->GetOperand(0)->isGlobal())
     {
@@ -358,23 +358,6 @@ void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instructi
         auto val2Inst = mapTrans(val2)->as<RISCVInst>();
         std::shared_ptr<RISCVOp> cmpOp1 = RInst->GetPrevNode()->GetPrevNode()->getOpreand(0);
         std::shared_ptr<RISCVOp> cmpOp2 = RInst->GetPrevNode()->getOpreand(0);
-        // if(LoadRInst == nullptr) {
-        //     if (val2Inst == nullptr) {
-        //         cmpOp1 = Imm::GetImm(val->as<ConstantData>());
-        //         cmpOp2 = Imm::GetImm(val2->as<ConstantData>());
-        //     } else {
-        //         cmpOp1 = Imm::GetImm(val->as<ConstantData>());
-        //         cmpOp2 = val2Inst->getOpreand(0);
-        //     }
-        // } else {
-        //     if (val2Inst == nullptr) {
-        //         cmpOp1 = LoadRInst->getOpreand(0);
-        //         cmpOp2 = Imm::GetImm(val2->as<ConstantData>());
-        //     } else {
-        //         cmpOp1 = LoadRInst->getOpreand(0);
-        //         cmpOp2 = val2Inst->getOpreand(0);
-        //     }
-        // }
 
         RInst->push_back(cmpOp1);
         RInst->push_back(cmpOp2);
@@ -384,23 +367,11 @@ void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instructi
         auto ptr = std::make_shared<RISCVOp>(bb->getName());
         RInst->push_back(ptr);
 
-        RISCVBlock *nextbb = mapTrans(inst->GetOperand(1))->as<RISCVBlock>();
-        if (inst->GetParent()->GetNextNode() != nullptr)
-        {
-            RISCVBlock *nowbb = mapTrans(inst->GetParent()->GetNextNode())->as<RISCVBlock>();
-            if (nowbb != nullptr)
-            {
-                auto &bbVec = RInst->GetParent()->GetParent()->getRecordBBs();
-                auto it1 = std::find(bbVec.begin(), bbVec.end(), nextbb);
-                auto it2 = std::find(bbVec.begin(), bbVec.end(), nowbb);
-
-                // 计算索引位置
-                size_t index1 = std::distance(bbVec.begin(), it1);
-                size_t index2 = std::distance(bbVec.begin(), it2);
-                // 交换元素（标准库方式）
-                std::swap(bbVec[index1], bbVec[index2]);
-            }
-        }
+        getCurFunction()->getLabelInsts().push_back(RInst);
+        BasicBlock* succbbI = inst->GetOperand(1)->as<BasicBlock>();
+        BasicBlock* succbbII = inst->GetOperand(2)->as<BasicBlock>();
+        auto vec = getCurFunction()->getBrInstSuccBBs();
+        vec.emplace_back(inst,std::make_pair(succbbI,succbbII));
     } 
     else  
         assert("failed");
@@ -434,6 +405,7 @@ RISCVInst* RISCVContext::CreateCondInst(CondInst *inst)
             // Instruction
             switch (CmpInst->GetInstId())
             {
+// beq =    bge >=      bgt >      ble <=      blt <      bne !=
             case Instruction::Eq:
                 extraDealBrInst(RInst,RISCVInst::_bne, inst, CmpInst);
                 break;
@@ -767,13 +739,19 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     // param
     for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
     {
-        Value* val = inst->GetOperand(paramNum);
-        if (dynamic_cast<CallInst*>(val))
+        Value *val = inst->GetOperand(paramNum);
+        if (dynamic_cast<CallInst *>(val))
             continue;
-        auto lwInst = mapTrans(val)->as<RISCVInst>();
-        param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
-        param->SetRealRegister("a"+std::to_string(paramNum-1));
-        param->push_back(lwInst->getOpreand(0));
+        if (dynamic_cast<ConstantData*> (val)) {
+            param = CreateInstAndBuildBind(RISCVInst::_li, inst);
+            param->SetRealRegister("a" + std::to_string(paramNum - 1));
+            param->SetImmOp(val);
+        } else {
+            auto lwInst = mapTrans(val)->as<RISCVInst>();
+            param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+            param->SetRealRegister("a" + std::to_string(paramNum - 1));
+            param->push_back(lwInst->getOpreand(0));
+        }
     }
     // call
     Inst = CreateInstAndBuildBind(RISCVInst::_call,inst);

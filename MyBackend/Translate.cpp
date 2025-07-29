@@ -73,6 +73,67 @@ bool TransFunction::run(Function* func)
         select.MatchAllInsts(BB);
     }
 
+    auto BrVec = mfunc->getBrInstSuccBBs();
+    std::map<BasicBlock*,BasicBlock*> curToSuccMap; 
+    std::map<Instruction*,BasicBlock*> curToLabelMap; 
+    for(auto [inst,pair1] :BrVec) 
+    {
+        auto curbb = inst->GetParent();
+        BasicBlock* tmp = pair1.first;
+        int counter = 0;
+        for(auto [_,pair2]:BrVec) 
+        {
+            if (pair2.first == tmp)
+                counter++;
+            if (counter == 2) {
+                tmp = pair1.second;
+                break;
+            }
+        }
+        curToSuccMap.emplace(curbb,tmp);
+        if (tmp == pair1.first)
+            curToLabelMap.emplace(inst,pair1.second);
+        else 
+            curToLabelMap.emplace(inst,pair1.first);
+    }
+    std::list<BasicBlock*> bbList;
+    for(auto [curbb,succbb]: curToSuccMap)
+    {
+        if (bbList)
+        bbList.push_front(curbb);
+        bbList.push_back(succbb);
+
+
+
+        RISCVBlock *nextbb = ctx->mapTrans(succbb)->as<RISCVBlock>();
+        if (curbb->GetNextNode() != nullptr)
+        {
+            
+            // RISCVBlock *nowbb =ctx->mapTrans(curbb->GetNextNode())->as<RISCVBlock>();
+            // if (nowbb != nullptr)
+            // {
+            //     auto &bbVec = mfunc->getRecordBBs();
+            //     auto it1 = std::find(bbVec.begin(), bbVec.end(), nextbb);
+            //     auto it2 = std::find(bbVec.begin(), bbVec.end(), nowbb);
+
+            //     // 计算索引位置
+            //     size_t index1 = std::distance(bbVec.begin(), it1);  // nextbb
+            //     size_t index2 = std::distance(bbVec.begin(), it2);  // nowbb
+
+            //     if (index2 <= bbVec.size()) {
+            //         // 交换元素（标准库方式）
+            //         std::swap(bbVec[index1], bbVec[index2]);
+            //     }
+            // }
+        }
+    }
+
+    for(auto& [inst,bb] : curToLabelMap)
+    {
+        RISCVInst* RInst = ctx->mapTrans(inst)->as<RISCVInst> ();
+        RInst->getOpreand(2)->setName(ctx->mapTrans(bb)->getName());
+    }
+
     // 后端优化 phi 函数的消除
     PhiEliminate phi(func);
     ret = phi.run();
