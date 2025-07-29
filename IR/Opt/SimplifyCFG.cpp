@@ -23,41 +23,41 @@ bool SimplifyCFG::SimplifyCFGFunction(){
     bool changed=false;
 
     //1. 尝试合并空返回块
-    changed |= mergeEmptyReturnBlocks();
+    // changed |= mergeEmptyReturnBlocks();
+    const int max_iter = 10;
+    int iter=0;
+    bool localChanged=false;
+    do{
 
-    // bool localChanged=false;
-    // do{
-    //     localChanged=false;
+        if (++iter > max_iter) {
+            break;
+        }
 
-    //     //简化条件跳转
-    //     for(auto bb: func->GetBBs()){
-    //         localChanged |= simplifyBranch(bb.get());
-    //     }
+        localChanged=false;
 
-    //     // //合并线性块(无phi)
-    //     for (auto bb : func->GetBBs()) {
-    //         if (mergeBlocks(bb.get())) {
-    //             localChanged = true;
-    //             break; //一次合并后立刻跳出，避免使用已删除 successor
-    //         }
-    //     }
+        //简化条件跳转
+        localChanged |=simplifyBranch();
         
-    //     //清理CFG中的不可达基本块(否则phi会出错)
-    //     //好像用不到?
-    //     // localChanged |= removeUnreachableBlocks();
 
-    //     // 消除冗余 phi（统一值/已删除 predecessor）
-    //     for (auto bb : func->GetBBs()) {
-    //         if(!bb) continue;
-    //         localChanged |= eliminateTrivialPhi(bb.get());
-    //     }
+        //合并线性块(无phi)
+        for (auto bb : func->GetBBs()) {
+            if (mergeBlocks(bb.get())) {
+                localChanged = true;
+                break; //一次合并后立刻跳出，避免使用已删除 successor
+            }
+        }
 
-    //     changed |= localChanged;
-    // }while(localChanged);//持续迭代直到收敛
+        // 消除冗余 phi（统一值/已删除 predecessor）
+        // for (auto bb : func->GetBBs()) {
+        //     if(!bb) continue;
+        //     localChanged |= eliminateTrivialPhi(bb.get());
+        // }
 
-    // DominantTree _tree(func);
-    // _tree.BuildDominantTree();
+        changed |= localChanged;
+    }while(localChanged);//持续迭代直到收敛
 
+    DominantTree _tree(func);
+    _tree.BuildDominantTree();
     return true;
 }
 //暂时没考虑无返回值情况
@@ -109,124 +109,34 @@ bool SimplifyCFG::removeUnreachableBlocks(){
     std::queue<BasicBlock*> worklist;
 
     BasicBlock* entry = func->GetFront();
-    
-    std::cerr << "[CFG-Debug] Entry block: " << entry->GetName() << "\n";
-for (auto& bb_ptr : func->GetBBs()) {
-    BasicBlock* bb = bb_ptr.get();
-    Instruction* term = bb->GetBack();
-    std::cerr << "  Block " << bb->GetName() << " terminator: ";
-    if (!term) std::cerr << "NONE!\n";
-    else std::cerr << term->OpToString(term->id) << " → ";
-    for (int i = 0; i < term->GetOperandNums(); ++i) {
-        auto* op = term->GetOperand(i);
-        if (auto* targetBB = dynamic_cast<BasicBlock*>(op)) {
-            std::cerr << targetBB->GetName() << " ";
-        } else {
-            std::cerr << "undef ";
-        }
-    }
-    std::cerr << "\n";
-}
-
-
-
     if (!entry) {
-        std::cerr << "[removeUnreachableBlocks] entry is null!\n";
         return false;
     }
-    std::cerr << "entryblock is: " << entry->GetName() << std::endl;
-
     reachable.insert(entry);
     worklist.push(entry);
-
     while (!worklist.empty()) {
         BasicBlock* bb = worklist.front();
         worklist.pop();
+        // bb->NextBlocks=_tree.getSuccBBs(bb);
         for (auto* succ : bb->GetNextBlocks()) {
+            if (!succ) continue;
             if (reachable.insert(succ).second) {
                 worklist.push(succ);
             }
         }
     }
 
-    //打印下可达块看看
-    std::cerr << "[removeUnreachableBlocks] Reachable block list:\n";
-    for (auto* bb : reachable) {
-        std::cerr << "  " << bb->GetName() << "\n";
+    std::vector<BasicBlock*> unreachable_blocks;
+    for (auto& bb_ptr : func->GetBBs()) {
+        BasicBlock* bb = bb_ptr.get();
+        if (!bb || bb == entry || reachable.count(bb)) continue;
+        unreachable_blocks.push_back(bb);
     }
-
-    //修复所有跳转指令指向不可达块的情况
-    for(auto& bb_ptr:func->GetBBs()){
-        BasicBlock* bb=bb_ptr.get();
-
-        Instruction* term=bb->GetBack();
-        if(!term) continue;
-
-        bool updated = false;
-
-        for(int i=0;i<term->GetOperandNums();++i){
-            Value* op = term->GetOperand(i);
-            auto* target_bb = dynamic_cast<BasicBlock*>(op);
-
-            if (target_bb && !reachable.count(target_bb)){
-                // 跳转目标不可达，替换成 UndefValue
-                term->SetOperand(i, UndefValue::Get(target_bb->GetType()));
-                updated=true;
-
-                // 更新 CFG 维护前驱后继关系
-                bb->RemoveNextBlock(target_bb);
-                target_bb->RemovePredBlock(bb);
-
-                std::cerr << "[removeUnreachableBlocks] Fixed jump in block " << bb->GetName()
-                          << " operand " << i << " from unreachable block " << target_bb->GetName() << "\n";
-            }
-        }
-
-        if(updated){
-            if(!term->IsTerminateInst()){
-                std::cerr << "[removeUnreachableBlocks] Warning: block " << bb->GetName()
-                          << " terminator may be invalid after fix\n";
-            }
-        }
-    }
-
-    auto& BBList = func->GetBBs();
-    for(auto it = BBList.begin(); it != BBList.end(); ){
-        BasicBlock* bb=it->get();
-        if(bb==entry|| reachable.count(bb)){
-            ++it;
-            continue;
-        }
-
-        bool containsRet = false;
-        for (auto* inst : *bb) {
-            if (inst->id == Instruction::Op::Ret) {
-                containsRet = true;
-                break;
-            }
-        }
-
-        if (containsRet && !hasOtherRetInst( bb)) {
-            std::cerr << "[removeUnreachableBlocks] Skipping only return block: " << bb->GetName() << "\n";
-            ++it;
-            continue;
-        }
-
-        if (blockHasSideEffect(bb)) {
-            std::cerr << "[removeUnreachableBlocks] Side-effect block preserved: " << bb->GetName() << "\n";
-            ++it;
-            continue;
-        }
-
-        std::cerr << "[removeUnreachableBlocks] Removing unreachable block: " << bb->GetName() << "\n";
-
-        // 替换所有使用该块内产生的值
-        for (auto inst : *bb) {
-            inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
-        }
+    for(auto* bb : unreachable_blocks ){
 
         // 清理 phi 引用
         for (auto* succ : bb->GetNextBlocks()) {
+            if (!succ) continue;
             for (auto it2 = succ->begin(); it2 != succ->end(); ) {
                 if (auto phi = dynamic_cast<PhiInst*>(*it2)) {
                     phi->removeIncomingFrom(bb);
@@ -236,15 +146,46 @@ for (auto& bb_ptr : func->GetBBs()) {
         }
 
         // 更新 CFG 结构
+        // bb->PredBlocks=_tree.getPredBBs(bb);
         for (auto* pred : bb->GetPredBlocks()) {
+            if(!pred) continue;
+            // pred->NextBlocks=_tree.getSuccBBs(pred);
             pred->RemoveNextBlock(bb);
+            bb->RemovePredBlock(pred);
         }
+        
         for (auto* succ : bb->GetNextBlocks()) {
+            if(!succ) continue;
+            // succ->PredBlocks=_tree.getPredBBs(succ);
             succ->RemovePredBlock(bb);
+            bb->RemoveNextBlock(succ);
         }
 
-        it = BBList.erase(it);  // 使用你的方式删除块
+        func->RemoveBBs(bb);
         changed = true;
+    }
+    //add 删掉处理之后剩的孤立块
+    auto& BBList = func->GetBBs();
+    for (auto it = BBList.begin(); it != BBList.end(); ) {
+        BasicBlock* bb = it->get();
+        if (!bb || bb == entry) {
+            ++it;
+            continue;
+        }
+
+        if (bb->GetPredBlocks().empty()) {
+            std::cerr << "[removeUnreachableBlocks] Orphan block removed: " << bb->GetName() << "\n";
+
+            for (auto* succ : bb->GetNextBlocks()) {
+                if (succ) succ->RemovePredBlock(bb);
+            }
+
+            func->RemoveBBs(bb);
+            it = BBList.erase(it);
+            changed = true;
+        } else {
+            ++it;
+        }
     }
     return changed;
 }
@@ -271,7 +212,7 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(){
         if (!retInst || retInst->GetOperandNums() != 1) continue;
 
         Value* retVal=retInst->GetOperand(0);
-        std::cerr << "Return block found: " << bb->GetName() << ", ret value: ";
+        // std::cerr << "Return block found: " << bb->GetName() << ", ret value: ";
         auto* c=dynamic_cast<ConstIRInt*>(retVal);
         if(!c) continue;
         int val=c->GetVal();
@@ -284,11 +225,11 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(){
     }
     //合并空ret块
     if (ReturnBlocks.size() <= 1) {
-        std::cerr << "No need to merge return blocks.\n";
+        // std::cerr << "No need to merge return blocks.\n";
         return false;
     }
 
-    std::cerr<<"Found"<<ReturnBlocks.size()<<" return blocks with common return value: "<<commonRetVal.value()<<"\n";
+    // std::cerr<<"Found"<<ReturnBlocks.size()<<" return blocks with common return value: "<<commonRetVal.value()<<"\n";
 
     //选定第一个作为公共返回块
     BasicBlock* commonRet=ReturnBlocks.front();
@@ -301,8 +242,8 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(){
         BasicBlock* redundant=ReturnBlocks[i];
         //Dominator 检查：如果 redundant 支配 commonRet，跳过，避免破坏控制流结构
         if (_tree.dominates(redundant, commonRet)) {
-            std::cerr << "Skip merging " << redundant->GetName()
-                      << " because it dominates common return block " << commonRet->GetName() << "\n";
+            // std::cerr << "Skip merging " << redundant->GetName()
+            //           << " because it dominates common return block " << commonRet->GetName() << "\n";
             continue;
         }
         //重定向所有前驱块的后继指针从redundant到commonRet
@@ -315,7 +256,7 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(){
             // 替换terminator的operand
             for(int i=0;i<term->GetOperandNums();++i){
                 if(term->GetOperand(i)==redundant){
-                    term->SetOperand(i, commonRet);//SetOperand有问题
+                    term->SetOperand(i, commonRet);
                     //应该是这样?
                     // Use* u = term->GetUserUseList()[i].get();
                     // Value* oldVal = u->usee;
@@ -325,7 +266,7 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(){
 
 
                     replaced=true;
-                    std::cerr << "    [Redirected] " << pred->GetName() << " -> " << commonRet->GetName() << "\n";
+                    // std::cerr << "    [Redirected] " << pred->GetName() << " -> " << commonRet->GetName() << "\n";
                 }
             }
             if(replaced){
@@ -351,78 +292,63 @@ bool SimplifyCFG::mergeEmptyReturnBlocks(){
     return changed;
 }
 
-bool SimplifyCFG::simplifyBranch(BasicBlock* bb){
+bool SimplifyCFG::simplifyBranch(){
 
     DominantTree _tree(func);
     _tree.BuildDominantTree();
-
-    if(!bb || bb->Size() == 0){
-        return false;
-    }
-    //获取基本块最后一条指令
-    Instruction* lastInst=bb->GetBack();
-
-    //判断是否条件跳转指令
-    bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
-    if(!is_cond_branch){
-        return false;
-    }
-    //获取条件操作数和两个基本块
-    Value* cond=lastInst->GetOperand(0);
-    BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(1));
-    BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
-    //确认`目标基本块合法
-    if(!trueBlock||!falseBlock){
-        return false;
-    }
-    //判断条件是否是常量函数
-    auto* c=dynamic_cast<ConstIRBoolean*>(cond);
-    if(!c){
-        // std::cerr << "[simplifyBranch] Not a constant condition in block: " << bb->GetName() << "\n";
-        return false;
-    }
-    BasicBlock* targetBlock=c->GetVal() ? trueBlock:falseBlock;
-    if(targetBlock==bb){
-        // std::cerr << "[simplifyBranch] Target block is self-loop, skipped: " << bb->GetName() << "\n";
-        return false;
+    for (auto& bb_ptr : func->GetBBs()) {
+        BasicBlock* B = bb_ptr.get();
+        if (!B) continue;
+        B->PredBlocks = _tree.getPredBBs(B);
+        B->NextBlocks = _tree.getSuccBBs(B);
     }
 
-    //创建无条件跳转指令,替换原条件跳转指令
-    bb->erase(lastInst);
-    Instruction* uncondBr=new UnCondInst(targetBlock);
-    bb->push_back(uncondBr);
-    std::vector<BasicBlock*> toUpdateSuccs;
-    if (targetBlock == trueBlock) {
-        toUpdateSuccs = _tree.getSuccBBs(falseBlock);  // falseBlock 将被删除
-    } else {
-        toUpdateSuccs = _tree.getSuccBBs(trueBlock);   // trueBlock 将被删除
-    }
+    bool changed=false;
 
-    if (targetBlock == trueBlock){
-        bb->NextBlocks = _tree.getSuccBBs(bb);
-        bb->RemoveNextBlock(falseBlock);
-
-        for(auto* succBB:toUpdateSuccs){
-            succBB->PredBlocks=_tree.getPredBBs(succBB);
-            succBB->RemovePredBlock(falseBlock);
+    for(auto bb_ptr: func->GetBBs()){
+        BasicBlock* bb = bb_ptr.get();
+        if(!bb || bb->Size() == 0){
+            continue;
         }
-    }else{
-        bb->NextBlocks = _tree.getSuccBBs(bb);
-        bb->RemoveNextBlock(trueBlock);
+        //获取基本块最后一条指令
+        Instruction* lastInst=bb->GetBack();
 
-        for(auto* succBB:toUpdateSuccs){
-            succBB->PredBlocks=_tree.getPredBBs(succBB);
-            succBB->RemovePredBlock(trueBlock);
+        //判断是否条件跳转指令
+        bool is_cond_branch = lastInst && lastInst->id==Instruction::Op::Cond;
+        if(!is_cond_branch){
+            continue;
         }
-    }
+        //获取条件操作数和两个基本块
+        Value* cond=lastInst->GetOperand(0);
+        BasicBlock* trueBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(1));
+        BasicBlock* falseBlock=dynamic_cast<BasicBlock*>(lastInst->GetOperand(2));
+        //确认`目标基本块合法
+        if(!trueBlock||!falseBlock){
+            continue;
+        }
+        //判断条件是否是常量函数
+        auto* c=dynamic_cast<ConstIRBoolean*>(cond);
+        if(!c){
+            // std::cerr << "[simplifyBranch] Not a constant condition in block: " << bb->GetName() << "\n";
+            continue;
+        }
+        BasicBlock* targetBlock=c->GetVal() ? trueBlock:falseBlock;
+        BasicBlock* deadBlock = (targetBlock == trueBlock) ? falseBlock : trueBlock;
+        if(targetBlock==bb){
+            // std::cerr << "[simplifyBranch] Target block is self-loop, skipped: " << bb->GetName() << "\n";
+            continue;
+        }
 
-    if (targetBlock == trueBlock) {
-        func->RemoveBBs(falseBlock);
-    } else {
-        func->RemoveBBs(trueBlock);
-    }
+        bb->erase(lastInst);
+        Instruction* uncondBr = new UnCondInst(targetBlock);
+        bb->push_back(uncondBr); 
 
-    return true;
+        deadBlock->RemovePredBlock(bb);
+        bb->RemoveNextBlock(deadBlock);
+        changed=true;
+    }
+    removeUnreachableBlocks();
+    return changed;
 }
 
 //合并基本块(no phi)
@@ -434,12 +360,16 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     
     //获取后继块
     bb->NextBlocks=_tree.getSuccBBs(bb);
-    if(bb->NextBlocks.size()!=1){
+    if(bb->NextBlocks.size()!=1){//避免succ空
         return false;
     }
     auto succ=bb->NextBlocks[0];
     //后继不能是自身,避免死循环
-    if(succ==bb){
+    if(!succ||succ==bb){
+        return false;
+    }
+    //后继不能是终结块
+    if(succ->Size()>=0 && succ->GetBack()&& succ->GetBack()->id==Instruction::Op::Ret){
         return false;
     }
     //判断succ是否只有bb一个前驱
@@ -453,17 +383,18 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     if(_tree.dominates(succ,bb)){
         return false;
     }
-    //不合并有副作用的块
-    // if (blockHasSideEffect(bb) || blockHasSideEffect(succ)) return false;
     //不合并带phi的块
     for (auto it = succ->begin(); it != succ->end(); ++it) {
+        if((*it)==nullptr) return false;
         if ((*it)->id == Instruction::Op::Phi) return false;
         break; // 只检查最前几条
     }
 
     std::vector<BasicBlock*> succsuccs = _tree.getSuccBBs(succ);
     for (auto* succsucc : succsuccs){
+        if (!succsucc) continue;//避免succsucc是空的
         for (auto it = succsucc->begin(); it != succsucc->end(); ++it){
+            if (!(*it)) continue; 
             if ((*it)->id != Instruction::Op::Phi) break;
             auto* phi=dynamic_cast<PhiInst*>(*it);
             if (!phi) continue;
@@ -478,20 +409,24 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
 
     //ok,那满足条件,合并
     //移除bb中的terminator指令(一般是br)
-    if(bb->Size()!=0 && bb->GetBack()->IsTerminateInst()){
+    if(bb->Size()!=0 && bb->GetBack() && bb->GetBack()->IsTerminateInst()){
         bb->erase(bb->GetBack());
     }
-    while (succ->Size() > 0) {
-        Instruction *inst = succ->pop_front();
+    while (Instruction* inst = succ->pop_front()) {
         inst->SetManager(bb);
         bb->push_back(inst);
     }
 
     //更新CFG
+    bb->NextBlocks=_tree.getSuccBBs(bb);
+    bb->RemoveNextBlock(succ);
+    succ->NextBlocks=_tree.getSuccBBs(succ);
     std::vector<BasicBlock*> toUpdateSuccs = _tree.getSuccBBs(succ);
     for(auto succsucc:toUpdateSuccs){
+        if (!succsucc) continue;
         succsucc->PredBlocks=_tree.getPredBBs(succsucc);
         succsucc->RemovePredBlock(succ);
+        succ->RemoveNextBlock(succsucc);
         succsucc->AddPredBlock(bb);
         bb->AddNextBlock(succsucc);
     }
