@@ -755,6 +755,12 @@ public:
 
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
+  void SetIncomingBlock(int index, BasicBlock *bb) {
+  IncomingBlocks[index] = bb;
+  if (PhiRecord.count(index)) {
+    PhiRecord[index].second = bb;
+  }
+ }
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构
@@ -838,6 +844,8 @@ public:
   //遍历前驱/后继块指令
   void ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor);
   void ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor);
+  int GetSuccessorCount();
+  int GetPredecessorCount();//先补充着
 };
 
 class BuiltinFunc : public Value
@@ -876,6 +884,7 @@ public:
     BuildIn,
   };
   Tag tag = Normal;
+  int num=0;
   bool CmpEqual = false;
   std::vector<ParamPtr> &GetParams();
   std::vector<BBPtr> &GetBBs();
@@ -889,10 +898,11 @@ public:
   void AddBBs(BasicBlock *BB);
   void PushBothBB(BasicBlock *BB);
   void InsertBBs(BasicBlock *BB, size_t pos);
-  // 以下两个暂未实现
+  // 以下两个暂未实现//实现了ww
   // dh: 这两个我需要你帮助维护 bbs:index这个属性
-  void InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert);
-  void InsertBB(BasicBlock *curr, BasicBlock *insert);
+  //vector&mylist都操作
+  void InsertBlock(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert);
+  void InsertBlock(BasicBlock *curr, BasicBlock *insert);
 
   void RemoveBBs(BasicBlock *BB);
   void InitBBs();

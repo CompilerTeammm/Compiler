@@ -1561,13 +1561,40 @@ void Function::InsertBBs(BasicBlock *BB, size_t pos)
     BBs.insert(BBs.begin() + pos, std::unique_ptr<BasicBlock>(BB));
 }
 
-void Function::InsertBB(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert)
-{
+void Function::InsertBlock(BasicBlock *pred, BasicBlock *succ,
+                           BasicBlock *insert) {
+  auto *condition = pred->GetBack();
+  if (!condition) {
+    assert(false && "BasicBlock has no terminator instruction");
+  }
+
+  if (auto *cond = dynamic_cast<CondInst *>(condition)) {
+    auto &uses = cond->GetUserUseList();
+    assert(uses.size() >= 3 && "CondInst should have at least 3 operands");
+    for (int i = 1; i <= 2; ++i) {
+      if (uses[i]->GetValue() == succ) {
+        cond->ReplaceSomeUseWith(i, insert); 
+        insert->GenerateUnCondInst(succ); 
+        return;
+      }
+    }
+    assert(false && "Not connected on CFG");
+  } else if (auto *uncond = dynamic_cast<UnCondInst *>(condition)) {
+    auto &uses = uncond->GetUserUseList();
+    assert(uses.size() >= 1 && "UnCondInst should have 1 operand");
+    assert(uses[0]->GetValue() == succ && "Not connected on CFG");
+    uncond->ReplaceSomeUseWith(0, insert);
+    insert->GenerateUnCondInst(succ);
+    return;
+  }
+
+  assert(false && "Invalid branch instruction in pred block");
 }
 
-void Function::InsertBB(BasicBlock *curr, BasicBlock *insert)
+void Function::InsertBlock(BasicBlock *curr, BasicBlock *insert)
 {
     insert->GenerateUnCondInst(curr);
+    insert->num = this->num++;
     this->PushBothBB(insert);
 }
 
@@ -1820,6 +1847,25 @@ void BasicBlock::ForEachInstrInPredBlocks(std::function<void(Instruction *)> vis
       }
     }
   }
+
+int BasicBlock::GetSuccessorCount() {
+    return this->NextBlocks.size();
+}
+
+// int BasicBlock::GetPredecessorCount() {
+//     int count = 0;
+//     for (auto use : this->GetValUseList()) {
+//         auto inst = dynamic_cast<Instruction *>(use->user);
+//         if (!inst) continue;
+//         auto parent_bb = inst->GetParent();
+//         if (parent_bb)
+//             count++;
+//     }
+//     return count;
+// }
+int BasicBlock::GetPredecessorCount() {
+    return this->PredBlocks.size();
+}
 
 void Function::InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb) {
     for (auto it = this->begin(); it != this->end(); ++it) {

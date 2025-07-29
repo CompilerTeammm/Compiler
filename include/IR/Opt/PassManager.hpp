@@ -19,7 +19,8 @@
 #include "DSE.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
-#include "SOGE.hpp"
+#include "SOGE.hpp" 
+#include "ECE.hpp" 
 
 // 互不影响，完全没问题再放出来
 // #define dce
@@ -36,6 +37,8 @@
 // #define MY_TRE_PASS
 //SOGE
 // #define MY_SOGE_PASS
+//ECE
+// #define MY_ECE_PASS
 
 enum PassName
 {
@@ -175,5 +178,12 @@ for (auto &function : funcVec)
 #ifdef MY_SOGE_PASS
     SOGE sogePass(&Singleton<Module>());
     sogePass.run();
+#endif
+#ifdef MY_ECE_PASS
+for (auto &function : funcVec) {
+    auto fun = function.get();
+    ECE ECEpass(fun);
+    ECEpass.run();
+}
 #endif
 }
