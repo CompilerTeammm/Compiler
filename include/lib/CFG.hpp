@@ -886,6 +886,11 @@ public:
   Tag tag = Normal;
   int num=0;
   bool CmpEqual = false;
+
+  //hu1 add it for SideEffect
+  std::set<Value*> Change_Val;//func->C 表示该函数会修改的值(某个参数,全局变量等),用于DSE.函数内联等优化
+  bool HasSideEffect = false;//func->H 调用可知是否有副作用
+
   std::vector<ParamPtr> &GetParams();
   std::vector<BBPtr> &GetBBs();
   // std::vector<BasicBlock*> &GetBasicBlock();
