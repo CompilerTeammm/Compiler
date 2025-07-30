@@ -24,18 +24,25 @@ bool ProloAndEpilo:: DealStoreInsts()
     auto& AOffsetRecord = mfunc->getAOffsetRecord();
     size_t offset = 16;
     std::set<AllocaInst*> tmp;
+    for (auto& alloc:mfunc->getAllocas())
+    {
+        offset += 4;
+        AOffsetRecord[alloc] = offset;
+    }
+
     for(auto[StackInst,alloc] : MallocVec)
     {
-        if (tmp.find(alloc) == tmp.end())
-        {
-            tmp.emplace(alloc);
-            offset += 4;
-            StackInst->setStoreStackOp(offset);
-            AOffsetRecord.emplace(alloc,offset);
-        }
-        else {
-            StackInst->setStoreStackOp(AOffsetRecord[alloc]);
-        }
+        StackInst->setStoreStackOp(AOffsetRecord[alloc]);
+        // if (tmp.find(alloc) == tmp.end())
+        // {
+        //     tmp.emplace(alloc);
+        //     offset += 4;
+        //     StackInst->setStoreStackOp(offset);
+        //     AOffsetRecord.emplace(alloc,offset);
+        // }
+        // else {
+        //     StackInst->setStoreStackOp(AOffsetRecord[alloc]);
+        // }
     }
 
     return true;
@@ -43,25 +50,26 @@ bool ProloAndEpilo:: DealStoreInsts()
 
 bool ProloAndEpilo:: DealLoadInsts()
 {
-    // auto LoadInsts = mfunc->getLoadInsts();
-    // auto record = mfunc->getLoadRecord();
-    // auto& offset = mfunc->getAOffsetRecord();
-    // for (auto Inst : LoadInsts)
-    // {
-    //     auto Alloc = record[Inst];
-    //     size_t off = offset[Alloc];
-    //     Inst->setStoreStackOp(off);
-    // }
-
     auto LoadInsts = mfunc->getLoadInsts();
     auto record = mfunc->getLoadRecord();
-    auto storeRecord = mfunc->getStoreRecord();
-    for(auto Inst : LoadInsts)
+    auto& offset = mfunc->getAOffsetRecord();
+    for (auto Inst : LoadInsts)
     {
         auto Alloc = record[Inst];
-        auto Store = storeRecord[Alloc];
-        Inst->getOpsVec().push_back(Store->getOpreand(1));
+        size_t off = offset[Alloc];
+        Inst->setStoreStackOp(off);
     }
+
+    // auto LoadInsts = mfunc->getLoadInsts();
+    // auto record = mfunc->getLoadRecord();
+    // auto storeRecord = mfunc->getStoreRecord();
+    // for(auto Inst : LoadInsts)
+    // {
+    //     auto Alloc = record[Inst];
+    //     auto Store = storeRecord[Alloc];
+    //     if (Store != nullptr)
+    //         Inst->getOpsVec().push_back(Store->getOpreand(1));
+    // }
 
     return true;
 }

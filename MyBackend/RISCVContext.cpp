@@ -454,6 +454,11 @@ void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVIns
 {
     Value *valOp1 = inst->GetOperand(0);
     Value *valOp2 = inst->GetOperand(1);
+
+    // if (dynamic_cast<CallInst*>(valOp1));
+    // if (dynamic_cast<CallInst*>(valOp2));
+
+
     auto Immop1 = dynamic_cast<ConstantData*> (valOp1);
     auto Immop2 = dynamic_cast<ConstantData*> (valOp2);
     RISCVInst* ImmOneInst = nullptr;
@@ -733,7 +738,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         Inst = CreateInstAndBuildBind(RISCVInst::_call, inst);
         Inst->push_back(std::make_shared<RISCVOp>("memcpy@plt"));
 
-        return Inst;
+        return ret;
     }
 
     // param
@@ -764,7 +769,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     ret->SetRealRegister("a0");
     Inst->DealMore(ret);
    
-    return Inst;
+    return ret;
 }
 
 // 处理数组
@@ -871,7 +876,8 @@ RISCVOp* RISCVContext::Create(Value* val)
     }
     // 这个用智能指针会导致释放问题，，恶心了
     if(auto block = dynamic_cast<BasicBlock*> (val)){
-        auto it = new RISCVBlock(block,".BB"+RISCVBlock::getCounter());
+        // auto it = new RISCVBlock(block,".BB"+RISCVBlock::getCounter());
+        auto it = new RISCVBlock(block,block->GetName());
         //离谱的api
         // auto  func = block->GetParent();
         auto parent = mapTrans(block->GetParent())->as<RISCVFunction> ();

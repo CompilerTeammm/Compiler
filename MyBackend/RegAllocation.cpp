@@ -62,7 +62,7 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
             if (oldInterval.first->IsFflag())
                 RegisterFloatpool.emplace_back(realReg);
             else   
-                RegisterIntpool.emplace_back(realReg );
+                RegisterIntpool.emplace_back(realReg);
 
             active_list.remove(oldInterval);
             
