@@ -370,7 +370,7 @@ void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instructi
         getCurFunction()->getLabelInsts().push_back(RInst);
         BasicBlock* succbbI = inst->GetOperand(1)->as<BasicBlock>();
         BasicBlock* succbbII = inst->GetOperand(2)->as<BasicBlock>();
-        auto vec = getCurFunction()->getBrInstSuccBBs();
+        auto& vec = getCurFunction()->getBrInstSuccBBs();
         vec.emplace_back(inst,std::make_pair(succbbI,succbbII));
     } 
     else  

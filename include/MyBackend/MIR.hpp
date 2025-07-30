@@ -638,7 +638,7 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::vector<RISCVInst*> LoadInsts;
     std::vector<AllocaInst*> AllocaInsts;
     
-    std::vector<RISCVBlock*> recordBBs;  // 记录顺序
+    std::list<RISCVBlock*> recordBBs;  // 记录顺序
     std::map<size_t,size_t> oldBBindexTonew;
 
     offset arroffset = 16;
@@ -655,7 +655,7 @@ public:
                 :func(_func),RISCVOp(name)     {   }
     std::vector<RISCVInst*>&  getLabelInsts() { return LabelInsts; }
     std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>>& getBrInstSuccBBs() { return recordBrInstSuccBBs; }
-    std::vector<RISCVBlock*>& getRecordBBs()  { return recordBBs; }
+    std::list<RISCVBlock*>& getRecordBBs()  { return recordBBs; }
     std::map<size_t,size_t>& OldToNewIndex() { return oldBBindexTonew;}
     std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }

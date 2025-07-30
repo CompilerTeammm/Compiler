@@ -96,35 +96,25 @@ bool TransFunction::run(Function* func)
         else 
             curToLabelMap.emplace(inst,pair1.first);
     }
-    std::list<BasicBlock*> bbList;
+
+    auto &bbList = mfunc->getRecordBBs();
+    std::set<RISCVBlock*> preBB;
     for(auto [curbb,succbb]: curToSuccMap)
     {
-        if (bbList)
-        bbList.push_front(curbb);
-        bbList.push_back(succbb);
-
-
-
-        RISCVBlock *nextbb = ctx->mapTrans(succbb)->as<RISCVBlock>();
-        if (curbb->GetNextNode() != nullptr)
-        {
-            
-            // RISCVBlock *nowbb =ctx->mapTrans(curbb->GetNextNode())->as<RISCVBlock>();
-            // if (nowbb != nullptr)
-            // {
-            //     auto &bbVec = mfunc->getRecordBBs();
-            //     auto it1 = std::find(bbVec.begin(), bbVec.end(), nextbb);
-            //     auto it2 = std::find(bbVec.begin(), bbVec.end(), nowbb);
-
-            //     // 计算索引位置
-            //     size_t index1 = std::distance(bbVec.begin(), it1);  // nextbb
-            //     size_t index2 = std::distance(bbVec.begin(), it2);  // nowbb
-
-            //     if (index2 <= bbVec.size()) {
-            //         // 交换元素（标准库方式）
-            //         std::swap(bbVec[index1], bbVec[index2]);
-            //     }
-            // }
+        // bbList 来维持插入的顺序
+        auto Rcurbb = ctx->mapTrans(curbb)->as<RISCVBlock>();
+        auto Rsuccbb = ctx->mapTrans(succbb)->as<RISCVBlock>();
+        auto cur = std::find(bbList.begin(),bbList.end(),Rcurbb);
+        auto succ = std::find(bbList.begin(),bbList.end(),Rsuccbb);
+        if(preBB.find(Rsuccbb) == preBB.end()) {
+            preBB.emplace(Rcurbb);
+            bbList.erase(succ);
+            bbList.insert(++cur,Rsuccbb);
+        } else {
+            bbList.erase(cur);
+            bbList.insert(succ,Rcurbb);
+            // preBB.erase(Rsuccbb);
+            preBB.emplace(Rcurbb);
         }
     }
 
