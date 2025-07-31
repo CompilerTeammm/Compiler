@@ -255,12 +255,15 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
     {
         if(var->isParam())
         {
-            Inst = CreateInstAndBuildBind(RISCVInst::_mv,inst);
-            Inst->SetVirRegister();
-            Inst->SetRealRegister("a0");
+            // Inst = CreateInstAndBuildBind(RISCVInst::_mv,inst);
+            // Inst->SetVirRegister();
+            // Inst->SetRealRegister("a0");
             RISCVInst* SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
-            Inst->DealMore(SwInst);
-            SwInst->setStoreOp(Inst);
+            // SwInst->setStoreOp(Inst);
+            auto it = mapTrans(inst->GetOperand(0));
+            LOG(INFO,it->getName().c_str());
+            auto Rop = std::make_shared<Register> (it->getName());
+            SwInst->push_back(Rop);
             extraDealStoreInst(SwInst, inst);
             return Inst;
         }
@@ -781,7 +784,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
         globlVal = getCurFunction()->getGepLocalToGlobl()[globlVal];
     }
 
-    if (globlVal->isGlobal()) {
+    if (globlVal != nullptr && globlVal->isGlobal()) {
         //auto text = valToText[globlVal];
         RInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
         RInst->SetVirRegister();
@@ -916,6 +919,21 @@ RISCVOp* RISCVContext::Create(Value* val)
 
 RISCVOp* RISCVContext::mapTrans(Value* val)
 {
+    if ( valToRiscvOp.find(val) == valToRiscvOp.end() && 
+             dynamic_cast<Function*>(val) )
+    {
+        auto func = dynamic_cast<Function*>(val);
+        Register::realReg  counter = Register::a0;
+        for(auto& parm : func->GetParams())
+        {
+            auto op = Register::GetRealReg(counter);
+            valToRiscvOp[parm.get()] = op;
+            counter = Register::realReg(counter + 1);
+            if (counter == Register::a7)
+                break;  // 对栈帧的处理
+        }
+    }
+
     if(valToRiscvOp.find(val) == valToRiscvOp.end() && val->isGlobal()) {
         auto op  = new RISCVOp(val->GetName());
         valToRiscvOp[val] = op;   // bug:: delete when???

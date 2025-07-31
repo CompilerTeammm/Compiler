@@ -106,6 +106,8 @@ private:
     size_t BBsNum;
     int count = 1;                      // dfs的时候计数赋值的
     std::vector<std::vector<int>> Dest; // CFG中的后继
+
+    std::vector<TreeNode *> dfsDom;
 public:
     DominantTree(Function *func)
         : _func(func), Nodes(func->Size()), count(1),
@@ -173,4 +175,10 @@ public:
     ~DominantTree() = default;
 
     std::vector<BasicBlock*> getIdomVec(BasicBlock* );
+
+    std::vector<TreeNode*> DFSdom() 
+    {
+        std::vector<TreeNode*> tmp;
+        dfsDom.swap(tmp);
+    }
 };

@@ -7,6 +7,7 @@
 #include "../include/MyBackend/RegAllocation.hpp"
 #include "../include/MyBackend/LiveInterval.hpp"
 #include <queue>
+#include "../include/IR/Analysis/Dominant.hpp"
 
 extern std::string asmoutput_path;
 
@@ -66,6 +67,15 @@ bool TransFunction::run(Function* func)
         ctx->mapTrans(BB);   // 把 BB 存储起来
     }
 
+    // DominantTree tree(func);
+    // tree.BuildDominantTree();
+    // for(auto i: tree.DFSdom() ) 
+    // {
+    //     BasicBlock* bb = i->curBlock;
+    //     RISCVSelect select(ctx);
+    //     select.MatchAllInsts(bb);
+    // }
+
     //auto RISCVbb = ctx->mapTrans(BB)->as<RISCVBlock>(); 如何找到被存储的BB呢！
     for(BasicBlock *BB :*func) 
     {
@@ -74,29 +84,29 @@ bool TransFunction::run(Function* func)
         select.MatchAllInsts(BB);
     }
 
-    // auto BrVec = mfunc->getBrInstSuccBBs();
-    // std::map<BasicBlock*,BasicBlock*> curToSuccMap; 
-    // std::map<Instruction*,BasicBlock*> curToLabelMap; 
-    // for(auto [inst,pair1] :BrVec) 
-    // {
-    //     auto curbb = inst->GetParent();
-    //     BasicBlock* tmp = pair1.first;
-    //     int counter = 0;
-    //     for(auto [_,pair2]:BrVec) 
-    //     {
-    //         if (pair2.first == tmp)
-    //             counter++;
-    //         if (counter == 2) {
-    //             tmp = pair1.second;
-    //             break;
-    //         }
-    //     }
-    //     curToSuccMap.emplace(curbb,tmp);
-    //     if (tmp == pair1.first)
-    //         curToLabelMap.emplace(inst,pair1.second);
-    //     else 
-    //         curToLabelMap.emplace(inst,pair1.first);
-    // }
+    auto BrVec = mfunc->getBrInstSuccBBs();
+    std::map<BasicBlock*,BasicBlock*> curToSuccMap; 
+    std::map<Instruction*,BasicBlock*> curToLabelMap; 
+    for(auto [inst,pair1] :BrVec) 
+    {
+        auto curbb = inst->GetParent();
+        BasicBlock* tmp = pair1.first;
+        int counter = 0;
+        for(auto [_,pair2]:BrVec) 
+        {
+            if (pair2.first == tmp)
+                counter++;
+            if (counter == 2) {
+                tmp = pair1.second;
+                break;
+            }
+        }
+        curToSuccMap.emplace(curbb,tmp);
+        if (tmp == pair1.first)
+            curToLabelMap.emplace(inst,pair1.second);
+        else 
+            curToLabelMap.emplace(inst,pair1.first);
+    }
 
     // for(auto& [e,v] : curToSuccMap)
     // {
@@ -140,25 +150,27 @@ bool TransFunction::run(Function* func)
 
     // bbList = std::move(myList);
     // 算法存在问题
-    // std::set<RISCVBlock*> preBB;
-    // for(auto [curbb,succbb]: curToSuccMap)
-    // {
-    //     // bbList 来维持插入的顺序
-    //     auto Rcurbb = ctx->mapTrans(curbb)->as<RISCVBlock>();
-    //     auto Rsuccbb = ctx->mapTrans(succbb)->as<RISCVBlock>();
-    //     auto cur = std::find(bbList.begin(),bbList.end(),Rcurbb);
-    //     auto succ = std::find(bbList.begin(),bbList.end(),Rsuccbb);
-    //     if(preBB.find(Rsuccbb) == preBB.end()) {
-    //         preBB.emplace(Rcurbb);
-    //         bbList.erase(succ);
-    //         bbList.insert(++cur,Rsuccbb);
-    //     } else {
-    //         bbList.erase(cur);
-    //         bbList.insert(succ,Rcurbb);
-    //         // preBB.erase(Rsuccbb);
-    //         preBB.emplace(Rcurbb);
-    //     }
-    // }
+
+    auto& bbList = mfunc->getRecordBBs();
+    std::set<RISCVBlock*> preBB;
+    for(auto [curbb,succbb]: curToSuccMap)
+    {
+        // bbList 来维持插入的顺序
+        auto Rcurbb = ctx->mapTrans(curbb)->as<RISCVBlock>();
+        auto Rsuccbb = ctx->mapTrans(succbb)->as<RISCVBlock>();
+        auto cur = std::find(bbList.begin(),bbList.end(),Rcurbb);
+        auto succ = std::find(bbList.begin(),bbList.end(),Rsuccbb);
+        if(preBB.find(Rsuccbb) == preBB.end()) {
+            preBB.emplace(Rcurbb);
+            bbList.erase(succ);
+            bbList.insert(++cur,Rsuccbb);
+        } else {
+            bbList.erase(cur);
+            bbList.insert(succ,Rcurbb);
+            // preBB.erase(Rsuccbb);
+            preBB.emplace(Rcurbb);
+        }
+    }
 
     // for(auto& [inst,bb] : curToLabelMap)
     // {
@@ -177,6 +189,7 @@ bool TransFunction::run(Function* func)
     if (!ret)
         LOG(ERROR, "RA failed");
 
+        
     // 重写 global int and float
     auto gloValRecord = mfunc->getGloblValRecord();
     for(auto& inst : gloValRecord) 
