@@ -24,7 +24,7 @@ bool SimplifyCFG::SimplifyCFGFunction(){
 
     //1. 尝试合并空返回块
     // changed |= mergeEmptyReturnBlocks();
-    const int max_iter = 10;
+    const int max_iter = 15;
     int iter=0;
     bool localChanged=false;
     do{
@@ -60,46 +60,7 @@ bool SimplifyCFG::SimplifyCFGFunction(){
     _tree.BuildDominantTree();
     return true;
 }
-//暂时没考虑无返回值情况
-bool SimplifyCFG::hasOtherRetInst(BasicBlock* bb_){
-    for(auto& bb_ptr:func->GetBBs()){
-        BasicBlock* bb=bb_ptr.get();
-        if(bb==bb_) continue;
-        for(auto* inst:*bb){
-            if(inst->id==Instruction::Op::Ret) return true;
-        }
-    }
-    return false;
-}
-// 判断指令是否为副作用调用
-bool SimplifyCFG::hasSideEffect(Instruction* inst){
-    if(inst->IsCallInst()){
-        std::string callee=inst->GetName();
-        // SysY 可能的副作用函数
-        static const std::unordered_set<std::string> sideEffectFuncs = {
-            "putint", "putch", "putarray",
-            "_sysy_starttime", "_sysy_stoptime",
-            "getint", "getch", "getarray"
-        };
 
-        if (sideEffectFuncs.count(callee) > 0 || callee.find("_sysy") != std::string::npos)
-            return true;
-
-        if(inst->id==Instruction::Op::Store) {
-            return true;
-        }      
-    }
-    return false;
-}
-// 判断基本块是否含有副作用调用
-bool SimplifyCFG::blockHasSideEffect(BasicBlock* bb) {
-    for (auto it = bb->begin(); it != bb->end(); ++it) {
-        Instruction* inst = *it;
-        if (hasSideEffect(inst)) return true;
-    }
-    
-    return false;
-}
 
 // //删除不可达基本块(记得要把phi引用到的也进行处理)
 bool SimplifyCFG::removeUnreachableBlocks(){
@@ -145,6 +106,10 @@ bool SimplifyCFG::removeUnreachableBlocks(){
             }
         }
 
+        for (auto* inst : *bb) {
+            inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
+        }
+        
         // 更新 CFG 结构
         // bb->PredBlocks=_tree.getPredBBs(bb);
         for (auto* pred : bb->GetPredBlocks()) {
@@ -383,12 +348,23 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     if(_tree.dominates(succ,bb)){
         return false;
     }
-    //不合并带phi的块
+    //不合并带phi的块,只合并唯一incoming的phi
+    bool onlyTrivialPhi = true;
     for (auto it = succ->begin(); it != succ->end(); ++it) {
-        if((*it)==nullptr) return false;
-        if ((*it)->id == Instruction::Op::Phi) return false;
-        break; // 只检查最前几条
+        if (!(*it)) continue;
+        if ((*it)->id != Instruction::Op::Phi) break;
+        auto* phi = dynamic_cast<PhiInst*>(*it);
+        if (!phi) {
+            onlyTrivialPhi = false;
+            break;
+        }
+        if (phi->getNumIncomingValues() != 1) {
+            onlyTrivialPhi = false;
+            break;
+        }
     }
+    if (!onlyTrivialPhi)
+        return false;
 
     std::vector<BasicBlock*> succsuccs = _tree.getSuccBBs(succ);
     for (auto* succsucc : succsuccs){
@@ -407,6 +383,25 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
         }
     }
 
+    for (auto it = succ->begin(); it != succ->end();) {
+        Instruction* inst = *it;
+        ++it;
+    
+        if (inst->id == Instruction::Op::Phi) {
+            auto* phi = dynamic_cast<PhiInst*>(inst);
+            if (phi && phi->getNumIncomingValues() == 1) {
+                // 获取唯一 incoming 的 value
+                Value* incoming_val = phi->getIncomingValue(0);
+                Value* target = phi;  // 该 phi 的定义
+    
+                // 替换所有 use
+                target->ReplaceAllUseWith(incoming_val);
+    
+                // 删除 phi 指令
+                succ->erase(inst);
+            }
+        }
+    }
     //ok,那满足条件,合并
     //移除bb中的terminator指令(一般是br)
     if(bb->Size()!=0 && bb->GetBack() && bb->GetBack()->IsTerminateInst()){
@@ -438,8 +433,6 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
 
 //消除无意义phi
 bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
-    DominantTree _tree(func);
-    _tree.BuildDominantTree();
     
     bool changed=false;
 
@@ -481,15 +474,3 @@ bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
 
     return changed;
 }
-
-// bool SimplifyCFG::mergeReturnJumps(BasicBlock* bb){
-//     if (!bb || bb->Size() == 0) return false;
-//     // 获取最后一条指令：必须是无条件跳转
-//     Instruction* term = bb->GetBack();
-//     if (!term || term->id != Instruction::Op::UnCond) return false;
-
-//     BasicBlock* target = dynamic_cast<BasicBlock*>(term->GetUserUseList()[0]->GetValue());
-//     if (!target || target == bb) return false;
-
-
-// }

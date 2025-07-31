@@ -1773,6 +1773,35 @@ void PhiInst::removeIncomingFrom(BasicBlock *fromBB)
         oprandNum = 0;
     }
     // 如果PhiRecord为空，可能需要删除PhiInst(自己后续删吧，不在这里写了)
+
+    std::map<int, std::pair<Value *, BasicBlock *>> newPhiRecord;
+    std::unordered_map<int, int> indexMap; // 旧idx -> 新idx
+
+    int newIdx = 0;
+    for (const auto &entry : PhiRecord)
+    {
+        int oldIdx = entry.first;
+        newPhiRecord[newIdx] = entry.second;
+        indexMap[oldIdx] = newIdx;
+        newIdx++;
+    }
+
+    PhiRecord = std::move(newPhiRecord);
+
+    // 更新 UseRecord 中的 index
+    for (auto &pair : UseRecord)
+    {
+        int oldIdx = pair.second;
+        if (indexMap.count(oldIdx))
+        {
+            pair.second = indexMap[oldIdx];
+        }
+        else
+        {
+            // 不应发生：UseRecord 中的 index 已被删掉
+            assert(false && "UseRecord has dangling index after PhiRecord erase");
+        }
+    }
 }
 BasicBlock *BasicBlock::SplitAt(User *inst)
 {
