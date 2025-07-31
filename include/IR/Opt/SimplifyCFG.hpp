@@ -31,6 +31,6 @@ public:
     // 子优化：basicblock
     bool mergeBlocks(BasicBlock *bb);         // 合并基本块
     bool simplifyBranch();      // 简化分支（实际上是简化恒真或恒假的条件跳转
-    bool eliminateTrivialPhi(BasicBlock *bb); // 消除无意义phi
+    bool CleanPhi(); // 消除无意义phi
     // bool mergeReturnJumps(BasicBlock *bb);
 };

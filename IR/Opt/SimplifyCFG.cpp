@@ -38,6 +38,8 @@ bool SimplifyCFG::SimplifyCFGFunction(){
         //简化条件跳转
         localChanged |=simplifyBranch();
         
+        localChanged |= CleanPhi();
+
 
         //合并线性块(无phi)
         for (auto bb : func->GetBBs()) {
@@ -46,15 +48,12 @@ bool SimplifyCFG::SimplifyCFGFunction(){
                 break; //一次合并后立刻跳出，避免使用已删除 successor
             }
         }
-
-        // 消除冗余 phi（统一值/已删除 predecessor）
-        // for (auto bb : func->GetBBs()) {
-        //     if(!bb) continue;
-        //     localChanged |= eliminateTrivialPhi(bb.get());
-        // }
-
         changed |= localChanged;
     }while(localChanged);//持续迭代直到收敛
+    
+    
+    changed |=CleanPhi();//最后对于phi的合法性做个保障
+
 
     DominantTree _tree(func);
     _tree.BuildDominantTree();
@@ -334,9 +333,9 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
         return false;
     }
     //后继不能是终结块
-    if(succ->Size()>=0 && succ->GetBack()&& succ->GetBack()->id==Instruction::Op::Ret){
-        return false;
-    }
+    // if(succ->Size()>=0 && succ->GetBack()&& succ->GetBack()->id==Instruction::Op::Ret){
+    //     return false;
+    // }
     //判断succ是否只有bb一个前驱
     succ->PredBlocks=_tree.getPredBBs(succ);
     if(succ->PredBlocks.size()!=1||succ->PredBlocks[0]!=bb){
@@ -346,7 +345,17 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
 
     //支配树判断：succ 是 bb 的 dominator（可能是 loop header）不安全
     if(_tree.dominates(succ,bb)){
-        return false;
+        bool isLoopHeader=false;
+        for(auto* succsucc : _tree.getSuccBBs(succ)){
+            if (succsucc == bb){
+                isLoopHeader = true;
+                break;
+            }
+        }
+        if (isLoopHeader){
+            return false;
+        }
+        // 否则是线性路径支配，允许
     }
     //不合并带phi的块,只合并唯一incoming的phi
     bool onlyTrivialPhi = true;
@@ -407,6 +416,21 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     if(bb->Size()!=0 && bb->GetBack() && bb->GetBack()->IsTerminateInst()){
         bb->erase(bb->GetBack());
     }
+    //在这里将替换所有phi指令中incomingblock=succ的条目为bb
+    for(auto& block : func->GetBBs()){
+        if (!block) continue;
+        for (auto it = block->begin(); it != block->end(); ++it){
+            if (!(*it) || (*it)->id != Instruction::Op::Phi) break;
+            auto* phi = dynamic_cast<PhiInst*>(*it);
+            if (!phi) continue;
+            int num = phi->getNumIncomingValues();
+            for (int i = 0; i < num; ++i){
+                if (phi->getIncomingBlock(i) == succ){
+                    phi->SetIncomingBlock(i,bb);
+                }
+            }
+        }
+    }
     while (Instruction* inst = succ->pop_front()) {
         inst->SetManager(bb);
         bb->push_back(inst);
@@ -432,45 +456,56 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
 }
 
 //消除无意义phi
-bool SimplifyCFG::eliminateTrivialPhi(BasicBlock* bb){
-    
-    bool changed=false;
+bool SimplifyCFG::CleanPhi(){
+    bool changed = false;
 
-    //遍历当前基本块中所有指令
-    for(auto it=bb->begin();it!=bb->end();){
-        Instruction* inst=*it;
+    DominantTree _tree(func);
+    _tree.BuildDominantTree();
 
-        //isphi?
-        if(inst->id==Instruction::Op::Phi){
-            Value* same=nullptr;
-            bool all_same=true;
+    for (auto& block : func->GetBBs()){
+        if (!block) continue;
+        block->PredBlocks=_tree.getPredBBs(block.get());
 
-            //遍历所有phi的输入值
-            for(size_t i=0;i<inst->GetOperandNums();i+=2){
-                Value* val=inst->GetOperand(i);
-                if(!same){
-                    same=val;
-                }else if(val!=same){
-                    all_same=false;
-                    break;
+        // 获取 block 的前驱集合
+        std::set<BasicBlock*> predSet(block->PredBlocks.begin(), block->PredBlocks.end());
+
+        for (auto it = block->begin(); it != block->end(); ){
+            Instruction* inst = *it;
+            if (!inst || inst->id != Instruction::Op::Phi) break;
+
+            auto* phi = dynamic_cast<PhiInst*>(inst);
+            if (!phi) {
+                ++it;
+                continue;
+            }
+            // 收集不合法的 incoming
+            std::vector<BasicBlock*> toRemove;
+            for (int i = 0; i < phi->getNumIncomingValues(); ++i) {
+                BasicBlock* from = phi->getIncomingBlock(i);
+                if (!predSet.count(from)) {
+                    toRemove.push_back(from);
                 }
             }
 
-            //所有输入值相同,可以替换
-            if(all_same&&same){
-                inst->ReplaceAllUseWith(same);
-                
-                auto to_erase=it;
-                ++it;
-                bb->erase(*to_erase);
-                
-                changed=true;
+            if (!toRemove.empty()) {
+                for (auto* badFrom : toRemove) {
+                    phi->removeIncomingFrom(badFrom);
+                }
+                changed = true;
+            }
+
+            if (phi->getNumIncomingValues() == 1) {
+                Value* val = phi->getIncomingValue(0);
+                phi->ReplaceAllUseWith(val);
+                Instruction* inst = *it;
+                ++it;  // 先递增，确保安全
+                block->erase(inst);  // 删除指令
+                changed = true;
                 continue;
             }
+
+            ++it;
         }
-        ++it;
     }
-
-
     return changed;
 }
