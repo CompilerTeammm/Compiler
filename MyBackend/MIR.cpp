@@ -37,7 +37,9 @@ Register::Register(std::string _name, bool Flag,int _Fflag)
 }
 Register::Register(realReg _Regop,bool Flag,int _Fflag)
                : RVflag(Flag),Fflag(_Fflag),realRegop(_Regop)
-{      }
+{    
+    setName(realRegToString(_Regop));
+}
 Register::realReg Register::getRegop()  
 { 
     if(IsrealRegister()) 

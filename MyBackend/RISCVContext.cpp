@@ -163,9 +163,11 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
             Inst = CreateInstAndBuildBind(RISCVInst::_flw, inst);
             Inst->setLoadOp();
             extraDealLoadInst(Inst, inst);
+        } 
+        else {  
+            // 指针的处理    slliInst 代表的是下标元素 * 4 字节偏移
         }
-        else
-            LOG(ERROR, "other conditions");
+            
     }
     return Inst;
 }
@@ -258,14 +260,25 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
             // Inst = CreateInstAndBuildBind(RISCVInst::_mv,inst);
             // Inst->SetVirRegister();
             // Inst->SetRealRegister("a0");
-            RISCVInst* SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
-            // SwInst->setStoreOp(Inst);
-            auto it = mapTrans(inst->GetOperand(0));
-            LOG(INFO,it->getName().c_str());
-            auto Rop = std::make_shared<Register> (it->getName());
-            SwInst->push_back(Rop);
-            extraDealStoreInst(SwInst, inst);
-            return Inst;
+            RISCVInst* SwInst = nullptr;
+            if (inst->GetOperand(1)->GetType()->GetLayer() > 1)
+            {
+                SwInst = CreateInstAndBuildBind(RISCVInst::_sd, inst);
+                // SwInst->setStoreOp(Inst);
+                auto it = mapTrans(inst->GetOperand(0))->as<Register>();
+                auto Rop = std::make_shared<Register>(it->getRegop());
+                SwInst->push_back(Rop);
+                extraDealStoreInst(SwInst, inst);                
+            }
+            else {
+                SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+                // SwInst->setStoreOp(Inst);
+                auto it = mapTrans(inst->GetOperand(0))->as<Register>();
+                auto Rop = std::make_shared<Register>(it->getRegop());
+                SwInst->push_back(Rop);
+                extraDealStoreInst(SwInst, inst);
+            }
+            return SwInst;
         }
     }
 
@@ -818,6 +831,8 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
                     counter++;
                 }else {   // i 变化值
                     auto it = dynamic_cast<LoadInst*> (inst->GetOperand(counter));
+                    if (it == nullptr)
+                        return nullptr;
                     RISCVInst* loadInst = mapTrans(it)->as<RISCVInst>();
                     RISCVInst* newLoad =CreateInstAndBuildBind(RISCVInst::_lw, inst);
                     newLoad->SetVirRegister();
@@ -845,8 +860,31 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             auto &gepRecord = getCurFunction()->getRecordGepOffset();
             gepRecord[nextInst] = sum;
         }
-    } else {
-        LOG(ERROR,"WHAT FUCK!!!");
+    } else {  // 函数参数指针的偏移到这里了
+        
+        if (dynamic_cast<ConstIRInt*>(inst->GetOperand(inst->GetOperandNums()-1)))
+        {
+            RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+            liInst->SetVirRegister();
+            liInst->SetImmOp(inst->GetOperand(inst->GetOperandNums()-1));
+        }
+
+        RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+        LoadInst* LInst = dynamic_cast<LoadInst*>(inst->GetPrevNode());
+        if (LInst == nullptr)
+            assert("error!!!");
+        slliInst->push_back(slliInst->GetPrevNode()->getOpreand(0));
+        slliInst->push_back(slliInst->GetPrevNode()->getOpreand(0));
+        slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+        RISCVInst* lwInst = CreateInstAndBuildBind(RISCVInst::_ld, LInst);
+        lwInst->setLoadOp();
+        extraDealLoadInst(lwInst,LInst);
+
+        RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+        RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+        RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+        RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
     }
     return RInst;
 }
