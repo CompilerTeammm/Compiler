@@ -19,6 +19,7 @@
 class ProloAndEpilo
 {
     RISCVFunction* mfunc;
+    size_t TheSizeofStack;
 public:
     enum mallOrfree
     {

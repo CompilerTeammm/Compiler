@@ -22,15 +22,20 @@ bool ProloAndEpilo:: DealStoreInsts()
     auto MallocVec = mfunc->getStoreInsts();
     // auto StoreRecord = mfunc->getStoreRecord();
     auto& AOffsetRecord = mfunc->getAOffsetRecord();
-    size_t offset = 16;
+    size_t offset = TheSizeofStack;
     std::set<AllocaInst*> tmp;
     for (auto& alloc:mfunc->getAllocas())
     {
-        if(alloc->GetType()->GetLayer())
-            offset += 8;
-        else 
-            offset += 4;
         AOffsetRecord[alloc] = offset;
+        auto it = alloc->GetType()->GetLayer();
+        auto it2 =  dynamic_cast<PointerType*> (alloc->GetType())->GetSubType()->GetTypeEnum();
+        if(alloc->GetType()->GetLayer() > 1)
+            if (dynamic_cast<PointerType*>(alloc->GetType())->GetSubType()->GetTypeEnum() == IR_ARRAY)
+                offset += 0;
+            else 
+                offset -= 8;
+        else 
+            offset -= 4;
     }
 
     for(auto[StackInst,alloc] : MallocVec)
@@ -81,6 +86,7 @@ bool ProloAndEpilo::run()
 {
     size_t StackMallocSize = caculate();
 
+    TheSizeofStack = StackMallocSize;
     // 生成函数的前言和后序,并且set了
     CreateProlo(StackMallocSize);
     CreateEpilo(StackMallocSize);
@@ -100,11 +106,14 @@ size_t ProloAndEpilo::caculate()
         if(allocInst->GetTypeEnum() == IR_PTR) 
         {
             auto PType = dynamic_cast<PointerType*> (allocInst->GetType());
-            if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY || 
-                PType->GetSubType()->GetTypeEnum() == IR_PTR)
+            if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
             {
-                size_t arrSize = PType->GetSubType()->GetSize();
-                sumMallocSize += arrSize;
+
+            }
+            else if (PType->GetSubType()->GetTypeEnum() == IR_PTR)
+            {
+                size_t ptrSize = PType->GetSubType()->GetSize();
+                sumMallocSize += ptrSize;
             }
             else if(PType->GetSubType()->GetTypeEnum() == IR_Value_Float ||
                   PType->GetSubType()->GetTypeEnum() == IR_Value_INT ) {
@@ -112,6 +121,8 @@ size_t ProloAndEpilo::caculate()
             }
         }
     }
+
+    sumMallocSize += mfunc->arroffset;
     while (N * ALIGN < sumMallocSize)   N++;
 
     size_t size = (N + INITSIZE) * ALIGN;

@@ -99,6 +99,7 @@ public:
                                             op op1,op op2);
 
     size_t getSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addInst);
+    void getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addiInst,RISCVInst*& RInst);
 
     template<typename T>
     T& as()

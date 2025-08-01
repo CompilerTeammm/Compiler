@@ -832,7 +832,7 @@ size_t RISCVContext:: getSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addI
             counter++;
         }
         else
-        { // i 变化值
+        {   // i 变化值     // need to rewrite
             auto it = dynamic_cast<LoadInst *>(inst->GetOperand(counter));
             if (it == nullptr)
                 return 0;
@@ -865,6 +865,54 @@ size_t RISCVContext:: getSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addI
     }
     sum += findRecord[size - 1], sum *= 4;
     return sum;
+}
+
+void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addiInst,RISCVInst*& RInst)
+{
+    std::vector<int> numsRecord;
+    PointerType *Pointer = dynamic_cast<PointerType *>(globlVal->GetType());
+    ArrayType *arry = dynamic_cast<ArrayType *>(Pointer->GetSubType());
+    int layer = arry->GetLayer();
+    // if (dynamic_cast<ConstIRInt*> (inst->GetOperand(counter)))
+    while (arry && arry->GetLayer() != 0)
+    {
+        numsRecord.emplace_back(arry->GetNum());
+        arry = dynamic_cast<ArrayType *>(arry->GetSubType());
+    }
+    for (int i = inst->GetOperandNums() - 1; i >= 2; i--)
+    {
+        int Rsubscript = i - 1;
+        if (auto val = dynamic_cast<ConstIRInt *>(inst->GetOperand(i)))
+        { // 取值确定
+            RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+            RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+            RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+            int sum = 1;
+            for (int j = Rsubscript; j < numsRecord.size(); j++)
+            {
+                sum = numsRecord[Rsubscript] * val->GetVal();
+            }
+            sum *= 4;
+            RInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+        }
+        else
+        {
+            auto loadInst = dynamic_cast<Instruction *>(inst->GetOperand(i));
+            if (loadInst == nullptr)
+                LOG(ERROR,"what happened");
+            RISCVInst *RLInst = mapTrans(loadInst)->as<RISCVInst>();
+
+            RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+            slliInst->push_back(RLInst->getOpreand(0));
+            slliInst->push_back(RLInst->getOpreand(0));
+            slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+            RISCVInst *thisOffsetInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+            thisOffsetInst->push_back(slliInst->getOpreand(0));
+            thisOffsetInst->push_back(addiInst->getOpreand(0));
+            thisOffsetInst->push_back(slliInst->getOpreand(0));
+        }
+    }
 }
 
 // 处理数组  全局的数组应该 lui addi 进行首地址的加载
@@ -905,10 +953,25 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
         size_t arroffset = getCurFunction()->getLocalArrToOffset()[globlVal];
         addiInst->SetstackOffsetOp("-"+std::to_string(arroffset));
 
-        RInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
-        RInst->SetVirRegister();
-        RInst->push_back(addiInst->getOpreand(0));
-        RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal,inst,addiInst)));
+
+        int flag = 0;
+        for(int i = inst->GetOperandNums()-1 ; i >= 2 ; i--) {
+            if (auto val = dynamic_cast<ConstIRInt *>(inst->GetOperand(i))) 
+            {    }
+            else {
+                flag = 1;
+                break;
+            }
+        }
+        if (flag == 0) {
+            RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+            RInst->SetVirRegister();
+            RInst->push_back(addiInst->getOpreand(0));
+            RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, addiInst)));
+        }
+        else {
+            getDynmicSumOffset(globlVal, inst,addiInst, RInst);
+        }
     }  
     else  {  // 函数参数指针的偏移到这里了
         

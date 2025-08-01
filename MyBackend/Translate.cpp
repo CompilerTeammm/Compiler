@@ -75,6 +75,54 @@ bool TransFunction::run(Function* func)
         select.MatchAllInsts(BB);
     }
 
+    changeTheOrders(mfunc);
+
+    // 后端优化 phi 函数的消除
+    PhiEliminate phi(func);
+    ret = phi.run();
+    if(!ret)   LOG(ERROR,"Phi failed");
+
+    //寄存器分配算法
+    RegAllocation RA(mfunc, ctx);
+    ret = RA.run();
+    if (!ret)
+        LOG(ERROR, "RA failed");
+        
+    reWritestackOffse(mfunc);
+
+    //约定与调用，前言与后序
+    ProloAndEpilo PAE(mfunc);
+    ret = PAE.run();
+
+    return ret;
+}
+
+void TransFunction::reWritestackOffse(RISCVFunction*& mfunc)
+{
+    // 重写 global int and float
+    auto gloValRecord = mfunc->getGloblValRecord();
+    for(auto& inst : gloValRecord) 
+    {
+        auto RInst = ctx->mapTrans(inst)->as<RISCVInst>();
+        std::string regName = RInst->getOpreand(1)->getName();
+        RInst->deleteOp(1);
+        RInst->SetstackOffsetOp("0(" + regName + ")");
+    }
+
+    // 重写 gep 的ops
+    auto gepRecord = mfunc->getRecordGepOffset();
+    for(auto& [inst,off] : gepRecord)
+    {
+        auto RInst = ctx->mapTrans(inst)->as<RISCVInst>();
+        std::string regName = RInst->getOpreand(1)->getName();
+        RInst->deleteOp(1);
+        RInst->SetstackOffsetOp(std::to_string(off) +"(" + regName + ")");
+    }
+}
+
+
+void TransFunction::changeTheOrders(RISCVFunction*& mfunc)
+{
     auto BrVec = mfunc->getBrInstSuccBBs();
     std::map<BasicBlock*,BasicBlock*> curToSuccMap; 
     std::map<Instruction*,BasicBlock*> curToLabelMap; 
@@ -151,43 +199,4 @@ bool TransFunction::run(Function* func)
             RInst->reWriteISA();
         }
     }
-
-    // 后端优化 phi 函数的消除
-    PhiEliminate phi(func);
-    ret = phi.run();
-    if(!ret)   LOG(ERROR,"Phi failed");
-
-    //寄存器分配算法
-    RegAllocation RA(mfunc, ctx);
-    ret = RA.run();
-    if (!ret)
-        LOG(ERROR, "RA failed");
-
-        
-    // 重写 global int and float
-    auto gloValRecord = mfunc->getGloblValRecord();
-    for(auto& inst : gloValRecord) 
-    {
-        auto RInst = ctx->mapTrans(inst)->as<RISCVInst>();
-        std::string regName = RInst->getOpreand(1)->getName();
-        RInst->deleteOp(1);
-        RInst->SetstackOffsetOp("0(" + regName + ")");
-    }
-
-    // 重写 gep 的ops
-    auto gepRecord = mfunc->getRecordGepOffset();
-    for(auto& [inst,off] : gepRecord)
-    {
-        auto RInst = ctx->mapTrans(inst)->as<RISCVInst>();
-        std::string regName = RInst->getOpreand(1)->getName();
-        RInst->deleteOp(1);
-        RInst->SetstackOffsetOp(std::to_string(off) +"(" + regName + ")");
-    }
-
-    //约定与调用，前言与后序
-    ProloAndEpilo PAE(mfunc);
-    ret = PAE.run();
-
-    return ret;
 }
-

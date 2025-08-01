@@ -655,8 +655,9 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     
     std::list<RISCVBlock*> recordBBs;  // 记录顺序
     std::map<size_t,size_t> oldBBindexTonew;
-
+public:
     offset arroffset = 16;
+private:
     // 处理数组，局部与全局的处理
     std::map<Instruction*,offset> recordGepOffset;
     std::map<Value*,Value*> GepGloblToLocal;
