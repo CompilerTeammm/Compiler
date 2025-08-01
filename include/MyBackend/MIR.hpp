@@ -444,6 +444,20 @@ public:
 public:
     RISCVInst(ISA op) :opCode(op) { }
     ISA getOpcode() { return opCode;}
+    void reWriteISA() {
+        if (opCode == _bne)
+            opCode = _beq;
+        else if (opCode == _beq)
+            opCode = _bne;
+        else if (opCode == _bge)
+            opCode = _blt;
+        else if (opCode == _blt)
+            opCode = _bge;
+        else if (opCode == _ble)
+            opCode = _bgt;
+        else if (opCode == _bgt)
+            opCode = _ble;
+    }
 
     void SetRegisterOp(std::string&& str,bool Flag = Register::vir)
     {
@@ -574,6 +588,7 @@ public:
     std::vector<BasicBlock*> getSuccBlocks();
     std::set<Register*>& getLiveUse()  {  return LiveUse; }
     std::set<Register*>& getLiveDef()  {  return LiveDef; }
+    BasicBlock*& getIRbb() { return cur_bb; }
 };
 
 // 栈帧的大小  都多余了
@@ -644,12 +659,14 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     offset arroffset = 16;
     // 处理数组，局部与全局的处理
     std::map<Instruction*,offset> recordGepOffset;
-    std::map<Value*,Value*> GepLoaclToGlobl;
+    std::map<Value*,Value*> GepGloblToLocal;
     // 全局变量，除了数组
     std::vector<Instruction*> globlValRecord; 
 
     std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>> recordBrInstSuccBBs;
     std::vector<RISCVInst*> LabelInsts;
+
+    std::map<Value*,offset> LocalArrToOffset;
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
@@ -659,20 +676,20 @@ public:
     std::map<size_t,size_t>& OldToNewIndex() { return oldBBindexTonew;}
     std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
-    std::map<Value*,Value*>&getGepLocalToGlobl()  { return GepLoaclToGlobl;}
+    std::map<Value*,Value*>&getGepGloblToLocal()  { return GepGloblToLocal;}
     std::vector<Instruction*>& getGloblValRecord() { return globlValRecord; }
     std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    }
     std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
     std::map<AllocaInst*,lastStoreInstPtr>& getStoreRecord() {   return StackStoreRecord;   }
     std::map<matchLoadInstPtr,AllocaInst*>& getLoadRecord() {   return StackLoadRecord;   }
     std::map<AllocaInst*,size_t>& getAOffsetRecord() { return AllocaOffsetRecord; }
-
+    std::map<Value*,offset>& getLocalArrToOffset() { return LocalArrToOffset;}
     void RecordStackMalloc(RISCVInst* inst,AllocaInst* alloca)
     {
         StoreInsts.emplace( std::make_pair(inst,alloca) );
     }
 
-    void getCurFuncArrStack(RISCVInst*& ,Value* val);
+    void getCurFuncArrStack(RISCVInst*& ,Value* val,Value* alloc);
 
     void setPrologue(std::shared_ptr<RISCVPrologue>& it ) { prologue = it;}
     void setEpilogue(std::shared_ptr<RISCVEpilogue>& it ) { epilogue = it;}

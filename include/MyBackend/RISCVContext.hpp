@@ -98,6 +98,8 @@ public:
     void extraDealFlCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op,
                                             op op1,op op2);
 
+    size_t getSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addInst);
+
     template<typename T>
     T& as()
     {

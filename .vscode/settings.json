@@ -95,7 +95,11 @@
     "valarray": "cpp",
     "*.def": "cpp",
     "*.x": "cpp",
-    "io_context": "cpp"
+    "io_context": "cpp",
+    "rope": "cpp",
+    "flat_map": "cpp",
+    "flat_set": "cpp",
+    "internet": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",
   "C_Cpp_Runner.cppCompilerPath": "g++",

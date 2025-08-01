@@ -67,15 +67,6 @@ bool TransFunction::run(Function* func)
         ctx->mapTrans(BB);   // 把 BB 存储起来
     }
 
-    // DominantTree tree(func);
-    // tree.BuildDominantTree();
-    // for(auto i: tree.DFSdom() ) 
-    // {
-    //     BasicBlock* bb = i->curBlock;
-    //     RISCVSelect select(ctx);
-    //     select.MatchAllInsts(bb);
-    // }
-
     //auto RISCVbb = ctx->mapTrans(BB)->as<RISCVBlock>(); 如何找到被存储的BB呢！
     for(BasicBlock *BB :*func) 
     {
@@ -87,6 +78,7 @@ bool TransFunction::run(Function* func)
     auto BrVec = mfunc->getBrInstSuccBBs();
     std::map<BasicBlock*,BasicBlock*> curToSuccMap; 
     std::map<Instruction*,BasicBlock*> curToLabelMap; 
+    std::map<Instruction*,int> recordOneOrTwo;
     for(auto [inst,pair1] :BrVec) 
     {
         auto curbb = inst->GetParent();
@@ -102,81 +94,63 @@ bool TransFunction::run(Function* func)
             }
         }
         curToSuccMap.emplace(curbb,tmp);
-        if (tmp == pair1.first)
+        if (tmp == pair1.first) {
             curToLabelMap.emplace(inst,pair1.second);
-        else 
+            recordOneOrTwo[inst] = 0;
+        }
+        else {
             curToLabelMap.emplace(inst,pair1.first);
-    }
-
-    // for(auto& [e,v] : curToSuccMap)
-    // {
-    //     std::cout <<e->GetName() <<" " << v->GetName() << std::endl;
-    // }
-
-    // std::map<RISCVBlock*,RISCVBlock*> recordMap;
-    // auto &bbList = mfunc->getRecordBBs();
-    // for (auto& bb :bbList)
-    // {
-    //     recordMap[bb] = bb->GetNextNode();
-    // }
-
-    // for(auto& [e,v] : recordMap)
-    // {
-    //     if (v == nullptr)
-    //         break;
-    //     std::cout <<e->getName() <<" " << v->getName() << std::endl;
-    // }
-    // for(auto [curbb,succbb] : curToSuccMap)
-    // {
-    //     auto Rcurbb = ctx->mapTrans(curbb)->as<RISCVBlock>();
-    //     auto Rsuccbb = ctx->mapTrans(succbb)->as<RISCVBlock>();
-    //     recordMap[Rcurbb] = Rsuccbb;
-    // }
-
-    // for(auto& [e,v] : recordMap)
-    // {
-    //     std::cout <<e->getName() <<" " << v->getName() << std::endl;
-    // }
-    // std::list<RISCVBlock*> myList;
-    // RISCVBlock* first = bbList.front();
-    // myList.push_back(first);
-    
-    // for(int i = 1; i < bbList.size()-1; i++)
-    // {
-    //     RISCVBlock *next = recordMap[first];
-    //     myList.push_back(next);
-    //     first = next;
-    // }
-
-    // bbList = std::move(myList);
-    // 算法存在问题
-
-    auto& bbList = mfunc->getRecordBBs();
-    std::set<RISCVBlock*> preBB;
-    for(auto [curbb,succbb]: curToSuccMap)
-    {
-        // bbList 来维持插入的顺序
-        auto Rcurbb = ctx->mapTrans(curbb)->as<RISCVBlock>();
-        auto Rsuccbb = ctx->mapTrans(succbb)->as<RISCVBlock>();
-        auto cur = std::find(bbList.begin(),bbList.end(),Rcurbb);
-        auto succ = std::find(bbList.begin(),bbList.end(),Rsuccbb);
-        if(preBB.find(Rsuccbb) == preBB.end()) {
-            preBB.emplace(Rcurbb);
-            bbList.erase(succ);
-            bbList.insert(++cur,Rsuccbb);
-        } else {
-            bbList.erase(cur);
-            bbList.insert(succ,Rcurbb);
-            // preBB.erase(Rsuccbb);
-            preBB.emplace(Rcurbb);
+            recordOneOrTwo[inst] = 1;
         }
     }
 
-    // for(auto& [inst,bb] : curToLabelMap)
-    // {
-    //     RISCVInst* RInst = ctx->mapTrans(inst)->as<RISCVInst> ();
-    //     RInst->getOpreand(2)->setName(ctx->mapTrans(bb)->getName());
-    // }
+    auto& bbList = mfunc->getRecordBBs();
+    std::list<RISCVBlock*> newList;
+    RISCVBlock* succBB = nullptr;
+    auto it = bbList.begin();
+    while(it != bbList.end())
+    {
+        RISCVBlock* tmp = *it;
+        if (succBB != nullptr)
+        {
+            if (tmp != succBB) {
+                bbList.remove(succBB);
+                auto nextIt = std::next(it);
+                bbList.insert(nextIt, tmp);
+                tmp = succBB;
+            }
+        }
+        int flag = 0;
+        for(auto& [curbb,succbb]:curToSuccMap)
+        {
+            succBB = nullptr;
+            if(tmp == ctx->mapTrans(curbb)->as<RISCVBlock>())
+            {
+                flag = 1;
+                succBB = ctx->mapTrans(succbb)->as<RISCVBlock>();
+            }
+            if (flag == 1) {
+                break;
+            }
+        }
+        newList.push_back(tmp);
+        ++it;
+    }
+    bbList = std::move(newList);
+
+    for(auto& [inst,bb] : curToLabelMap)
+    {
+        RISCVInst* RInst = ctx->mapTrans(inst)->as<RISCVInst> ();
+        RInst->getOpreand(2)->setName(ctx->mapTrans(bb)->getName());
+    }
+
+    for(auto& [inst,flag] : recordOneOrTwo)
+    {
+        if (flag) {
+            auto RInst = ctx->mapTrans(inst)->as<RISCVInst>();
+            RInst->reWriteISA();
+        }
+    }
 
     // 后端优化 phi 函数的消除
     PhiEliminate phi(func);
