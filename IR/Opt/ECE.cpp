@@ -1,14 +1,58 @@
+// #include "../../include/IR/Opt/ECE.hpp"
+
+// bool ECE::run() {
+//   SplitCriticalEdges();
+//   return false;
+// }
+
+// void ECE::SplitCriticalEdges() {
+//   for (auto it = m_func->begin(); it != m_func->end(); ++it) {
+//     BasicBlock *bb = *it;
+//     int SuccessorCount = bb->GetSuccessorCount();
+//     if (SuccessorCount > 1)
+//       for (int i = 0; i < SuccessorCount; i++)
+//         AddEmptyBlock(bb->GetBack(), i);
+//   }
+// }
+
+
+// void ECE::AddEmptyBlock(Instruction *inst, int succ) {
+//   auto CI = dynamic_cast<CondInst *>(inst);
+//   assert(CI && "inst transferred in must be a CondInst");
+
+//   BasicBlock *DstBB =
+//       dynamic_cast<BasicBlock *>(CI->GetUserUseList()[succ + 1]->GetValue());
+//   assert(DstBB);
+//   int PredNum = DstBB->GetPredecessorCount();
+//   if (PredNum < 2) 
+//     return;
+
+//   BasicBlock *CurrBB = inst->GetParent();
+//   BasicBlock *criticalbb = new BasicBlock();
+//   m_func->push_back(criticalbb);
+
+//   m_func->InsertBlock(CurrBB, DstBB, criticalbb);
+//   criticalbb->num = ++m_func->num;
+//   m_func->PushBothBB(criticalbb);
+//   for (auto iter = DstBB->begin();
+//        iter != DstBB->end() && dynamic_cast<PhiInst *>(*iter) != nullptr;
+//        ++iter) {
+//     auto phi = dynamic_cast<PhiInst *>(*iter);
+//     auto it1 = std::find_if(
+//         phi->PhiRecord.begin(), phi->PhiRecord.end(),
+//         [CurrBB](const std::pair<int, std::pair<Value *, BasicBlock *>> &ele) {
+//           return ele.second.second == CurrBB;
+//         });
+//     if (it1 == phi->PhiRecord.end())
+//       continue;
+//     it1->second.second = criticalbb;
+//     phi->SetIncomingBlock(it1->first,criticalbb);
+//   }
+// }
+
 #include "../../include/IR/Opt/ECE.hpp"
 
 bool ECE::run() {
-  DominantTree _tree(m_func);
-    _tree.BuildDominantTree();
-    for (auto& bb_ptr : m_func->GetBBs()) {
-        BasicBlock* B = bb_ptr.get();
-        if (!B) continue;
-        B->PredBlocks = _tree.getPredBBs(B);
-        B->NextBlocks = _tree.getSuccBBs(B);
-    }
   SplitCriticalEdges();
   return false;
 }
@@ -16,62 +60,39 @@ bool ECE::run() {
 void ECE::SplitCriticalEdges() {
   for (auto it = m_func->begin(); it != m_func->end(); ++it) {
     BasicBlock *bb = *it;
-    int succ_num = bb->GetSuccessorCount();
-    if (succ_num <= 1)
-      continue;
+    int SuccessorCount = bb->GetSuccessorCount();
+    if (SuccessorCount > 1) {
+      // 找该BB的条件跳转指令
+      Instruction *termInst = bb->GetTerminator();
+      auto CI = dynamic_cast<CondInst *>(termInst);
+      if (!CI) continue;
 
-    for (int i = 0; i < succ_num; i++) {
-      BasicBlock *succ = bb->NextBlocks[i];
-      if (succ->GetPredecessorCount() > 1) {
-        AddEmptyBlock(bb->GetBack(), i);
+      for (int i = 0; i < SuccessorCount; i++) {
+        AddEmptyBlock(CI, i);
       }
     }
   }
 }
-
-// void ECE::SplitCriticalEdges() {
-//   int total_edges = 0;
-//   int split_edges = 0;
-
-//   for (auto it = m_func->begin(); it != m_func->end(); ++it) {
-//     BasicBlock *bb = *it;
-//     int succ_num = bb->GetSuccessorCount();
-//     if (succ_num <= 1)
-//       continue;
-
-//     for (int i = 0; i < succ_num; i++) {
-//       total_edges++;
-
-//       // 调试输出当前正在检查的边
-//       if (i < bb->NextBlocks.size()) {
-//         std::cerr << "[ECE] Checking edge: BB" << bb->index << " -> BB" << bb->NextBlocks[i]->index << "\n";
-//       }
-
-//       BasicBlock *succ = bb->NextBlocks[i];
-//       if (succ->GetPredecessorCount() > 1) {
-//         std::cerr << "[ECE] Found critical edge: BB" << bb->index << " -> BB" << succ->index << "\n";
-//         AddEmptyBlock(bb->GetBack(), i);
-//         split_edges++;
-//       }
-//     }
-//   }
-
-//   std::cerr << "[ECE] Total edges: " << total_edges << ", Split critical edges: " << split_edges << "\n";
-// }
-
-
 
 void ECE::AddEmptyBlock(Instruction *inst, int succ) {
   auto CI = dynamic_cast<CondInst *>(inst);
   assert(CI && "inst transferred in must be a CondInst");
 
   BasicBlock *CurrBB = inst->GetParent();
-  auto successors = CurrBB->GetNextBlocks();
-  assert(succ < successors.size());
-  BasicBlock *DstBB = successors[succ];
+  BasicBlock *DstBB =dynamic_cast<BasicBlock *>(CI->GetUserUseList()[succ + 1]->GetValue());
   assert(DstBB);
 
-  // 这里假设调用方已经判断过是关键边，不再判断 PredNum
+  // 关键边判断
+  if (CurrBB->GetSuccessorCount() <= 1 || DstBB->GetPredecessorCount() <= 1) {
+    return;  // 非关键边，不拆分
+  }
+
+  // 避免重复拆分
+  std::pair<BasicBlock*, BasicBlock*> edge = {CurrBB, DstBB};
+  if (splitEdges.count(edge) > 0) {
+    return;
+  }
+  splitEdges.insert(edge);
 
   BasicBlock *criticalbb = new BasicBlock();
   m_func->push_back(criticalbb);
@@ -80,11 +101,28 @@ void ECE::AddEmptyBlock(Instruction *inst, int succ) {
   criticalbb->num = ++m_func->num;
   m_func->PushBothBB(criticalbb);
 
-  // Phi节点更新，封装为成员函数
+  // 更新PHI节点
   for (auto iter = DstBB->begin();
        iter != DstBB->end() && dynamic_cast<PhiInst *>(*iter) != nullptr;
        ++iter) {
     auto phi = dynamic_cast<PhiInst *>(*iter);
-    phi->addIncoming(CurrBB, criticalbb);
+
+    std::unordered_map<BasicBlock*, int> bbToIndex;
+    for (const auto& record : phi->PhiRecord) {
+      bbToIndex[record.second.second] = record.first;
+    }
+
+    auto it = bbToIndex.find(CurrBB);
+    if (it == bbToIndex.end())
+      continue;
+
+    int idx = it->second;
+    for (auto &record : phi->PhiRecord) {
+      if (record.first == idx) {
+        record.second.second = criticalbb;
+        break;
+      }
+    }
+    phi->SetIncomingBlock(idx, criticalbb);
   }
 }

@@ -1,7 +1,6 @@
 #pragma once
 #include "../../lib/CFG.hpp"
 #include "Passbase.hpp"
-// #include "PassManager.hpp"
 
 
 class InlineHeuristic {
@@ -54,4 +53,3 @@ private:
     std::vector<CallInst*> NeedInlineCall;
     void init(Module* m);
 };
-

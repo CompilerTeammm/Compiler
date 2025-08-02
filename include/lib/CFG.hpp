@@ -758,10 +758,7 @@ public:
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
   void SetIncomingBlock(int index, BasicBlock *bb) {
-  IncomingBlocks[index] = bb;
-  if (PhiRecord.count(index)) {
-    PhiRecord[index].second = bb;
-  }
+   IncomingBlocks[index] = bb;
  }
 };
 
@@ -847,7 +844,13 @@ public:
   void ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor);
   void ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor);
   int GetSuccessorCount();
-  int GetPredecessorCount();//先补充着
+  int GetPredecessorCount();
+  Instruction *GetTerminator() const;
+  BasicBlock* GetSuccessor(int i) const {
+    if (i < 0 || i >= static_cast<int>(NextBlocks.size()))
+        return nullptr;
+    return NextBlocks[i];
+}
 };
 
 class BuiltinFunc : public Value

@@ -24,7 +24,7 @@
 
 // 互不影响，完全没问题再放出来
 // #define dce
-#define sccp
+// #define sccp
 //#define pre
 // #define SCFG
 // define DSE
@@ -91,6 +91,12 @@ void PassManager::RunOnTest()
         DominantTree tree(fun);
         tree.BuildDominantTree();
         Mem2reg(fun, &tree).run();
+        for (auto& bb_ptr : fun->GetBBs()) {
+        BasicBlock* B = bb_ptr.get();
+        if (!B) continue;
+        B->PredBlocks = tree.getPredBBs(B);
+        B->NextBlocks = tree.getSuccBBs(B);
+        }
     }
 #ifdef dce
     for (auto &function : funcVec)

@@ -1878,7 +1878,12 @@ void BasicBlock::ForEachInstrInPredBlocks(std::function<void(Instruction *)> vis
   }
 
 int BasicBlock::GetSuccessorCount() {
-    return this->NextBlocks.size();
+    if (dynamic_cast<CondInst *>(this->GetBack()))
+        return 2;
+    else if (dynamic_cast<UnCondInst *>(this->GetBack()))
+        return 1;
+    else
+        return 0;
 }
 
 // int BasicBlock::GetPredecessorCount() {
@@ -1892,8 +1897,23 @@ int BasicBlock::GetSuccessorCount() {
 //     }
 //     return count;
 // }
+
+//前提是必须维护好
 int BasicBlock::GetPredecessorCount() {
     return this->PredBlocks.size();
+}
+
+bool IsTerminator(Instruction *inst) {
+    return dynamic_cast<CondInst*>(inst) ||
+           dynamic_cast<UnCondInst*>(inst) ||
+           dynamic_cast<RetInst*>(inst);
+}
+
+Instruction *BasicBlock::GetTerminator() const {
+    Instruction *last = this->GetBack();
+    if (last && IsTerminator(last))
+        return last;
+    return nullptr;
 }
 
 void Function::InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb) {
