@@ -25,8 +25,7 @@ void copyFile(const std::string &sourcePath,
    destination << source.rdbuf();
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
    std::string output_path = argv[1];
    output_path += ".ll";
 
