@@ -175,10 +175,4 @@ public:
     ~DominantTree() = default;
 
     std::vector<BasicBlock*> getIdomVec(BasicBlock* );
-
-    std::vector<TreeNode*> DFSdom() 
-    {
-        std::vector<TreeNode*> tmp;
-        dfsDom.swap(tmp);
-    }
 };

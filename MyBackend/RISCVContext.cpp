@@ -898,6 +898,8 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
             {
                 sum = numsRecord[Rsubscript] * val->GetVal();
             }
+            if (i == numsRecord.size()+1 && val->GetVal() != 0) 
+                sum = val->GetVal();
             sum *= 4;
             if (sum != 0)
             {
