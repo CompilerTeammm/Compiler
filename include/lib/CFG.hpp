@@ -924,6 +924,14 @@ public:
   //封装了一个链表操作ww
   void InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb); 
   bool isRecursive(bool=true);
+
+  //hu1 add it:对bb的visited进行初始化
+  void init_visited_block(){
+      for (auto bb : *this) {
+        bb->visited = false;
+    }
+  }
+
 };
 
 class Module : public SymbolTable
