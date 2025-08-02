@@ -2,9 +2,9 @@
 
 bool SelfStoreElimination::run() {
     wait_del.clear();
-    func->ClearInlineInfo
+    func->ClearInlineInfo();
 
-    OrderBlock(func->front());
+    OrderBlock(func->front);
 
     std::reverse(DFSOrder.begin(), DFSOrder.end());
 
