@@ -12,7 +12,7 @@ public:
     RISCVFunction* curfunc;
     std::shared_ptr<RISCVContext> ctx;
     std::unordered_map<Register*,RISCVBlock*> BlockWithVals;
-    LiveInfo(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext> _ctx)
+    LiveInfo(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext>& _ctx)
             :curfunc(_curfunc),ctx(_ctx),BlockLiveIn{},BlockLiveOut{} { }
 
     void GetLiveUseAndDef(); 
@@ -42,7 +42,7 @@ private:
     std::map<Register*,std::vector<rangeInfoptr>> regLiveIntervals;
 public:
     void CalcuLiveIntervals();
-    LiveInterval(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext> _ctx)
+    LiveInterval(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext>& _ctx)
                 :liveInfo(_curfunc,_ctx),bbInfos{},curfunc(_curfunc),ctx(_ctx)  {  }
 
     void run();

@@ -75,7 +75,7 @@ public:
     }
 };
 
-void PassManager::RunOnTest()
+inline void PassManager::RunOnTest()
 {
     auto &funcVec = _mod->GetFuncTion();
     for (auto &function : funcVec)

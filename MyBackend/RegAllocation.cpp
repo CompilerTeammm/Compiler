@@ -41,7 +41,7 @@ void RegAllocation::fillLinerScaner()
     std::sort(LinerScaner.begin(), LinerScaner.end(),
               [](const auto &v1, const auto &v2)
               {
-                  return v1.second->start < v1.second->start;
+                  return v1.second->start < v2.second->start;
               });
 }
 
@@ -62,7 +62,7 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
             if (oldInterval.first->IsFflag())
                 RegisterFloatpool.emplace_back(realReg);
             else   
-                RegisterIntpool.emplace_back(realReg );
+                RegisterIntpool.emplace_back(realReg);
 
             active_list.remove(oldInterval);
             

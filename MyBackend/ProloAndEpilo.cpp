@@ -22,20 +22,35 @@ bool ProloAndEpilo:: DealStoreInsts()
     auto MallocVec = mfunc->getStoreInsts();
     // auto StoreRecord = mfunc->getStoreRecord();
     auto& AOffsetRecord = mfunc->getAOffsetRecord();
-    size_t offset = 16;
+    size_t offset = TheSizeofStack;
     std::set<AllocaInst*> tmp;
+    for (auto& alloc:mfunc->getAllocas())
+    {
+        AOffsetRecord[alloc] = offset;
+        auto it = alloc->GetType()->GetLayer();
+        auto it2 =  dynamic_cast<PointerType*> (alloc->GetType())->GetSubType()->GetTypeEnum();
+        if(alloc->GetType()->GetLayer() > 1)
+            if (dynamic_cast<PointerType*>(alloc->GetType())->GetSubType()->GetTypeEnum() == IR_ARRAY)
+                offset += 0;
+            else 
+                offset -= 8;
+        else 
+            offset -= 4;
+    }
+
     for(auto[StackInst,alloc] : MallocVec)
     {
-        if (tmp.find(alloc) == tmp.end())
-        {
-            tmp.emplace(alloc);
-            offset += 4;
-            StackInst->setStoreStackOp(offset);
-            AOffsetRecord.emplace(alloc,offset);
-        }
-        else {
-            StackInst->setStoreStackOp(AOffsetRecord[alloc]);
-        }
+        StackInst->setStoreStackOp(AOffsetRecord[alloc]);
+        // if (tmp.find(alloc) == tmp.end())
+        // {
+        //     tmp.emplace(alloc);
+        //     offset += 4;
+        //     StackInst->setStoreStackOp(offset);
+        //     AOffsetRecord.emplace(alloc,offset);
+        // }
+        // else {
+        //     StackInst->setStoreStackOp(AOffsetRecord[alloc]);
+        // }
     }
 
     return true;
@@ -43,25 +58,26 @@ bool ProloAndEpilo:: DealStoreInsts()
 
 bool ProloAndEpilo:: DealLoadInsts()
 {
-    // auto LoadInsts = mfunc->getLoadInsts();
-    // auto record = mfunc->getLoadRecord();
-    // auto& offset = mfunc->getAOffsetRecord();
-    // for (auto Inst : LoadInsts)
-    // {
-    //     auto Alloc = record[Inst];
-    //     size_t off = offset[Alloc];
-    //     Inst->setStoreStackOp(off);
-    // }
-
     auto LoadInsts = mfunc->getLoadInsts();
     auto record = mfunc->getLoadRecord();
-    auto storeRecord = mfunc->getStoreRecord();
-    for(auto Inst : LoadInsts)
+    auto& offset = mfunc->getAOffsetRecord();
+    for (auto Inst : LoadInsts)
     {
         auto Alloc = record[Inst];
-        auto Store = storeRecord[Alloc];
-        Inst->getOpsVec().push_back(Store->getOpreand(1));
+        size_t off = offset[Alloc];
+        Inst->setStoreStackOp(off);
     }
+
+    // auto LoadInsts = mfunc->getLoadInsts();
+    // auto record = mfunc->getLoadRecord();
+    // auto storeRecord = mfunc->getStoreRecord();
+    // for(auto Inst : LoadInsts)
+    // {
+    //     auto Alloc = record[Inst];
+    //     auto Store = storeRecord[Alloc];
+    //     if (Store != nullptr)
+    //         Inst->getOpsVec().push_back(Store->getOpreand(1));
+    // }
 
     return true;
 }
@@ -70,6 +86,7 @@ bool ProloAndEpilo::run()
 {
     size_t StackMallocSize = caculate();
 
+    TheSizeofStack = StackMallocSize;
     // 生成函数的前言和后序,并且set了
     CreateProlo(StackMallocSize);
     CreateEpilo(StackMallocSize);
@@ -91,8 +108,12 @@ size_t ProloAndEpilo::caculate()
             auto PType = dynamic_cast<PointerType*> (allocInst->GetType());
             if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
             {
-                size_t arrSize = PType->GetSubType()->GetSize();
-                sumMallocSize += arrSize;
+
+            }
+            else if (PType->GetSubType()->GetTypeEnum() == IR_PTR)
+            {
+                size_t ptrSize = PType->GetSubType()->GetSize();
+                sumMallocSize += ptrSize;
             }
             else if(PType->GetSubType()->GetTypeEnum() == IR_Value_Float ||
                   PType->GetSubType()->GetTypeEnum() == IR_Value_INT ) {
@@ -100,6 +121,8 @@ size_t ProloAndEpilo::caculate()
             }
         }
     }
+
+    sumMallocSize += mfunc->arroffset;
     while (N * ALIGN < sumMallocSize)   N++;
 
     size_t size = (N + INITSIZE) * ALIGN;
@@ -113,9 +136,9 @@ void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool fla
     inst->SetRegisterOp (std::move("sp"),Register::real);
 
     if(flag == _malloc)
-        inst->SetImmOp(std::move("-"+std::to_string(size)));
+        inst->SetstackOffsetOp(std::move("-"+std::to_string(size)));
     else 
-        inst->SetImmOp(std::move(std::to_string(size)));
+        inst->SetstackOffsetOp(std::move(std::to_string(size)));
 }
 void ProloAndEpilo::SetsdRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
@@ -132,7 +155,7 @@ void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
     inst->SetRegisterOp("s0",Register::real);
     inst->SetRegisterOp("sp",Register::real);
     
-    inst->SetImmOp(std::to_string(size));
+    inst->SetstackOffsetOp(std::to_string(size));
 
 }
 

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <string>
 #include "../../Log/log.hpp"
+#include "RISCVType.hpp"
 
 /// 目标机器语言只有一种，RISCV，所以将 MIR -> RISCV
 /// llvm 中端万物皆是 value ， 后端  万物都是 RISCVOp
@@ -68,58 +69,41 @@
 
 class RISCVFunction;
 class RISCVBlock;
-
 class RISCVOp 
 {
-public:
-    enum Type
-    {
-        Global,
-        Local
-    };
 private:
     std::string name;
-    Type type;
 public:
     RISCVOp() = default;
-    RISCVOp(std::string _name,Type _type= Local):name(_name),type(_type) {}
-    RISCVOp(float tmpf,Type _type= Local) : type(_type)  
-    {
-        uint32_t n;
-        memcpy(&n, &tmpf, sizeof(float)); // 直接复制内存位模式
-        name = std::to_string(n);
-    }
+    RISCVOp(std::string _name):name(_name)  { }   
     virtual ~RISCVOp() = default;
     
     template<typename T>
-    T* as()
-    {
+    T* as() {
         return static_cast<T*> (this);
     }
-
-    void setName(std::string _string)
-    {
-        name = _string;
-    }
-
-    std::string& getName()
-    {
-        return name;
-    }
+    void setName(std::string _string) {  name = _string;  }
+    std::string& getName() {   return name;  }
 };
 
 class Imm: public RISCVOp
 {
-    Value* val;
-    ConstIRFloat* fdata;
-public:
-    Imm(Value* _val): val(_val),RISCVOp(_val->GetName()) { }
-    Imm(ConstIRFloat *_fdata) : fdata(_fdata),RISCVOp(_fdata->GetVal())
-                                { }
-
-    Imm(std::string name):RISCVOp(name) { }
+    RISCVType type;
+    ConstantData* data;
+    public:
+    Imm(ConstantData* _data);
+    ConstantData* getData();
+    void ImmInit();
+    static std::shared_ptr<Imm> GetImm(ConstantData* _data);
 };
 
+class stackOffset:public RISCVOp
+{
+    Value *val;
+public:
+    stackOffset(Value *_val) : val(_val), RISCVOp(_val->GetName()) {}
+    stackOffset(std::string name) : RISCVOp(name) {}
+};
 
 // 虚拟实际寄存器封装到一起
 // 我将 虚拟寄存器和 物理实际寄存器进行了封装
@@ -158,7 +142,7 @@ public:
     void setRVflag() { RVflag = real; }
     void reWirteRegWithReal(Register* );
     static Register* GetRealReg(realReg);
-        std::string realRegToString(realReg reg) {
+    std::string realRegToString(realReg reg) {
     switch(reg) {
         // 基础整数寄存器
         case realReg::zero: return "zero";
@@ -275,7 +259,7 @@ public:
 class RISCVAddrOp:public RISCVOp 
 {
 public:
-    RISCVAddrOp(std::string name) :RISCVOp(name,RISCVOp::Global) { }
+    RISCVAddrOp(std::string name) :RISCVOp(name) { }
 };
 
 class RISCVInst:public RISCVOp,public Node<RISCVBlock,RISCVInst>
@@ -365,7 +349,6 @@ public:
         _bltz,
         _bne,
         _bnez,
-        _bqe,
 
         // 调用
         _call,
@@ -461,6 +444,20 @@ public:
 public:
     RISCVInst(ISA op) :opCode(op) { }
     ISA getOpcode() { return opCode;}
+    void reWriteISA() {
+        if (opCode == _bne)
+            opCode = _beq;
+        else if (opCode == _beq)
+            opCode = _bne;
+        else if (opCode == _bge)
+            opCode = _blt;
+        else if (opCode == _blt)
+            opCode = _bge;
+        else if (opCode == _ble)
+            opCode = _bgt;
+        else if (opCode == _bgt)
+            opCode = _ble;
+    }
 
     void SetRegisterOp(std::string&& str,bool Flag = Register::vir)
     {
@@ -472,32 +469,24 @@ public:
     }
     void SetRealRegister(std::string&& str) {
         SetRegisterOp(std::move(str),Register::real);   
-    }
-    void SetImmOp(std::string &&str)
-    {
-        auto Immop = std::make_shared<Imm>(str);
-        opsVec.push_back(Immop);
+    } 
+    void SetstackOffsetOp(std::string &&str) {   // prolo  epilo
+        auto stackOff = std::make_shared<stackOffset>(str);
+        opsVec.push_back(stackOff);
     }
     void SetImmOp(Value *val)
     {
-        std::shared_ptr<Imm> Immop = nullptr;
-        if (val->GetType() == FloatType::NewFloatTypeGet())
-        {
-            auto it = (val->as<ConstIRFloat>());
-            if (it)
-                Immop = std::make_shared<Imm>(val->as<ConstIRFloat>());
-        }
-        else
-            Immop = std::make_shared<Imm>(val);
+        std::shared_ptr<Imm> Immop = Imm::GetImm(val->as<ConstantData>());
         opsVec.push_back(Immop);
-        // std::cout << opsVec[1]->getName() << std:: endl;
     }
+    
     void SetAddrOp(std::string hi_lo,Value* val)
     {
         std::string s1(hi_lo+"(" + val->GetName() + ")");
         std::shared_ptr<RISCVAddrOp> addrOp = std::make_shared<RISCVAddrOp> (s1);
         opsVec.push_back(addrOp);
     }
+    void deleteOp(int index)  { opsVec.erase(opsVec.begin() + index); }
 
     void push_back(op Op) { opsVec.push_back(Op); }
     std::vector<op> &getOpsVec() { return opsVec; }
@@ -516,6 +505,20 @@ public:
     std::string ISAtoAsm();
     ~RISCVInst() = default;
 
+    // 涉及store 语句的需要单独处理
+    void setStoreOp(RISCVInst* Inst)  // sw  sd
+    {
+        auto reg = Inst->getOpreand(0);
+        if (reg == nullptr)
+            LOG(ERROR,"the reg must not to be nullptr");
+        
+        opsVec.push_back(reg);
+    }
+    void setStoreStackOp(size_t offset)
+    {
+       opsVec.push_back(std::make_shared<RISCVOp> 
+                       ("-" + std::to_string(offset) + "(s0)"));
+    }
 
     void setThreeRigs(op op1, op op2) // addw
     {
@@ -567,21 +570,6 @@ public:
         auto reg = Inst->getOpreand(0);
         opsVec.push_back(reg);
     }
-
-    // 涉及store 语句的需要单独处理
-    void setStoreOp(RISCVInst* Inst)  // sw  sd
-    {
-        auto reg = Inst->getOpreand(0);
-        if (reg == nullptr)
-            LOG(ERROR,"the reg must not to be nullptr");
-        
-        opsVec.push_back(reg);
-    }
-    void setStoreStackOp(size_t offset)
-    {
-       opsVec.push_back(std::make_shared<RISCVOp> 
-                       ("-" + std::to_string(offset) + "(s0)"));
-    }
 };
 
 
@@ -591,14 +579,16 @@ class RISCVBlock:public RISCVOp,public List<RISCVBlock, RISCVInst>, public Node<
     std::set<Register*> LiveUse;
     std::set<Register*> LiveDef;
     std::vector<BasicBlock*> succBlocks;
+    static int counter;
 public:
     RISCVBlock(BasicBlock* bb,std::string name)
               :cur_bb(bb) , RISCVOp(name), LiveUse{}, LiveDef{} {    }
     ~RISCVBlock() = default;
-
+    static std::string getCounter();
     std::vector<BasicBlock*> getSuccBlocks();
     std::set<Register*>& getLiveUse()  {  return LiveUse; }
     std::set<Register*>& getLiveDef()  {  return LiveDef; }
+    BasicBlock*& getIRbb() { return cur_bb; }
 };
 
 // 栈帧的大小  都多余了
@@ -657,27 +647,50 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     using matchLoadInstPtr = RISCVInst*;
     std::map<matchLoadInstPtr,AllocaInst*> StackLoadRecord;
     using offset = size_t;
-    std::map<AllocaInst*,size_t> AllocaOffsetRecord;
+    std::map<AllocaInst*,offset> AllocaOffsetRecord;
 
     std::map<RISCVInst*,AllocaInst*> StoreInsts;
     std::vector<RISCVInst*> LoadInsts;
     std::vector<AllocaInst*> AllocaInsts;
+    
+    std::list<RISCVBlock*> recordBBs;  // 记录顺序
+    std::map<size_t,size_t> oldBBindexTonew;
+public:
+    offset arroffset = 16;
+private:
+    // 处理数组，局部与全局的处理
+    std::map<Instruction*,offset> recordGepOffset;
+    std::map<Value*,Value*> GepGloblToLocal;
+    // 全局变量，除了数组
+    std::vector<Instruction*> globlValRecord; 
 
+    std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>> recordBrInstSuccBBs;
+    std::vector<RISCVInst*> LabelInsts;
+
+    std::map<Value*,offset> LocalArrToOffset;
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
-
+    std::vector<RISCVInst*>&  getLabelInsts() { return LabelInsts; }
+    std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>>& getBrInstSuccBBs() { return recordBrInstSuccBBs; }
+    std::list<RISCVBlock*>& getRecordBBs()  { return recordBBs; }
+    std::map<size_t,size_t>& OldToNewIndex() { return oldBBindexTonew;}
+    std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
+    std::map<Value*,Value*>&getGepGloblToLocal()  { return GepGloblToLocal;}
+    std::vector<Instruction*>& getGloblValRecord() { return globlValRecord; }
     std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    }
     std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
     std::map<AllocaInst*,lastStoreInstPtr>& getStoreRecord() {   return StackStoreRecord;   }
     std::map<matchLoadInstPtr,AllocaInst*>& getLoadRecord() {   return StackLoadRecord;   }
     std::map<AllocaInst*,size_t>& getAOffsetRecord() { return AllocaOffsetRecord; }
-
+    std::map<Value*,offset>& getLocalArrToOffset() { return LocalArrToOffset;}
     void RecordStackMalloc(RISCVInst* inst,AllocaInst* alloca)
     {
         StoreInsts.emplace( std::make_pair(inst,alloca) );
     }
+
+    void getCurFuncArrStack(RISCVInst*& ,Value* val,Value* alloc);
 
     void setPrologue(std::shared_ptr<RISCVPrologue>& it ) { prologue = it;}
     void setEpilogue(std::shared_ptr<RISCVEpilogue>& it ) { epilogue = it;}

@@ -1,9 +1,32 @@
 #include "../include/MyBackend/MIR.hpp"
 #include "../include/IR/Analysis/Dominant.hpp"
 #include "../include/MyBackend/RISCVContext.hpp"
+#include "../include/MyBackend/RISCVType.hpp"
+#include <memory>
 #include <string>
 #include <sstream>
 
+Imm::Imm(ConstantData* _data) :type(TransType(_data->GetType())),
+                                data(_data) { ImmInit(); }
+ConstantData* Imm::getData() { return data; }
+
+void Imm::ImmInit() {
+    if(type == riscv_32int) {
+        int val = dynamic_cast<ConstIRInt*> (data)->GetVal();
+        setName(std::to_string(val));
+    } else if(type == riscv_32float) {
+        float fval = dynamic_cast<ConstIRFloat*> (data)->GetVal();
+        setName(floatToString(fval));
+    }
+}
+
+std::shared_ptr<Imm> Imm::GetImm(ConstantData* _data)
+{
+    static std::map<ConstantData*,std::shared_ptr<Imm>> Immpool;
+    if(Immpool.find(_data) == Immpool.end())
+        Immpool[_data] = std::make_shared<Imm>(_data);
+    return Immpool[_data];
+}
 
 int Register::VirtualReg = 0;
 Register::Register(std::string _name, bool Flag,int _Fflag) 
@@ -14,7 +37,9 @@ Register::Register(std::string _name, bool Flag,int _Fflag)
 }
 Register::Register(realReg _Regop,bool Flag,int _Fflag)
                : RVflag(Flag),Fflag(_Fflag),realRegop(_Regop)
-{      }
+{    
+    setName(realRegToString(_Regop));
+}
 Register::realReg Register::getRegop()  
 { 
     if(IsrealRegister()) 
@@ -57,7 +82,7 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _bgt) { return "bgt"; }
     if(opCode == _blt) { return "blt"; }
     if(opCode == _bne) { return "bne"; }
-    if(opCode == _bqe) { return "bqe"; }
+    if(opCode == _beq) { return "beq"; }
     if(opCode == _addw ) { return "addw"; }
     if(opCode == _subw) { return "subw"; }
     if(opCode == _mulw) { return "mulw"; }
@@ -80,11 +105,20 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _divw )  {return "divw";}
     if(opCode == _call)  { return "call"; }
     if(opCode == _lui) { return "lui"; }
-
+    if(opCode == _andi )  { return "andi"; }
+    if(opCode == _slli)  { return "slli"; }
+    if(opCode == _add)  { return "add"; }
+    if(opCode == _seqz) { return "seqz";}
+    if(opCode == _xor) { return "xor";}
+    if(opCode == _mul) { return "mul"; }
+ 
     return nullptr;
 }
 
-
+int RISCVBlock::counter = 0;
+std::string RISCVBlock:: getCounter() { 
+    return std::to_string(counter++); 
+}
 
 std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
 {
@@ -94,4 +128,11 @@ std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
     tree.BuildDominantTree();
     auto succBlocks = tree.getSuccBBs(cur_bb);
     return succBlocks;
+}
+
+void RISCVFunction::getCurFuncArrStack(RISCVInst*& RInst,Value* val,Value* alloca)
+{
+    arroffset += std::stoi(val->GetName());
+    RInst->SetstackOffsetOp("-"+std::to_string(arroffset));
+    LocalArrToOffset[alloca] = arroffset;
 }
