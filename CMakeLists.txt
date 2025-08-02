@@ -53,8 +53,8 @@ file(GLOB_RECURSE SOURCES
   Log/log.cpp
 
   lib/*.cpp
-  yacc/lex.yy.cpp       # 包含lex生成的代码
-  yacc/parser.cpp       # 包含yacc生成的代码
+  yacc/scanner_output.cpp       
+  yacc/parser_output.cpp 
 )
 
 list(REMOVE_ITEM ALL_HEADERS

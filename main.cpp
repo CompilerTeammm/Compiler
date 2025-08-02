@@ -1,5 +1,5 @@
 #include "./include/lib/CoreClass.hpp"
-#include "./yacc/parser.hpp"
+#include "./yacc/parser_output.hpp"
 #include <fstream>
 #include <getopt.h>
 #include <iostream>

@@ -32,7 +32,7 @@
 
 
 /**
- ** \file parser.hpp
+ ** \file parser_output.hpp
  ** Define the yy::parser class.
  */
 
@@ -42,15 +42,15 @@
 // especially those whose name start with YY_ or yy_.  They are
 // private implementation details that can be changed or removed.
 
-#ifndef YY_YY_PARSER_HPP_INCLUDED
-# define YY_YY_PARSER_HPP_INCLUDED
+#ifndef YY_YY_PARSER_OUTPUT_HPP_INCLUDED
+# define YY_YY_PARSER_OUTPUT_HPP_INCLUDED
 // "%code requires" blocks.
-#line 1 "./parser.y"
+#line 10 "parser.y"
 
-#include "../include/lib/ast/AstNode.hpp"
 #include "Singleton.hpp"
+#include "../include/lib/ast/AstNode.hpp"
 
-#line 54 "parser.hpp"
+#line 54 "parser_output.hpp"
 
 
 # include <cstdlib> // std::abort
@@ -185,7 +185,7 @@
 #endif
 
 namespace yy {
-#line 189 "parser.hpp"
+#line 189 "parser_output.hpp"
 
 
 
@@ -2884,9 +2884,9 @@ switch (yykind)
 
 
 } // yy
-#line 2888 "parser.hpp"
+#line 2888 "parser_output.hpp"
 
 
 
 
-#endif // !YY_YY_PARSER_HPP_INCLUDED
+#endif // !YY_YY_PARSER_OUTPUT_HPP_INCLUDED
