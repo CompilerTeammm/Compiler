@@ -455,7 +455,6 @@ bool SimplifyCFG::mergeBlocks(BasicBlock* bb){
     return true;
 }
 
-//消除无意义phi
 bool SimplifyCFG::CleanPhi(){
     bool changed = false;
 

@@ -16,7 +16,9 @@
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
+#include "../Analysis/SideEffect.hpp"
 #include "DSE.hpp"
+#include "SelfStoreElimination.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
 #include "SOGE.hpp" 
@@ -27,7 +29,8 @@
 // #define sccp
 //#define pre
 // #define SCFG
-// define DSE
+// #define DSE 用不到了重复了
+#define SSE
 // 循环优化
 // #define Loop_Simplifying
 // #define Loop_Unrolling
@@ -98,6 +101,8 @@ void PassManager::RunOnTest()
         B->NextBlocks = tree.getSuccBBs(B);
         }
     }
+
+    //内敛优化
 #ifdef dce
     for (auto &function : funcVec)
     {
@@ -158,17 +163,27 @@ void PassManager::RunOnTest()
 #endif
 #ifdef DSE
 
-    SideEffect SE(_mod);//在module级别做一次副作用分析
-    SE.GetResult();
+    SideEffect* se = new SideEffect(&Singleton<Module>());//在module级别做一次副作用分析
+    se->GetResult();
     
     for (auto &function : funcVec)
     {   
         auto fun = function.get();
         DominantTree tree(fun);
         tree.BuildDominantTree();
-        DSE(fun, &tree).run();
+        (DSE(fun, &tree,se)).run();
     }
 #endif
+#ifdef SSE
+    for(auto &function : funcVec)
+    {
+        auto fun = function.get();
+        DominantTree tree(fun);
+        tree.BuildDominantTree();
+        SelfStoreElimination(fun,&tree).run();
+    }
+#endif
+
 #ifdef MY_INLINE_PASS
     Inliner inlinerPass(&Singleton<Module>());
     inlinerPass.run();
