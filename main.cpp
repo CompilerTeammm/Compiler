@@ -10,8 +10,8 @@
 #include "Log/log.hpp"
 #include <filesystem>
 
-#define OPT
-//#define backend
+// #define OPT
+#define backend
 
 extern FILE *yyin;
 extern int optind, opterr, optopt;
