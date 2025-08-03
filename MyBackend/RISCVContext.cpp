@@ -169,10 +169,10 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
             extraDealLoadInst(Inst, inst);
         } 
         else {  
-            // 指针的处理    
-            // Inst = CreateInstAndBuildBind(RISCVInst::_ld, inst);
-            // Inst->setLoadOp();
-            // extraDealLoadInst(Inst, inst);
+            // 指针的处理     
+            Inst = CreateInstAndBuildBind(RISCVInst::_ld, inst);
+            Inst->setLoadOp();
+            extraDealLoadInst(Inst, inst);
         }
             
     }
@@ -817,6 +817,8 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
             param->SetImmOp(val);
         } else {
             auto lwInst = mapTrans(val)->as<RISCVInst>();
+            if (lwInst == nullptr)  // need to deal 
+                continue;
             param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
             param->SetRealRegister("a" + std::to_string(paramNum - 1));
             param->push_back(lwInst->getOpreand(0));
@@ -1103,24 +1105,34 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
                 RISCVInst *liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
                 liInst->SetVirRegister();
                 liInst->SetImmOp(inst->GetOperand(inst->GetOperandNums() - 1));
+
+                RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+                slliInst->push_back(liInst->getOpreand(0));
+                slliInst->push_back(liInst->getOpreand(0));
+                slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
             }
+            else
+            {
+                RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+                Instruction *LInst = dynamic_cast<Instruction *>(inst->GetPrevNode()->GetPrevNode());
+                // LInst 理论上来说是下标的加载
+                RISCVInst *RLInst = mapTrans(LInst)->as<RISCVInst>();
+                if (RLInst == nullptr)
+                    assert("error!!!");
+                slliInst->push_back(RLInst->getOpreand(0));
+                slliInst->push_back(RLInst->getOpreand(0));
+                slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
 
-            RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
-            LoadInst *LInst = dynamic_cast<LoadInst *>(inst->GetPrevNode());
-            if (LInst == nullptr)
-                assert("error!!!");
-            slliInst->push_back(slliInst->GetPrevNode()->getOpreand(0));
-            slliInst->push_back(slliInst->GetPrevNode()->getOpreand(0));
-            slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
-
-            RISCVInst *lwInst = CreateInstAndBuildBind(RISCVInst::_ld, LInst);
-            lwInst->setLoadOp();
-            extraDealLoadInst(lwInst, LInst);
-
-            RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
-            RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
-            RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
-            RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+            }
         }
     }
     return RInst;
