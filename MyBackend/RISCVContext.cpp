@@ -135,14 +135,18 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
     {
         Value *globlVal = inst->GetOperand(0);
 
-        RISCVInst *luiInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
-        luiInst->SetVirRegister();
-        luiInst->SetAddrOp("%hi", globlVal);
+        // RISCVInst *luiInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
+        // luiInst->SetVirRegister();
+        // luiInst->SetAddrOp("%hi", globlVal);
 
-        RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->SetAddrOp("%lo", globlVal);
+        // RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        // addInst->SetAddrOp("%lo", globlVal);
+
+        RISCVInst* laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
+        laInst->SetVirRegister();
+        laInst->SetAddrOp(globlVal);
 
         Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
         Inst->SetVirRegister();
@@ -211,14 +215,18 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
     {
         Value* globlVal = inst->GetOperand(1);
         if(dynamic_cast<ConstantData*> (val)) {
-            RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
-            luiInst->SetVirRegister();
-            luiInst->SetAddrOp("%hi",globlVal);
+            // RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+            // luiInst->SetVirRegister();
+            // luiInst->SetAddrOp("%hi",globlVal);
 
-            RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-            addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-            addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-            addInst->SetAddrOp("%lo", globlVal);
+            // RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+            // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+            // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+            // addInst->SetAddrOp("%lo", globlVal);
+
+            RISCVInst *laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
+            laInst->SetVirRegister();
+            laInst->SetAddrOp(globlVal);
 
             RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
             liInst->SetVirRegister();
@@ -231,14 +239,18 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
             getCurFunction()->getGloblValRecord().push_back(inst);
 
         } else {
-            RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
-            luiInst->SetVirRegister();
-            luiInst->SetAddrOp("%hi",globlVal);
+            // RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+            // luiInst->SetVirRegister();
+            // luiInst->SetAddrOp("%hi",globlVal);
 
-            RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-            addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-            addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-            addInst->SetAddrOp("%lo", globlVal);
+            // RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+            // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+            // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+            // addInst->SetAddrOp("%lo", globlVal);
+
+            RISCVInst *laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
+            laInst->SetVirRegister();
+            laInst->SetAddrOp(globlVal);
 
             Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
             auto it = mapTrans(inst->GetOperand(0))->as<RISCVInst>();
@@ -752,14 +764,18 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         getCurFunction()->getGepGloblToLocal()[tmpAlloc] = glVal;
 
         Value* val = inst->GetOperand(3);
-        RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
-        luiInst->SetVirRegister();
-        luiInst->SetAddrOp("%hi",inst->GetOperand(2));
+        // RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
+        // luiInst->SetVirRegister();
+        // luiInst->SetAddrOp("%hi",inst->GetOperand(2));
 
-        RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->SetAddrOp("%lo", inst->GetOperand(2));
+        // RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        // addInst->SetAddrOp("%lo", inst->GetOperand(2));
+
+        RISCVInst *laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
+        laInst->SetVirRegister();
+        laInst->SetAddrOp(inst->GetOperand(2));
 
         RISCVInst* saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
         saveS0Inst->SetVirRegister();
@@ -774,7 +790,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         
         RISCVInst* para1 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
         para1->SetRealRegister("a1");
-        para1->getOpsVec().push_back(addInst->getOpreand(0));
+        para1->getOpsVec().push_back(laInst->getOpreand(0));
 
         RISCVInst* para2 = CreateInstAndBuildBind(RISCVInst::_li,inst);
         para2->SetRealRegister("a2");
@@ -956,14 +972,18 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
 
     if (globlVal != nullptr && globlVal->isGlobal()) {  // 全局数组的处理
         //auto text = valToText[globlVal];
-        RInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
-        RInst->SetVirRegister();
-        RInst->SetAddrOp("%hi", globlVal);
+        // RInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
+        // RInst->SetVirRegister();
+        // RInst->SetAddrOp("%hi", globlVal);
 
-        RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        addInst->SetAddrOp("%lo", globlVal);
+        // RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
+        // addInst->SetAddrOp("%lo", globlVal);
+
+        RISCVInst* laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
+        laInst->SetVirRegister();
+        laInst->SetAddrOp(globlVal);
 
         Instruction *nextInst = inst->GetNextNode();
         if (dynamic_cast<LoadInst *>(nextInst) || dynamic_cast<StoreInst *>(nextInst))
@@ -983,12 +1003,12 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             {
                 RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
                 RInst->SetVirRegister();
-                RInst->push_back(addInst->getOpreand(0));
-                RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, addInst)));
+                RInst->push_back(laInst->getOpreand(0));
+                RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, laInst)));
                 // gepRecord[nextInst] = getSumOffset(globlVal, inst, addInst);
             }
             else{
-                getDynmicSumOffset(globlVal, inst, addInst, RInst);
+                getDynmicSumOffset(globlVal, inst, laInst, RInst);
             }
         }
         // if (dynamic_cast<LoadInst*>(nextInst) || dynamic_cast<StoreInst*>(nextInst))

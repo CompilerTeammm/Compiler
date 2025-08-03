@@ -486,6 +486,14 @@ public:
         std::shared_ptr<RISCVAddrOp> addrOp = std::make_shared<RISCVAddrOp> (s1);
         opsVec.push_back(addrOp);
     }
+    
+    void SetAddrOp(Value* val)  // la reg, .G.a
+    {
+        std::string s1(val->GetName());
+        std::shared_ptr<RISCVAddrOp> addrOp = std::make_shared<RISCVAddrOp> (s1);
+        opsVec.push_back(addrOp);
+    }
+
     void deleteOp(int index)  { opsVec.erase(opsVec.begin() + index); }
 
     void push_back(op Op) { opsVec.push_back(Op); }
