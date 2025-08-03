@@ -665,6 +665,7 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::map<size_t,size_t> oldBBindexTonew;
 public:
     offset arroffset = 16;
+    offset defaultSize = 16;
 private:
     // 处理数组，局部与全局的处理
     std::map<Instruction*,offset> recordGepOffset;

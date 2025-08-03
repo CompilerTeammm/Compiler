@@ -123,7 +123,7 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
 {
     RISCVInst *Inst = nullptr;
 
-    if (dynamic_cast<GepInst *>(inst->GetOperand(0)))
+    if (dynamic_cast<GepInst *>(inst->GetOperand(0)) )
     {
         // global 的lw 应该不需要记录，因为这个全局加载
         Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
@@ -169,7 +169,10 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
             extraDealLoadInst(Inst, inst);
         } 
         else {  
-            // 指针的处理    slliInst 代表的是下标元素 * 4 字节偏移
+            // 指针的处理    
+            // Inst = CreateInstAndBuildBind(RISCVInst::_ld, inst);
+            // Inst->setLoadOp();
+            // extraDealLoadInst(Inst, inst);
         }
             
     }
@@ -1058,10 +1061,41 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
                 numsRecord.emplace_back(arry->GetNum());
                 arry = dynamic_cast<ArrayType *>(arry->GetSubType());
             }
-            // 瞎写的
-            // RInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
-            // RInst->SetVirRegister();
-            // RInst->SetVirRegister();
+            size_t val = 1;
+            for(int i = 0; i < numsRecord.size(); i++)
+            {
+                val *= numsRecord[i];
+            }
+            val = 4 * val;
+            RISCVInst* addiInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+            addiInst->SetVirRegister();
+            addiInst->SetRealRegister("s0");
+            if(!getCurFunction()->getLocalArrToOffset()[globlVal])
+                getCurFunction()->getCurFuncArrStack(addiInst, ConstIRInt::GetNewConstant(val), allocInst);
+            else
+                addiInst->SetstackOffsetOp("-" + std::to_string(getCurFunction()->getLocalArrToOffset()[globlVal]));
+
+            int flag = 0;
+            for (int i = inst->GetOperandNums() - 1; i >= 2; i--)
+            {
+                if (auto val = dynamic_cast<ConstIRInt *>(inst->GetOperand(i)))
+                { }
+                else {
+                    flag = 1;
+                    break;
+                }
+            }
+            if (flag == 0)
+            { 
+                RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                RInst->SetVirRegister();
+                RInst->push_back(addiInst->getOpreand(0));
+                RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, addiInst)));
+            }
+            else
+            {
+                getDynmicSumOffset(globlVal, inst, addiInst, RInst);
+            }
         }
         else  {  // 函数参数指针的偏移到这里了
             if (dynamic_cast<ConstIRInt *>(inst->GetOperand(inst->GetOperandNums() - 1)))

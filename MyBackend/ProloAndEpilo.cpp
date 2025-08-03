@@ -121,8 +121,8 @@ size_t ProloAndEpilo::caculate()
             }
         }
     }
-
-    sumMallocSize += mfunc->arroffset;
+    if (mfunc->arroffset != mfunc->defaultSize)  // 未开辟数组
+        sumMallocSize += mfunc->arroffset;
     while (N * ALIGN < sumMallocSize)   N++;
 
     size_t size = (N + INITSIZE) * ALIGN;

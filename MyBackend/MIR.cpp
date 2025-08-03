@@ -131,6 +131,8 @@ std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
     return succBlocks;
 }
 
+//  有一个函数可以 getLocalArrToOffset
+//  RInst--> 后端语句    val---> size     alloca  ---> allocaInst*
 void RISCVFunction::getCurFuncArrStack(RISCVInst*& RInst,Value* val,Value* alloca)
 {
     arroffset += std::stoi(val->GetName());
