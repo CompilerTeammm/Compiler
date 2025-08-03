@@ -16,3 +16,9 @@ build this project :
 2.cmake -B build -G Ninja
 3.cmake --build build //告诉CMake在build目录中查找Ninja构建文件，并使用Ninja执行构建操作
 
+about new passmanager:
+-O1 //all pass we want
+--test=GVN,DCE //test pass GVN and DCE and so on
+
+python3 test.py -O1
+python3 test.py --test=mem2reg,sccp,SCFG

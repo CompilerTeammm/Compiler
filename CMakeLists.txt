@@ -29,6 +29,7 @@ file(GLOB_RECURSE SOURCES
   main.cpp
   IR/Analysis/IDF.cpp
   IR/Analysis/Dominant.cpp
+  IR/Analysis/SideEffect.cpp
   IR/Analysis/IDF.cpp
   IR/Opt/Mem2reg.cpp
   IR/Opt/MemoryToRegister.cpp
