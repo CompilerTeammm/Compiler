@@ -760,6 +760,10 @@ public:
   void SetIncomingBlock(int index, BasicBlock *bb) {
    IncomingBlocks[index] = bb;
  }
+ Value *GetVal(int index) {
+  auto &[v, bb] = PhiRecord[index];
+  return v;
+}
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构

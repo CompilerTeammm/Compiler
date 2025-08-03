@@ -31,7 +31,7 @@ class DominantTree
     friend class IDFCalculator;
     friend class SSAPRE;
 
-private:
+public://ww改成public的了，不然有些pass访问不到
     // 输入的应该是func，func->BBs
     // Node 要和 BasicBlock一一对应
     struct TreeNode // 实际上称为了BBs
@@ -58,7 +58,7 @@ private:
         {
         }
     };
-
+private:
     // 重新设计，不采用指针的形式，化简成int形式
     struct dsuNode
     {
