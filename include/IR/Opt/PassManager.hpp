@@ -23,6 +23,8 @@
 #include "TRE.hpp"
 #include "SOGE.hpp" 
 #include "ECE.hpp" 
+#include "GepCombine.hpp" 
+#include "GepEval.hpp" 
 
 // 互不影响，完全没问题再放出来
 // #define dce
@@ -42,6 +44,9 @@
 // #define MY_SOGE_PASS
 //ECE
 // #define MY_ECE_PASS
+//array
+// #define gepcombine
+// #define gepeval
 
 enum PassName
 {

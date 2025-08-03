@@ -48,6 +48,8 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/TRE.cpp
   IR/Opt/SOGE.cpp
   IR/Opt/ECE.cpp
+  IR/Opt/GepCombine.cpp
+  IR/Opt/GepEval.cpp
 
   MyBackend/*.cpp
   Log/log.cpp
