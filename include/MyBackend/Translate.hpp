@@ -36,6 +36,8 @@ public:
                 :ctx(_ctx),printer(_printer)   {}
 
     bool run(Function*) override;
+    void changeTheOrders(RISCVFunction*& mfunc);
+    void reWritestackOffse(RISCVFunction*& mfunc);
 };
 
 class TransGlobalVal:public TransBase<Var>

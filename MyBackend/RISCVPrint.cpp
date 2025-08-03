@@ -149,13 +149,6 @@ void TextSegment::TextInit()
     else {
         type = bss;
     }
-
-    // if(var->GetInitializer() != nullptr      // Initializer 继承自 vector 
-    //   && dynamic_cast<Initializer*>(var->GetInitializer())->size()!=0) {   // type
-    //     type = data;
-    // } else {
-    //     type = bss;
-    // }
     name = var->GetName();               // name
     if ( var->GetTypeEnum() == IR_PTR)
     {
@@ -254,7 +247,6 @@ void RISCVPrint::printPrefix()
     \"rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0\"" << std::endl;
     std::cout << "    " <<".attribute unaligned_access, 0" << std::endl;
     std::cout << "    " <<".attribute stack_align, 16" << std::endl;
-    std::cout << "    " <<".text" << std::endl;
 }
 
 //	.size	main, .-main
@@ -269,12 +261,36 @@ void RISCVPrint::printInsts(RISCVInst* inst)
 {
     std::cout << "    " << inst->ISAtoAsm() << "  ";
     int count = inst->getOpsVec().size() -1 ;
+    // if ((inst->getOpcode() == RISCVInst::_lw || inst->getOpcode() == RISCVInst::_sw) 
+    //                       && dynamic_cast<Register*>( inst->getOpreand(1).get())) 
+    // {
+    //     for (auto &op : inst->getOpsVec())
+    //     {
+    //         if (op == inst->getOpreand(1)) {
+    //             std::cout <<"0"<<"("<<op->getName() <<")";
+    //             break;
+    //         }
+    //         std::cout << op->getName();
+    //         if (count != 0) {
+    //             std::cout << ",";
+    //             count--;
+    //         }
+    //     }
+    // } else {
+    //     for (auto &op : inst->getOpsVec()){
+    //         std::cout << op->getName();
+    //         if (count != 0)  {
+    //             std::cout << ",";
+    //             count--;
+    //         }
+    //     }
+    // }
     for (auto &op : inst->getOpsVec())
     {
         std::cout << op->getName();
-
-        if(count != 0){
-            std::cout <<"," ;
+        if (count != 0)
+        {
+            std::cout << ",";
             count--;
         }
     }
@@ -303,12 +319,15 @@ void RISCVPrint::printAsm()
 {
     printPrefix();   
     //  global values
+    if(_context->getTexts().size() != 0)
+        std::cout << "    " <<".text" << std::endl;
     for(auto text :_context->getTexts()) 
     {
         text->TextPrint();
     }
     // funcs
     auto funcs = _context->getMfuncs();
+    std::cout << "    " <<".text" << std::endl;
     for(auto func : funcs)
     {
         // RISCVFunction
@@ -317,8 +336,7 @@ void RISCVPrint::printAsm()
         std::cout << "    .type  "<< func->getName() << ", @function" << std::endl;
         std::cout  << func->getName() << ": " <<std::endl;
         printFuncPro(func.get());
-
-        for(auto bb : *func.get())
+        for(auto bb : func->getRecordBBs())
         {
             std::cout << bb -> getName() <<": " << std::endl;
             // 这个仅仅只要被执行一次即可
