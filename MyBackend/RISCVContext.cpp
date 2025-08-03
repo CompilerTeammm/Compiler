@@ -981,9 +981,9 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
         // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
         // addInst->SetAddrOp("%lo", globlVal);
 
-        RISCVInst* laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
-        laInst->SetVirRegister();
-        laInst->SetAddrOp(globlVal);
+        RInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
+        RInst->SetVirRegister();
+        RInst->SetAddrOp(globlVal);
 
         Instruction *nextInst = inst->GetNextNode();
         if (dynamic_cast<LoadInst *>(nextInst) || dynamic_cast<StoreInst *>(nextInst))
@@ -1003,12 +1003,12 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             {
                 RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
                 RInst->SetVirRegister();
-                RInst->push_back(laInst->getOpreand(0));
-                RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, laInst)));
+                RInst->push_back(RInst->getOpreand(0));
+                RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, RInst)));
                 // gepRecord[nextInst] = getSumOffset(globlVal, inst, addInst);
             }
             else{
-                getDynmicSumOffset(globlVal, inst, laInst, RInst);
+                getDynmicSumOffset(globlVal, inst, RInst, RInst);
             }
         }
         // if (dynamic_cast<LoadInst*>(nextInst) || dynamic_cast<StoreInst*>(nextInst))
