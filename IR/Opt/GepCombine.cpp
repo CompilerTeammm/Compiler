@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <deque>
 
-bool GepCombine::Run()
+bool GepCombine::run()
 {
     DomTree = AM.get<DominantTree>(func);
     AM.get<SideEffect>(&Singleton<Module>());
@@ -56,7 +56,7 @@ bool GepCombine::ProcessNode(HandleNode *node)
     bool modified = false;
     BasicBlock *block = node->GetBlock();
     std::unordered_set<GepInst *> geps = node->GetGeps();
-    for (User *inst : *block)
+    for (Instruction*inst : *block)
     {
         if (auto gep = dynamic_cast<GepInst *>(inst))
         {
@@ -95,9 +95,9 @@ Value *GepCombine::SimplifyGepInst(GepInst *inst, std::unordered_set<GepInst *> 
 
     if (dynamic_cast<UndefValue *>(Base))
     {
-        inst->ReplaceAllUseWith(UndefValue::get(inst->GetType()));
+        inst->ReplaceAllUseWith(UndefValue::Get(inst->GetType()));
         geps.erase(inst);
-        return UndefValue::get(inst->GetType());
+        return UndefValue::Get(inst->GetType());
     }
 
     if (auto base_gep = dynamic_cast<GepInst *>(Base))
@@ -111,7 +111,7 @@ Value *GepCombine::SimplifyGepInst(GepInst *inst, std::unordered_set<GepInst *> 
             for (int i = 1; i < inst->GetUserUseList().size(); i++)
                 Ops.push_back(inst->GetUserUseList()[i]->usee);
             GepInst *New_Gep = new GepInst(base_gep->GetUserUseList()[0]->usee, Ops);
-            BasicBlock::List<BasicBlock, User>::iterator Inst_Pos(inst);
+            BasicBlock::List<BasicBlock, Instruction>::iterator Inst_Pos(inst);
             Inst_Pos.InsertBefore(New_Gep);
             inst->ReplaceAllUseWith(New_Gep);
             geps.erase(inst);
@@ -225,7 +225,7 @@ GepInst *GepCombine::HandleGepPhi(GepInst *inst, std::unordered_set<GepInst *> &
         GepInst *New_Gep = new GepInst(val->GetUserUseList()[0]->usee, Ops);
         if (Not_Same_Pos == -1)
         {
-            BasicBlock::List<BasicBlock, User>::iterator Inst_Pos(inst);
+            BasicBlock::List<BasicBlock, Instruction>::iterator Inst_Pos(inst);
             Inst_Pos.InsertBefore(New_Gep);
         }
         else
@@ -234,7 +234,7 @@ GepInst *GepCombine::HandleGepPhi(GepInst *inst, std::unordered_set<GepInst *> &
             for (auto &[key, val] : Phi->PhiRecord)
                 NewPhi->addIncoming(val.first, val.second);
             New_Gep->ReplaceSomeUseWith(Not_Same_Pos, NewPhi);
-            BasicBlock::List<BasicBlock, User>::iterator Inst_Pos(inst);
+            BasicBlock::List<BasicBlock, Instruction>::iterator Inst_Pos(inst);
             Inst_Pos.InsertBefore(New_Gep);
             New_Gep->ReplaceSomeUseWith(Not_Same_Pos, NewPhi);
         }

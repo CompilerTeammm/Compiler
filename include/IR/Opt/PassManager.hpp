@@ -45,7 +45,7 @@
 //ECE
 // #define MY_ECE_PASS
 //array
-// #define gepcombine
+#define gepcombine
 // #define gepeval
 
 enum PassName
@@ -212,4 +212,22 @@ for (auto &function : funcVec) {
     ECEpass.run();
 }
 #endif
+#ifdef gepcombine
+SideEffect* se = new SideEffect(&Singleton<Module>());
+se->GetResult();
+
+for (auto &function : funcVec) {
+    auto fun = function.get();
+    DominantTree tree(fun);
+    tree.BuildDominantTree();
+
+    AnalysisManager AM;
+    AM.add<DominantTree>(fun, &tree);
+    AM.add<SideEffect>(&Singleton<Module>(), se);
+
+    GepCombine gepCombinePass(fun, AM);
+    gepCombinePass.run();
 }
+#endif
+
+}     

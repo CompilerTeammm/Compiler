@@ -64,7 +64,7 @@ class GepCombine : public _PassBase<GepCombine, Function>
     DominantTree *DomTree;
     Function *func;
     AnalysisManager &AM;
-    std::vector<User*> wait_del;
+    std::vector<Instruction*>wait_del;
     bool ProcessNode(HandleNode *node);
     bool CanHandle(GepInst* src, GepInst* base);
     Value* SimplifyGepInst(GepInst* inst, std::unordered_set<GepInst*>& geps);
@@ -74,5 +74,5 @@ class GepCombine : public _PassBase<GepCombine, Function>
     GepCombine(Function *func, AnalysisManager &AM_) : func(func), AM(AM_)
     {
     }
-    bool Run();
+    bool run();
 };

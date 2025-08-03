@@ -7,7 +7,7 @@ class ECE: public _PassBase<ECE, Function> {
 private:
   Function *m_func;
   std::set<std::pair<BasicBlock*, BasicBlock*>> splitEdges;
-//   _AnalysisManager &AM;
+//   AnalysisManager &AM;
 
 public:
   void SplitCriticalEdges();
