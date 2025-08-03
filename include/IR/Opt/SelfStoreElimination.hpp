@@ -15,8 +15,8 @@ private:
     std::vector<BasicBlock*> DFSOrder;
 
     void OrderBlock(BasicBlock* bb);
-    void CollectStoreInfo(std::unordered_map<Value*, std::vector<StoreInst*>>& storeMap);
-    void EliminateRedundantStores(std::unordered_map<Value*, std::vector<StoreInst*>>& storeMap);
+    void CollectStoreInfo(std::unordered_map<Value*, std::vector<User*>>& storeMap);
+    void CheckSelfStore(std::unordered_map<Value*, std::vector<User*>>& storeMap);
     void removeInsts();
 
 public:
