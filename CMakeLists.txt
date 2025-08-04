@@ -41,9 +41,10 @@ file(GLOB_RECURSE SOURCES
 
   IR/Opt/SSAPRE.cpp
   IR/Opt/SimplifyCFG.cpp
-  IR/Opt/LoopParing.cpp
   IR/Opt/DSE.cpp
   IR/Opt/SelfStoreElimination.cpp
+  IR/Opt/LoopSimping.cpp
+  IR/Opt/LoopParing.cpp
   IR/Opt/LoopUnrolling.cpp
   IR/Analysis/LoopInfo.cpp
 
