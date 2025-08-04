@@ -6,7 +6,7 @@ import time
 import difflib
 import re
 
-compiler_path = "./build/compiler"
+compiler_path = "./build/Compiler"
 test_folder="./testcases"
 #额外参数
 extra_args = sys.argv[1:]

@@ -215,11 +215,11 @@ std::vector<BasicBlock *> DominantTree::getSuccBBs(BasicBlock *bb)
     return std::move(vec);
 }
 
-std::vector<BasicBlock *> DominantTree::getIdomVec(BasicBlock * bb)
+std::vector<BasicBlock *> DominantTree::getIdomVec(BasicBlock *bb)
 {
-    std::vector<BasicBlock*> bbs;
-    TreeNode* node = getNode(bb);
-    for(auto e :node->idomChild) 
+    std::vector<BasicBlock *> bbs;
+    TreeNode *node = getNode(bb);
+    for (auto e : node->idomChild)
     {
         bbs.emplace_back(e->curBlock);
     }
@@ -227,7 +227,32 @@ std::vector<BasicBlock *> DominantTree::getIdomVec(BasicBlock * bb)
     return bbs;
 }
 
-//    A     
+bool DominantTree::dominates_(BasicBlock *bb1, BasicBlock *bb2)
+{
+    // 1. 处理相同块的情况
+    if (bb1 == bb2)
+        return true;
+
+    // 2. 安全检查
+    if (!BlocktoNode.count(bb1) || !BlocktoNode.count(bb2))
+        return false;
+
+    TreeNode *node1 = BlocktoNode[bb1];
+    TreeNode *node2 = BlocktoNode[bb2];
+
+    // 3. 层级调整
+    while (DomLevels[node1] < DomLevels[node2])
+    {
+        node2 = node2->idom;
+        if (!node2)
+            return false; // 到达根节点
+    }
+
+    // 4. 最终判断
+    return node1 == node2;
+}
+
+//    A
 //    |  \
 //    B   D
 //    |

@@ -202,7 +202,7 @@ class CallInst : public Instruction
 public:
   CallInst(Type *_tp);
   CallInst(Value *_func, std::vector<Operand> &_args, std::string label = "");
-  Value* GetCalledFunction() const { return CalledFunction; }
+  Value *GetCalledFunction() const { return CalledFunction; }
   CallInst *clone(std::unordered_map<Operand, Operand> &mapping) override;
   void print() final
   {
@@ -224,8 +224,9 @@ public:
     }
     std::cout << ")\n";
   }
+
 private:
-    Value* CalledFunction;
+  Value *CalledFunction;
 };
 
 class RetInst : public Instruction
@@ -338,8 +339,8 @@ public:
   BinaryInst(Operand _A, Operation __op, Operand _B, bool Atom = false);
   BinaryInst *clone(std::unordered_map<Operand, Operand> &) override;
 
-  bool IsAtomic() const {return Atomic;}//hu1 add it
-  
+  bool IsAtomic() const { return Atomic; } // hu1 add it
+
   const Operation &GetOp() { return op; }
   void print() final
   {
@@ -757,13 +758,22 @@ public:
 
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
-  void SetIncomingBlock(int index, BasicBlock *bb) {
-   IncomingBlocks[index] = bb;
- }
- Value *GetVal(int index) {
-  auto &[v, bb] = PhiRecord[index];
-  return v;
-}
+  void SetIncomingBlock(int index, BasicBlock *bb)
+  {
+    IncomingBlocks[index] = bb;
+  }
+  Value *GetVal(int index)
+  {
+    auto &[v, bb] = PhiRecord[index];
+    return v;
+  }
+  static PhiInst *NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, Type *ty, std::string Name);
+  /*   void RSUW(Use *u, Operand val)
+    {
+      u->RemoveFromValUseList(this);
+      u->usee = val;
+      val->add_use(u);
+    } */
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构
@@ -818,7 +828,7 @@ public:
   // 获取基本块的最后一条指令
   // 链表最后
   Instruction *GetLastInsts() const;
-  Instruction* GetFirstInsts() const;
+  Instruction *GetFirstInsts() const;
 
   // 替换后继块中的某个基本块
   void ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock);
@@ -844,17 +854,18 @@ public:
   BasicBlock *GenerateNewBlock(std::string);
   bool IsEnd(); // 是否划分
   BasicBlock *SplitAt(User *inst);
-  //遍历前驱/后继块指令
+  // 遍历前驱/后继块指令
   void ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor);
   void ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor);
   int GetSuccessorCount();
   int GetPredecessorCount();
   Instruction *GetTerminator() const;
-  BasicBlock* GetSuccessor(int i) const {
+  BasicBlock *GetSuccessor(int i) const
+  {
     if (i < 0 || i >= static_cast<int>(NextBlocks.size()))
-        return nullptr;
+      return nullptr;
     return NextBlocks[i];
-}
+  }
 };
 
 class BuiltinFunc : public Value
@@ -878,7 +889,7 @@ public:
 private:
   std::vector<ParamPtr> params;
   std::vector<BBPtr> BBs;
-  std::pair<size_t,size_t> inlineinfo;
+  std::pair<size_t, size_t> inlineinfo;
   // std::string id;
 
 public:
@@ -893,12 +904,12 @@ public:
     BuildIn,
   };
   Tag tag = Normal;
-  int num=0;
+  int num = 0;
   bool CmpEqual = false;
 
-  //hu1 add it for SideEffect
-  std::set<Value*> Change_Val;//func->C 表示该函数会修改的值(某个参数,全局变量等),用于DSE.函数内联等优化
-  bool HasSideEffect = false;//func->H 调用可知是否有副作用
+  // hu1 add it for SideEffect
+  std::set<Value *> Change_Val; // func->C 表示该函数会修改的值(某个参数,全局变量等),用于DSE.函数内联等优化
+  bool HasSideEffect = false;   // func->H 调用可知是否有副作用
 
   std::vector<ParamPtr> &GetParams();
   std::vector<BBPtr> &GetBBs();
@@ -914,7 +925,7 @@ public:
   void InsertBBs(BasicBlock *BB, size_t pos);
   // 以下两个暂未实现//实现了ww
   // dh: 这两个我需要你帮助维护 bbs:index这个属性
-  //vector&mylist都操作
+  // vector&mylist都操作
   void InsertBlock(BasicBlock *pred, BasicBlock *succ, BasicBlock *insert);
   void InsertBlock(BasicBlock *curr, BasicBlock *insert);
 
@@ -922,23 +933,24 @@ public:
   void InitBBs();
   void PushParam(std::string, Var *);
   void UpdateParam(Var *var) { params.emplace_back(var); }
-  size_t GetSize() { return BBs.size();}
-  size_t GetInstructionCount() const;//链表
+  size_t GetSize() { return BBs.size(); }
+  size_t GetInstructionCount() const; // 链表
   std::pair<Value *, BasicBlock *> InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping);
-  std::pair<size_t,size_t>& GetInlineInfo();
-  inline void ClearInlineInfo(){inlineinfo.first=inlineinfo.second=0;};
+  std::pair<size_t, size_t> &GetInlineInfo();
+  inline void ClearInlineInfo() { inlineinfo.first = inlineinfo.second = 0; };
 
-  //封装了一个链表操作ww
-  void InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb); 
-  bool isRecursive(bool=true);
+  // 封装了一个链表操作ww
+  void InsertBlockAfter(BasicBlock *pos, BasicBlock *new_bb);
+  bool isRecursive(bool = true);
 
-  //hu1 add it:对bb的visited进行初始化
-  void init_visited_block(){
-      for (auto bb : *this) {
-        bb->visited = false;
+  // hu1 add it:对bb的visited进行初始化
+  void init_visited_block()
+  {
+    for (auto bb : *this)
+    {
+      bb->visited = false;
     }
   }
-
 };
 
 class Module : public SymbolTable

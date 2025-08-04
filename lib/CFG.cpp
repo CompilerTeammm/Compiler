@@ -406,7 +406,7 @@ CallInst::CallInst(Type *_tp)
     : Instruction(_tp, Op::Call) {}
 
 CallInst::CallInst(Value *_func, std::vector<Operand> &_args, std::string label)
-    : Instruction(_func->GetType(), Op::Call),CalledFunction(_func)
+    : Instruction(_func->GetType(), Op::Call), CalledFunction(_func)
 {
     name += label;
     add_use(_func);
@@ -753,11 +753,10 @@ void PhiInst::Del_Incomes(int CurrentNum)
 {
     if (PhiRecord.find(CurrentNum) != PhiRecord.end())
     {
-        auto iter = std::find_if(
-            uselist.begin(), uselist.end(), [=](const std::unique_ptr<Use> &ele)
-            { return ele->GetValue() == PhiRecord[CurrentNum].first; });
+        auto target_value = PhiRecord[CurrentNum].first;
+        auto iter = std::find_if(useruselist.begin(), useruselist.end(), [=](const std::unique_ptr<Use> &ele)
+                                 { return ele->GetValue() == target_value; });
         auto &vec = GetUserUseList();
-        // (*iter)->RemoveFromUserList((*iter)->GetUser());
         for (int i = 0; i < vec.size(); i++)
             if (vec[i].get() == (*iter).get())
                 vec.erase(std::remove(vec.begin(), vec.end(), (*iter)));
@@ -871,17 +870,18 @@ bool PhiInst::IsReplaced()
 }
 
 PhiInst *PhiInst::clone(std::unordered_map<Operand, Operand> &mapping)
-  {
-      if (mapping.find(this) != mapping.end())
-      return dynamic_cast<PhiInst *>(mapping[this]);
-      auto to = new PhiInst(GetType());
-      mapping[this] = to;
-      for (auto &[i, data] : PhiRecord) {
+{
+    if (mapping.find(this) != mapping.end())
+        return dynamic_cast<PhiInst *>(mapping[this]);
+    auto to = new PhiInst(GetType());
+    mapping[this] = to;
+    for (auto &[i, data] : PhiRecord)
+    {
         to->addIncoming(data.first->clone(mapping), data.second->clone(mapping));
-      }
-      to->FormatPhi();
-      return to;
-  }
+    }
+    to->FormatPhi();
+    return to;
+}
 
 //////// end
 
@@ -1156,8 +1156,9 @@ Instruction *BasicBlock::GetLastInsts() const
     return this->GetBack();
 }
 
-Instruction* BasicBlock::GetFirstInsts() const {
-    return this->GetFront();  
+Instruction *BasicBlock::GetFirstInsts() const
+{
+    return this->GetFront();
 }
 
 void BasicBlock::ReplaceNextBlock(BasicBlock *oldBlock, BasicBlock *newBlock)
@@ -1562,33 +1563,40 @@ void Function::InsertBBs(BasicBlock *BB, size_t pos)
 }
 
 void Function::InsertBlock(BasicBlock *pred, BasicBlock *succ,
-                           BasicBlock *insert) {
-  auto *condition = pred->GetBack();
-  if (!condition) {
-    assert(false && "BasicBlock has no terminator instruction");
-  }
-
-  if (auto *cond = dynamic_cast<CondInst *>(condition)) {
-    auto &uses = cond->GetUserUseList();
-    assert(uses.size() >= 3 && "CondInst should have at least 3 operands");
-    for (int i = 1; i <= 2; ++i) {
-      if (uses[i]->GetValue() == succ) {
-        cond->ReplaceSomeUseWith(i, insert); 
-        insert->GenerateUnCondInst(succ); 
-        return;
-      }
+                           BasicBlock *insert)
+{
+    auto *condition = pred->GetBack();
+    if (!condition)
+    {
+        assert(false && "BasicBlock has no terminator instruction");
     }
-    assert(false && "Not connected on CFG");
-  } else if (auto *uncond = dynamic_cast<UnCondInst *>(condition)) {
-    auto &uses = uncond->GetUserUseList();
-    assert(uses.size() >= 1 && "UnCondInst should have 1 operand");
-    assert(uses[0]->GetValue() == succ && "Not connected on CFG");
-    uncond->ReplaceSomeUseWith(0, insert);
-    insert->GenerateUnCondInst(succ);
-    return;
-  }
 
-  assert(false && "Invalid branch instruction in pred block");
+    if (auto *cond = dynamic_cast<CondInst *>(condition))
+    {
+        auto &uses = cond->GetUserUseList();
+        assert(uses.size() >= 3 && "CondInst should have at least 3 operands");
+        for (int i = 1; i <= 2; ++i)
+        {
+            if (uses[i]->GetValue() == succ)
+            {
+                cond->ReplaceSomeUseWith(i, insert);
+                insert->GenerateUnCondInst(succ);
+                return;
+            }
+        }
+        assert(false && "Not connected on CFG");
+    }
+    else if (auto *uncond = dynamic_cast<UnCondInst *>(condition))
+    {
+        auto &uses = uncond->GetUserUseList();
+        assert(uses.size() >= 1 && "UnCondInst should have 1 operand");
+        assert(uses[0]->GetValue() == succ && "Not connected on CFG");
+        uncond->ReplaceSomeUseWith(0, insert);
+        insert->GenerateUnCondInst(succ);
+        return;
+    }
+
+    assert(false && "Invalid branch instruction in pred block");
 }
 
 void Function::InsertBlock(BasicBlock *curr, BasicBlock *insert)
@@ -1694,20 +1702,24 @@ Function &Module::GenerateFunction(IR_DataType _tp, std::string _id)
     return *functions.back();
 }
 
-bool Module::EraseDeadFunc() {
-  std::vector<Function *> erase;
-  bool changed = false;
-  for (auto &func : functions) {
-    if (func->GetValUseListSize() == 0 && func->GetName() != "main") {
-      erase.push_back(func.get());
-      changed = true;
+bool Module::EraseDeadFunc()
+{
+    std::vector<Function *> erase;
+    bool changed = false;
+    for (auto &func : functions)
+    {
+        if (func->GetValUseListSize() == 0 && func->GetName() != "main")
+        {
+            erase.push_back(func.get());
+            changed = true;
+        }
     }
-  }
-  if (!erase.empty())
-    for (auto func : erase) {
-      EraseFunction(func);
-    }
-  return changed;
+    if (!erase.empty())
+        for (auto func : erase)
+        {
+            EraseFunction(func);
+        }
+    return changed;
 }
 
 UndefValue *UndefValue::Get(Type *_ty)
@@ -1839,45 +1851,58 @@ BasicBlock *BasicBlock::SplitAt(User *inst)
     return tmp;
 }
 
-size_t Function::GetInstructionCount() const {
+size_t Function::GetInstructionCount() const
+{
     size_t count = 0;
-    for (auto bb = GetFront(); bb != nullptr; bb = bb->GetNextNode()) {
-      count += bb->Size();
+    for (auto bb = GetFront(); bb != nullptr; bb = bb->GetNextNode())
+    {
+        count += bb->Size();
     }
     return count;
 }
 
-std::pair<size_t, size_t> &Function::GetInlineInfo() {
-  if (inlineinfo.first == 0) {
-    for (auto bb : *this) {
-      for (auto inst : *bb) {
-        inlineinfo.first++;
-        if (auto alloca = dynamic_cast<AllocaInst *>(inst))
-          inlineinfo.second += dynamic_cast<PointerType *>(alloca->GetType())
-                                   ->GetSubType()
-                                   ->GetSize();
-      }
+std::pair<size_t, size_t> &Function::GetInlineInfo()
+{
+    if (inlineinfo.first == 0)
+    {
+        for (auto bb : *this)
+        {
+            for (auto inst : *bb)
+            {
+                inlineinfo.first++;
+                if (auto alloca = dynamic_cast<AllocaInst *>(inst))
+                    inlineinfo.second += dynamic_cast<PointerType *>(alloca->GetType())
+                                             ->GetSubType()
+                                             ->GetSize();
+            }
+        }
     }
-  }
-  return inlineinfo;
+    return inlineinfo;
 }
 
-void BasicBlock::ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor) {
-  for (auto *pred : PredBlocks) {
-    for (auto *instr = pred->GetFront(); instr != nullptr; instr = instr->GetNextNode()) {
-      visitor(instr);
+void BasicBlock::ForEachInstrInPredBlocks(std::function<void(Instruction *)> visitor)
+{
+    for (auto *pred : PredBlocks)
+    {
+        for (auto *instr = pred->GetFront(); instr != nullptr; instr = instr->GetNextNode())
+        {
+            visitor(instr);
+        }
     }
-  }
 }
-  void BasicBlock::ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor) {
-    for (auto *succ : NextBlocks) {
-      for (auto *instr = succ->GetFront(); instr != nullptr; instr = instr->GetNextNode()) {
-        visitor(instr);
-      }
+void BasicBlock::ForEachInstrInNextBlocks(std::function<void(Instruction *)> visitor)
+{
+    for (auto *succ : NextBlocks)
+    {
+        for (auto *instr = succ->GetFront(); instr != nullptr; instr = instr->GetNextNode())
+        {
+            visitor(instr);
+        }
     }
-  }
+}
 
-int BasicBlock::GetSuccessorCount() {
+int BasicBlock::GetSuccessorCount()
+{
     if (dynamic_cast<CondInst *>(this->GetBack()))
         return 2;
     else if (dynamic_cast<UnCondInst *>(this->GetBack()))
@@ -1898,27 +1923,33 @@ int BasicBlock::GetSuccessorCount() {
 //     return count;
 // }
 
-//前提是必须维护好
-int BasicBlock::GetPredecessorCount() {
+// 前提是必须维护好
+int BasicBlock::GetPredecessorCount()
+{
     return this->PredBlocks.size();
 }
 
-bool IsTerminator(Instruction *inst) {
-    return dynamic_cast<CondInst*>(inst) ||
-           dynamic_cast<UnCondInst*>(inst) ||
-           dynamic_cast<RetInst*>(inst);
+bool IsTerminator(Instruction *inst)
+{
+    return dynamic_cast<CondInst *>(inst) ||
+           dynamic_cast<UnCondInst *>(inst) ||
+           dynamic_cast<RetInst *>(inst);
 }
 
-Instruction *BasicBlock::GetTerminator() const {
+Instruction *BasicBlock::GetTerminator() const
+{
     Instruction *last = this->GetBack();
     if (last && IsTerminator(last))
         return last;
     return nullptr;
 }
 
-void Function::InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb) {
-    for (auto it = this->begin(); it != this->end(); ++it) {
-        if (*it == pos) {
+void Function::InsertBlockAfter(BasicBlock *pos, BasicBlock *new_bb)
+{
+    for (auto it = this->begin(); it != this->end(); ++it)
+    {
+        if (*it == pos)
+        {
             it.InsertAfter(new_bb);
             return;
         }
@@ -1926,26 +1957,31 @@ void Function::InsertBlockAfter(BasicBlock* pos, BasicBlock* new_bb) {
     assert(false && "InsertBlockAfter: pos block not found in function");
 }
 
-bool Function::isRecursive(bool useMem) {
-  static std::unordered_map<Function *, bool> visited;
+bool Function::isRecursive(bool useMem)
+{
+    static std::unordered_map<Function *, bool> visited;
 
-  auto calcOnce = [&]() {
-    auto usrlist = GetValUseList();
-    bool suc = false;
-    for (auto use : usrlist) {
-      if (auto call = use->GetUser()->as<CallInst>()) {
-        if (call->GetParent()->GetParent() == this) {
-          suc = true;
-          break;
+    auto calcOnce = [&]()
+    {
+        auto usrlist = GetValUseList();
+        bool suc = false;
+        for (auto use : usrlist)
+        {
+            if (auto call = use->GetUser()->as<CallInst>())
+            {
+                if (call->GetParent()->GetParent() == this)
+                {
+                    suc = true;
+                    break;
+                }
+            }
         }
-      }
-    }
-    return suc;
-  };
+        return suc;
+    };
 
-  if (!useMem || visited.find(this) == visited.end())
-    visited[this] = calcOnce();
-  return visited[this];
+    if (!useMem || visited.find(this) == visited.end())
+        visited[this] = calcOnce();
+    return visited[this];
 }
 
 std::pair<Value *, BasicBlock *> Function::InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping)
@@ -2076,4 +2112,21 @@ void PhiInst::ReplaceVal(Use *use, Value *new_val)
     auto index = UseRecord[use];
     ReplaceSomeUseWith(use, new_val);
     PhiRecord[index].first = new_val;
+}
+
+PhiInst *PhiInst::NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, Type *ty, std::string Name)
+{
+    PhiInst *tmp = new PhiInst(BeforeInst, ty);
+    for (auto iter = currentBB->begin(); iter != currentBB->end(); ++iter)
+    {
+        if (*iter == BeforeInst)
+        {
+            iter.InsertBefore(tmp);
+            break;
+        }
+    }
+    if (!Name.empty())
+        tmp->SetName(Name);
+    tmp->id = Op::Phi;
+    return tmp;
 }

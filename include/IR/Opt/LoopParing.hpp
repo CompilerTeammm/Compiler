@@ -21,6 +21,9 @@ private:
   bool calculate_iteration(Loop *loop);
   bool CheckPhiNodeUsage(PhiInst *resPhi, Loop *loop, BasicBlock *latch);
   bool checkDataFlowAnalysis(Loop *loop);
+  bool checkDataFlowAnalysis(PhiInst *resPhi, Loop *loop, LoopInfoAnalysis *_loop_analysis, DominantTree *_dominatortree, BasicBlock *tail);
+  bool DependencyAnalysis(Loop *loop);
+  Value *FindPointBase(Value *val);
 
 private:
   Function *_func;

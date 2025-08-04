@@ -154,7 +154,7 @@ public:
   virtual bool isGlobal();
   virtual bool isConst();
   virtual bool IsBoolean() const { return false; }
-  virtual inline bool isParam(){return false;};
+  virtual inline bool isParam() { return false; };
   // 构造至少需要类型，可以不要value
   Value() = delete;
   Value(Type *_type);
@@ -186,7 +186,7 @@ public:
   template <typename T>
   T *as() { return dynamic_cast<T *>(this); }
   // UNROLLING要用
-  //void RAUW(Value *val);//注销了，ReplaceAllUseWith
+  // void RAUW(Value *val);//注销了，ReplaceAllUseWith
 };
 
 class User : public Value
@@ -242,8 +242,23 @@ public:
     u->usee = val;
     val->add_use(u);
   }
-  void ReplaceSomeUseWith(int num, Operand val);//ww RSUW
+  void ReplaceSomeUseWith(int num, Operand val); // ww RSUW
   void ReplaceSomeUseWith(Use *use, Operand val);
+  /*   void RSUW(int num, Operand val)
+    {
+      auto &uselist = GetUserUseList();
+      assert(0 <= num && num < uselist.size() && "Invalid Location!");
+      uselist[num]->RemoveFromValUseList(this);
+      uselist[num]->usee = val;
+      val->add_use(uselist[num].get());
+    }
+    // change use to val while manage use-def relation
+    void RSUW(Use *u, Operand val)
+    {
+      u->RemoveFromValUseList(this);
+      u->usee = val;
+      val->add_use(u);
+    } */
 };
 
 class Instruction : public User, public Node<BasicBlock, Instruction>

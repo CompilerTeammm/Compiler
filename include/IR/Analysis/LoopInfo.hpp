@@ -1,3 +1,4 @@
+#pragma once
 #include "../../lib/CFG.hpp"
 #include "Dominant.hpp"
 #include "../Opt/AnalysisManager.hpp"
@@ -61,11 +62,10 @@ public:
   BasicBlock *getLatch() { return Latch; }
 
   // 嵌套循环
-  void setLoopsHeader(Loop *loop) { LoopsHeader = loop; }
+  void setLoopsHeader(Loop *loop) { Parent = loop; }
   void addLoopsBody(Loop *signalLoop) { Loops.push_back(signalLoop); }
 
   void addLoopsDepth(int depth) { LoopsDepth += depth; }
-  Loop *GetLoopsHeader() { return LoopsHeader; }
   int getLoopsDepth() { return LoopsDepth; }
   int getLoopsSize() { return Loops.size(); }
 
@@ -81,11 +81,14 @@ public:
   bool ContainLoop(Loop *loop);
 
   // 迭代器
-  std::vector<BasicBlock *>::iterator begin() { return BBs.begin(); }
+  /* std::vector<BasicBlock *>::iterator begin() { return BBs.begin(); }
   std::vector<BasicBlock *>::iterator end() { return BBs.end(); }
   std::vector<BasicBlock *>::reverse_iterator rbegin() { return BBs.rbegin(); }
-  std::vector<BasicBlock *>::reverse_iterator rend() { return BBs.rend(); }
-
+  std::vector<BasicBlock *>::reverse_iterator rend() { return BBs.rend(); } */
+  std::vector<Loop *>::iterator begin() { return SubLoops.begin(); }
+  std::vector<Loop *>::iterator end() { return SubLoops.end(); }
+  std::vector<Loop *>::reverse_iterator rbegin() { return SubLoops.rbegin(); }
+  std::vector<Loop *>::reverse_iterator rend() { return SubLoops.rend(); }
   // 获取前驱头
   void setPreHeader(BasicBlock *bb) { PreHeader = bb; }
   BasicBlock *getPreHeader() { return PreHeader; }
@@ -99,6 +102,31 @@ public:
   LoopTrait trait;
   // 扩展
   Loop *GetParent() { return Parent; }
+  bool CantCalcTrait()
+  {
+    return (!trait.boundary) || (!trait.initial) || (!trait.indvar) || (!trait.change);
+  }
+  void InsertLoopBody(BasicBlock *bb)
+  {
+    auto iter = std::find(BBs.begin(), BBs.end(), bb);
+    if (iter == BBs.end())
+    {
+      BBs.push_back(bb); // 不存在则插入
+    }
+  }
+  void setSubLoop(Loop *sub) { SubLoops.push_back(sub); }
+  std::vector<Loop *> &GetSubLoop() { return SubLoops; }
+  int GetLoopDepth() { return LoopsDepth; }
+  bool IsVisited() { return visited; }
+  void setVisited(bool v) { visited = v; }
+  // important
+  void MarkSimplified() { isSimplified = true; }
+  bool IsSimplified() const { return isSimplified; }
+  void setLatch(BasicBlock *bb)
+  {
+    Latch = bb;
+    InsertLoopBody(bb);
+  }
 
 private:
   // 单个循环
@@ -107,15 +135,16 @@ private:
   BasicBlock *Latch = nullptr;   // 单个循环尾
   Loop *Parent = nullptr;
   // 嵌套循环
-  std::vector<Loop *> Loops;   // 嵌套循环列表
-  Loop *LoopsHeader = nullptr; // 嵌套循环的父循环
-  int LoopsDepth = 0;          // 嵌套深度
-
+  std::vector<Loop *> Loops; // 嵌套循环列表
+  int LoopsDepth = 0;        // 嵌套深度
+  std::vector<Loop *> SubLoops;
   // 使用情况
   bool visited = false; // 是否被访问过
 
   // 健壮性
   BasicBlock *PreHeader = nullptr; // 前驱头
+  // important
+  bool isSimplified = false;
 };
 
 class LoopInfoAnalysis : public _PassBase<LoopInfoAnalysis, Function>
@@ -131,9 +160,23 @@ public:
     _BBs = &(_func->GetBBs());
     for (auto &bb : *_BBs)
     {
-      PostOrderDT(bb.get());
+      bb->visited = false;
     }
+    PostOrderDT(_func->GetFront());
+    /*    for (auto &bb : *_BBs)
+       {
+         PostOrderDT(bb.get());
+       } */
     run();
+    ExpandSubLoops();
+    LoopAnaly();
+    CloneToBB();
+    std::sort(LoopRecord.begin(), LoopRecord.end(),
+              [](const auto &a1, const auto &a2)
+              {
+                return a1->GetLoopDepth() > a2->GetLoopDepth();
+              });
+    AlreadyGetInfo = true;
   }
 
   /*   void setBBs()
@@ -144,6 +187,7 @@ public:
 
   virtual bool run() override
   {
+
     runAnalysis(); // 委托给现有的runAnalysis
 
     return true;
@@ -173,31 +217,39 @@ public:
 
   // 功能
   void newBB(BasicBlock *oldBB, BasicBlock *newBB);
-  bool canBeOpte() { return loops.size() != 0; }
+  bool canBeOpte() { return LoopRecord.size() != 0; }
 
-  std::vector<Loop *>::const_iterator loopsBegin() { return loops.begin(); }
-  std::vector<Loop *>::const_iterator loopsEnd() { return loops.end(); }
-  std::vector<Loop *>::const_reverse_iterator loopsRbegin() { return loops.rbegin(); }
-  std::vector<Loop *>::const_reverse_iterator loopsRend() { return loops.rend(); }
+  std::vector<Loop *>::const_iterator loopsBegin() { return LoopRecord.begin(); }
+  std::vector<Loop *>::const_iterator loopsEnd() { return LoopRecord.end(); }
+  std::vector<Loop *>::const_reverse_iterator loopsRbegin() { return LoopRecord.rbegin(); }
+  std::vector<Loop *>::const_reverse_iterator loopsRend() { return LoopRecord.rend(); }
 
   Loop *LookUp(BasicBlock *bb);
   // 扩展
   void setLoop(BasicBlock *bb, Loop *loop);
+  void ExpandSubLoops();
+  void LoopAnaly();
+  void CloneToBB();
+  void CalculateLoopDepth(Loop *loop, int depth);
+  bool IsLoopIncludeBB(Loop *loop, BasicBlock *bb);
+  std::vector<BasicBlock *> GetExit(Loop *loopinfo);
+  void ReplBlock(BasicBlock *Old, BasicBlock *New);
+  bool IsLoopInvariant(const std::set<BasicBlock *> &contain, User *I, Loop *curloop);
 
   ~LoopInfoAnalysis()
   {
-    for (auto loop : loops)
+    for (auto loop : LoopRecord)
     {
       delete loop;
     }
-    loops.clear();
+    LoopRecord.clear();
   }
 
 private:
   Function *_func;
   DominantTree *_dom;
   std::vector<Loop *> &_deleteloop;
-  std::vector<Loop *> loops;            // 存储所有循环
+  std::vector<Loop *> LoopRecord;       // 存储所有循环
   std::vector<BBPtr> *_BBs;             // 存储所有基本块的引用
   std::vector<BasicBlock *> PostOrder;  // 存储后序遍历的基本块
   std::map<BasicBlock *, Loop *> Loops; // 基本块与循环的映射
@@ -205,4 +257,5 @@ private:
   // std::vector<std::vector<int>> *Dest; // CFG中的后继
   int depth = 0;
   int index = 0;
+  bool AlreadyGetInfo = false;
 };
