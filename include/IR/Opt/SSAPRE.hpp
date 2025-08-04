@@ -4,6 +4,7 @@
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
 #include "../../IR/Analysis/IDF.hpp"
+#include "AnalysisManager.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -29,10 +30,11 @@ private:
     // using ExprKey = std::string;
     Function* func;
     DominantTree* tree;
+    AnalysisManager &AM;
     std::unordered_map<ExprKey, std::vector<Instruction*>,ExprKey::Hash> exprToOccurList;
 public:
     bool run() override ;
-    SSAPRE(Function* _func,DominantTree* _tree): tree(_tree),func(_func){}
+    SSAPRE(Function* _func,AnalysisManager &_AM): AM(_AM),func(_func){}
     ~SSAPRE() = default;
     bool PartialRedundancyElimination(Function* func);
     //实际上只是检测是否有部分冗余，接下来交给BeginToChange

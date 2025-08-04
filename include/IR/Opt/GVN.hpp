@@ -12,8 +12,8 @@
 class GVN:public _PassBase<GVN,Module>
 {
 public:
-    GVN(Function*_func,DominantTree* _tree)
-        :tree(_tree),func(_func) {}
+    GVN(Function*_func,AnalysisManager &AM_)
+        :AM(AM_),func(_func) {}
 
     bool run() override;
 
@@ -22,4 +22,5 @@ private:
     Function* func;
     DominantTree* tree;
     std::unordered_map<Value*,int> ValTable;
+    AnalysisManager &AM;
 };

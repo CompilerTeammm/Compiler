@@ -30,6 +30,7 @@ file(GLOB_RECURSE SOURCES
   IR/Analysis/IDF.cpp
   IR/Analysis/Dominant.cpp
   IR/Analysis/SideEffect.cpp
+  IR/Analysis/AliasAnalysis.cpp
   IR/Analysis/IDF.cpp
   IR/Opt/Mem2reg.cpp
   IR/Opt/MemoryToRegister.cpp

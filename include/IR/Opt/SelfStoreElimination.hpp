@@ -13,6 +13,7 @@ private:
     DominantTree* tree;
     std::set<User*> wait_del;
     std::vector<BasicBlock*> DFSOrder;
+    AnalysisManager &AM;
 
     void OrderBlock(BasicBlock* bb);
     void CollectStoreInfo(std::unordered_map<Value*, std::vector<User*>>& storeMap);
@@ -20,7 +21,7 @@ private:
     void removeInsts();
 
 public:
-    SelfStoreElimination(Function* _func, DominantTree* _tree) :func(_func),tree(_tree){};
+    SelfStoreElimination(Function* _func, AnalysisManager &_AM) :func(_func),AM(_AM){};
     ~SelfStoreElimination() = default;
 
     bool run() override;
