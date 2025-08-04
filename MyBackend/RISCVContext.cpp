@@ -1,5 +1,6 @@
 #include "../include/MyBackend/RISCVContext.hpp"
 #include "../include/MyBackend/MIR.hpp"
+#include "CFG.hpp"
 #include <memory>
 
 // Deal RetInst 
@@ -821,6 +822,9 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
                 continue;
             param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
             param->SetRealRegister("a" + std::to_string(paramNum - 1));
+            // if (dynamic_cast<GepInst*>(val))
+            //     param->push_back(param->GetPrevNode()->getOpreand(0));
+            // else     
             param->push_back(lwInst->getOpreand(0));
         }
     }
@@ -862,28 +866,6 @@ size_t RISCVContext:: getSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addI
             counter++;
             if ( counter == inst->GetOperandNums())
                 break;
-        }
-        else
-        {   // i 变化值     // need to rewrite
-            auto it = dynamic_cast<LoadInst *>(inst->GetOperand(counter));
-            if (it == nullptr)
-                return 0;
-            RISCVInst *loadInst = mapTrans(it)->as<RISCVInst>();
-            RISCVInst *newLoad = CreateInstAndBuildBind(RISCVInst::_lw, inst);
-            newLoad->SetVirRegister();
-            extraDealLoadInst(newLoad, it);
-
-            RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
-            slliInst->push_back(newLoad->getOpreand(0));
-            slliInst->push_back(newLoad->getOpreand(0));
-            slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
-
-            RISCVInst *newaddInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
-            newaddInst->SetVirRegister();
-            newaddInst->push_back(addInst->getOpreand(0));
-            newaddInst->push_back(slliInst->getOpreand(0));
-
-            return 0;
         }
     }
     size = findRecord.size();
@@ -939,7 +921,7 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
                 LOG(ERROR,"what happened");
             RISCVInst *RLInst = mapTrans(loadInst)->as<RISCVInst>();
             int sum = 1;
-            for (int j = numsRecord.size() - i + 1; j > 0; j--)
+            for (int j = numsRecord.size() - 1; j > i-2; j--)
             {
                 sum *= numsRecord[j];
             }
@@ -960,10 +942,10 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
                 slliInst->push_back(RLInst->getOpreand(0));
                 slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
 
-                RISCVInst *thisOffsetInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
-                thisOffsetInst->push_back(slliInst->getOpreand(0));
-                thisOffsetInst->push_back(liInst->GetPrevNode()->getOpreand(0));
-                thisOffsetInst->push_back(slliInst->getOpreand(0));
+                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                RInst->push_back(slliInst->getOpreand(0));
+                RInst->push_back(liInst->GetPrevNode()->getOpreand(0));
+                RInst->push_back(slliInst->getOpreand(0));
             }
             else {
                 RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
@@ -971,10 +953,10 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
                 slliInst->push_back(RLInst->getOpreand(0));
                 slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
 
-                RISCVInst *thisOffsetInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
-                thisOffsetInst->push_back(slliInst->getOpreand(0));
-                thisOffsetInst->push_back(addiInst->getOpreand(0));
-                thisOffsetInst->push_back(slliInst->getOpreand(0));
+                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                RInst->push_back(slliInst->getOpreand(0));
+                RInst->push_back(addiInst->getOpreand(0));
+                RInst->push_back(slliInst->getOpreand(0));
             }
         }
     }
@@ -1004,7 +986,8 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
         RInst->SetAddrOp(globlVal);
 
         Instruction *nextInst = inst->GetNextNode();
-        if (dynamic_cast<LoadInst *>(nextInst) || dynamic_cast<StoreInst *>(nextInst))
+        if (dynamic_cast<LoadInst *>(nextInst) || dynamic_cast<StoreInst *>(nextInst)
+            || dynamic_cast<CallInst*>(nextInst) )
         {
             // auto &gepRecord = getCurFunction()->getRecordGepOffset();
             int flag = 0;
