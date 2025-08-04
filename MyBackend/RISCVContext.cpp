@@ -809,6 +809,8 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     // param
     for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
     {
+        if (paramNum == 8)
+            assert("maybe We can't do it");
         Value *val = inst->GetOperand(paramNum);
         if (dynamic_cast<CallInst *>(val))
             continue;
@@ -898,13 +900,15 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
         int Rsubscript = i - 1;
         if (auto val = dynamic_cast<ConstIRInt *>(inst->GetOperand(i)))
         { // 取值确定
-            int sum = 0;
-            for (int j = Rsubscript; j <= numsRecord.size(); j++)
+            int sum = 1;
+            for (int j = Rsubscript; j < numsRecord.size() ; j++)
             {
-                sum = numsRecord[Rsubscript] * val->GetVal();
+                sum *= numsRecord[j];
             }
-            if (i == numsRecord.size()+1 && val->GetVal() != 0) 
+            if (i == numsRecord.size() +1 && val->GetVal() != 0) 
                 sum = val->GetVal();
+            else  
+                sum *= val->GetVal();
             sum *= 4;
             if (sum != 0)
             {
