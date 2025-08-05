@@ -118,6 +118,7 @@ std::string  RISCVInst::ISAtoAsm()
 
 int RISCVBlock::counter = 0;
 std::string RISCVBlock:: getCounter() { 
+    
     return std::to_string(counter++); 
 }
 

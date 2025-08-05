@@ -166,7 +166,7 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
         else if (inst->GetType() == FloatType::NewFloatTypeGet())
         {
             Inst = CreateInstAndBuildBind(RISCVInst::_flw, inst);
-            Inst->setLoadOp();
+            Inst->SetRealRegister("ft6");
             extraDealLoadInst(Inst, inst);
         } 
         else {  
@@ -523,6 +523,18 @@ void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVIns
     auto RISCVop1 = mapTrans(valOp1)->as<RISCVInst>();
     auto RISCVop2 = mapTrans(valOp2)->as<RISCVInst>();
 
+    if ( dynamic_cast<CallInst*> (inst->GetPrevNode()) && Op == RISCVInst::_addw)
+    {
+        if (auto it = dynamic_cast<LoadInst*>(inst->GetPrevNode()->GetPrevNode()))
+        {
+            RISCVInst* LInst= mapTrans(inst->GetPrevNode()->GetPrevNode())->as<RISCVInst>();
+            RISCVInst* newInst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
+            newInst->push_back(LInst->getOpreand(0));
+            extraDealLoadInst(newInst, it);
+
+        }
+    }
+
     if (Immop1 != nullptr) {
         ImmOneInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
         ImmOneInst->SetVirRegister();
@@ -783,7 +795,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 
         int size = std::stoi(val->GetName());
         RISCVInst* saveS0Inst = nullptr;
-        if ( size <= 4096) {
+        if ( size <= 2047) {
             saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
             saveS0Inst->SetVirRegister();
             saveS0Inst->SetRealRegister("s0");
@@ -924,7 +936,7 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
             sum *= 4;
             if (sum != 0)
             {
-                if ( sum <= 4096) {
+                if ( sum <= 2047) {
                     RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
                     RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
                     RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
@@ -1030,7 +1042,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             if (flag == 0)
             {
                 int sum = getSumOffset(globlVal, inst, RInst);
-                if (sum <= 4096) {
+                if (sum <= 2047) {
                     RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
                     RInst->SetVirRegister();
                     RInst->push_back(RInst->getOpreand(0));
@@ -1064,7 +1076,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
         // 找出 栈帧开辟此数组的首地址
         size_t arroffset = getCurFunction()->getLocalArrToOffset()[globlVal];
         RISCVInst *addiInst = nullptr;
-        if (arroffset <= 4096)
+        if (arroffset <= 2047)
         {
             addiInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
             addiInst->SetVirRegister();

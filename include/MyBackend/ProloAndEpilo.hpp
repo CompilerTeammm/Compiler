@@ -46,7 +46,7 @@ public:
     bool DealStoreInsts();
     bool DealLoadInsts();
     
-    // size > 4096 的情况
+    // size > 2047 的情况
     void DealExtraEpilo(size_t size);
     void DealExtraProlo(size_t size);
 };

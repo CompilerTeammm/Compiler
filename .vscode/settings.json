@@ -99,7 +99,11 @@
     "rope": "cpp",
     "flat_map": "cpp",
     "flat_set": "cpp",
-    "internet": "cpp"
+    "internet": "cpp",
+    "slist": "cpp",
+    "pr98533.C": "cpp",
+    "executor": "cpp",
+    "dynamic_bitset": "cpp"
   },
   "C_Cpp_Runner.cCompilerPath": "E:/MinGW64/bin/gcc.exe",
   "C_Cpp_Runner.cppCompilerPath": "g++",

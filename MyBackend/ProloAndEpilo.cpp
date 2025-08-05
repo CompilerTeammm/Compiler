@@ -41,7 +41,8 @@ bool ProloAndEpilo:: DealStoreInsts()
 
     for(auto[StackInst,alloc] : MallocVec)
     {
-        StackInst->setStoreStackOp(AOffsetRecord[alloc]);
+        if(AOffsetRecord[alloc] <= 2047)
+            StackInst->setStoreStackOp(AOffsetRecord[alloc]);
         // if (tmp.find(alloc) == tmp.end())
         // {
         //     tmp.emplace(alloc);
@@ -66,7 +67,11 @@ bool ProloAndEpilo:: DealLoadInsts()
     {
         auto Alloc = record[Inst];
         size_t off = offset[Alloc];
-        Inst->setStoreStackOp(off);
+        if (off <= 2047)
+            Inst->setStoreStackOp(off);  
+        else  {
+           
+        }
     }
 
     // auto LoadInsts = mfunc->getLoadInsts();
@@ -89,7 +94,7 @@ bool ProloAndEpilo::run()
 
     TheSizeofStack = StackMallocSize;
 
-    if(TheSizeofStack <= 4096) { 
+    if(TheSizeofStack <= 2047) { 
     // 生成函数的前言和后序,并且set了
         CreateProlo(StackMallocSize);
         CreateEpilo(StackMallocSize);
