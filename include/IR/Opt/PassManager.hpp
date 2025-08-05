@@ -176,6 +176,7 @@ public:
         }
 
         // 循环优化
+<<<<<<< HEAD
         // if(IsEnabled("Loop_Simplifying")){
         //     for (auto &function : funcVec)
         //     {
@@ -184,6 +185,18 @@ public:
         //         Loop_Simplying(fun, AM).run();
         //     }
         // }
+=======
+        if (IsEnabled("Loop_Simplifying"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                AnalysisManager AM;
+                LoopSimping LoopSimping(fun, AM);
+                LoopSimping.run();
+            }
+        }
+>>>>>>> 0357e49 (最新版本)
 
         if(IsEnabled("Loop_Unrolling")){
             for (auto &function : funcVec)

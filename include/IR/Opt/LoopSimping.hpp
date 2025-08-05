@@ -1,14 +1,16 @@
 #include "../../lib/CFG.hpp"
 #include "../Analysis/LoopInfo.hpp"
+#include "Passbase.hpp"
+#include "AnalysisManager.hpp"
 
 class LoopSimping : public _PassBase<LoopSimping, Function>
 {
 public:
-  LoopSimping(Function *func) : m_func(func) {} // ³õÊ¼ËùÓĞ³ÉÔ±
+  LoopSimping(Function *func, AnalysisManager &_AM) : m_func(func), AM(_AM) {} // åˆå§‹æ‰€æœ‰æˆå‘˜
   bool run() override
   {
-    // µ÷ÓÃÄúÏÖÓĞµÄ Run() Âß¼­£¬»òÖ±½ÓÊµÏÖ¹¦ÄÜ
-    return Run(); // Èç¹ûÒÑÓĞ Run() µÄÊµÏÖ
+    // è°ƒç”¨æ‚¨ç°æœ‰çš„ Run() é€»è¾‘ï¼Œæˆ–ç›´æ¥å®ç°åŠŸèƒ½
+    return Run(); // å¦‚æœå·²æœ‰ Run() çš„å®ç°
   }
   void PrintPass();
   static void CaculateLoopInfo(Loop *loop, LoopInfoAnalysis *Anlay);
@@ -30,8 +32,8 @@ private:
   void UpdateInfo(std::vector<BasicBlock *> &bbs, BasicBlock *insert, BasicBlock *head, Loop *loop, DominantTree *m_dom);
   void UpdateLoopInfo(BasicBlock *Old, BasicBlock *New, const std::vector<BasicBlock *> &pred);
   LoopInfoAnalysis *loopAnlay;
-  // AnalysisManager &AM;
   std::vector<Loop *> DeleteLoop;
   Function *m_func;
   DominantTree *m_dom;
+  AnalysisManager &AM;
 };

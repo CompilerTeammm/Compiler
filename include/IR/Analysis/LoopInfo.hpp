@@ -1,7 +1,7 @@
 #pragma once
 #include "../../lib/CFG.hpp"
 #include "Dominant.hpp"
-#include "../Opt/AnalysisManager.hpp"
+#include "../Opt/Passbase.hpp"
 #include <cmath>
 // 这一坨就直接加了
 struct LoopTrait
@@ -147,7 +147,7 @@ private:
   bool isSimplified = false;
 };
 
-class LoopInfoAnalysis : public _PassBase<LoopInfoAnalysis, Function>
+class LoopInfoAnalysis : public _AnalysisBase<LoopInfoAnalysis, Function>
 {
 public:
   enum Flag
@@ -167,7 +167,7 @@ public:
        {
          PostOrderDT(bb.get());
        } */
-    run();
+    runAnalysis();
     ExpandSubLoops();
     LoopAnaly();
     CloneToBB();
@@ -184,14 +184,6 @@ public:
       _BBs = &(_func->GetBBs());
     } */
   // void setDest() { Dest = &_dom->BuildDominantTree(); }
-
-  virtual bool run() override
-  {
-
-    runAnalysis(); // 委托给现有的runAnalysis
-
-    return true;
-  }
   // run
   void runAnalysis();
 

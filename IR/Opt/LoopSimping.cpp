@@ -19,7 +19,7 @@ bool LoopSimping::Run()
   {
     auto loop = *iter;
     changed |= SimplifyLoopsImpl(loop, &m_dom);
-    loop->MarkSimplified(); // 直接标记
+    AM.AddAttr(loop->getHeader(), Simplified);
   }
   SimplifyPhi();
   return changed;
