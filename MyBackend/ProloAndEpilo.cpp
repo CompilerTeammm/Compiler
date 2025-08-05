@@ -1,5 +1,6 @@
 #include "../include/MyBackend/ProloAndEpilo.hpp"
 #include "../include/MyBackend/MIR.hpp"
+#include <memory>
 #define INITSIZE 1
 
 // 栈帧的开辟是定死的，我对此进行一个封装
@@ -87,9 +88,15 @@ bool ProloAndEpilo::run()
     size_t StackMallocSize = caculate();
 
     TheSizeofStack = StackMallocSize;
+
+    if(TheSizeofStack <= 4096) { 
     // 生成函数的前言和后序,并且set了
-    CreateProlo(StackMallocSize);
-    CreateEpilo(StackMallocSize);
+        CreateProlo(StackMallocSize);
+        CreateEpilo(StackMallocSize);
+    } else {
+        DealExtraProlo(StackMallocSize);
+        DealExtraEpilo(StackMallocSize);
+    }
 
     bool ret = DealStoreInsts();
     ret = DealLoadInsts();
@@ -211,6 +218,78 @@ void ProloAndEpilo::CreateEpilo(size_t size)
 
     auto spinst = std::make_shared<RISCVInst> (RISCVInst::_addi);
     SetSPOp(spinst,size,_free);
+    InstVec.push_back(spinst);
+
+    mfunc->setEpilogue(it);
+}
+
+void ProloAndEpilo::DealExtraProlo(size_t size)
+{
+    size_t defaultSize = 16;
+    auto it = std::make_shared<RISCVPrologue> ();
+    auto& InstVec = it->getInstsVec();
+    
+    // 开辟栈帧
+    auto spinst = std::make_shared<RISCVInst> (RISCVInst::_addi);
+    SetSPOp(spinst,defaultSize);
+    InstVec.push_back(spinst);
+
+    auto sdRaInst = std::make_shared<RISCVInst> (RISCVInst::_sd);
+    SetsdRaOp(sdRaInst, defaultSize);
+    InstVec.push_back(sdRaInst);
+
+    // 这个存储我认为可能是需要for函数去遍历这个
+    auto sdS0inst = std::make_shared<RISCVInst> (RISCVInst::_sd); 
+    SetsdS0Op(sdS0inst,defaultSize);
+    InstVec.push_back(sdS0inst);
+
+    // 栈指针的赋值
+    auto s0inst = std::make_shared<RISCVInst> (RISCVInst::_addi);
+    SetS0Op(s0inst,defaultSize);
+    InstVec.push_back(s0inst);
+
+    auto liInst = std::make_shared<RISCVInst> (RISCVInst::_li);
+    liInst->SetRealRegister("t0");
+    liInst->SetImmOp(ConstIRInt::GetNewConstant(defaultSize-size));
+    InstVec.push_back(liInst);
+
+    auto addInst = std::make_shared<RISCVInst>(RISCVInst::_add);
+    addInst->SetRealRegister("sp");
+    addInst->SetRealRegister("sp");
+    addInst->SetRealRegister("t0");
+    InstVec.push_back(addInst);
+
+
+    mfunc->setPrologue(it);
+}
+
+void ProloAndEpilo::DealExtraEpilo(size_t size)
+{
+    size_t defaultSize = 16;
+    auto it = std::make_shared<RISCVEpilogue> ();
+    auto& InstVec = it->getInstsVec();
+
+    auto liInst = std::make_shared<RISCVInst> (RISCVInst::_li);
+    liInst->SetRealRegister("t0");
+    liInst->SetImmOp(ConstIRInt::GetNewConstant(size-defaultSize));
+    InstVec.push_back(liInst);
+
+    auto addInst = std::make_shared<RISCVInst>(RISCVInst::_add);
+    addInst->SetRealRegister("sp");
+    addInst->SetRealRegister("sp");
+    addInst->SetRealRegister("t0");
+    InstVec.push_back(addInst);
+
+    auto ldRaInst = std::make_shared<RISCVInst> (RISCVInst::_ld);
+    SetldRaOp(ldRaInst,defaultSize); 
+    InstVec.push_back(ldRaInst);
+
+    auto ldS0inst = std::make_shared<RISCVInst> (RISCVInst::_ld);
+    SetldS0Op(ldS0inst,defaultSize); 
+    InstVec.push_back(ldS0inst);
+
+    auto spinst = std::make_shared<RISCVInst> (RISCVInst::_addi);
+    SetSPOp(spinst,defaultSize,_free);
     InstVec.push_back(spinst);
 
     mfunc->setEpilogue(it);

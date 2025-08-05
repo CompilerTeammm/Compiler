@@ -781,9 +781,21 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         laInst->SetVirRegister();
         laInst->SetAddrOp(inst->GetOperand(2));
 
-        RISCVInst* saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
-        saveS0Inst->SetVirRegister();
-        saveS0Inst->SetRealRegister("s0");
+        int size = std::stoi(val->GetName());
+        RISCVInst* saveS0Inst = nullptr;
+        if ( size <= 4096) {
+            saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
+            saveS0Inst->SetVirRegister();
+            saveS0Inst->SetRealRegister("s0");
+        } else {
+            saveS0Inst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+            saveS0Inst->SetVirRegister();
+
+            RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_add,inst);
+            addInst->push_back(saveS0Inst->getOpreand(0));
+            addInst->SetRealRegister("s0");
+            addInst->push_back(saveS0Inst->getOpreand(0));
+        }
         // saveS0Inst->SetstackOffsetOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
         getCurFunction()->getCurFuncArrStack(saveS0Inst,val,tmpAlloc);
         // how to imm
@@ -912,10 +924,21 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
             sum *= 4;
             if (sum != 0)
             {
-                RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
-                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
-                RInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+                if ( sum <= 4096) {
+                    RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                    RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                    RInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+                } else {
+                    RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+                    liInst->SetVirRegister();
+                    liInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+
+                    RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(liInst->getOpreand(0));
+                }
             }
         }
         else
@@ -1006,11 +1029,25 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             }
             if (flag == 0)
             {
-                RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-                RInst->SetVirRegister();
-                RInst->push_back(RInst->getOpreand(0));
-                RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, RInst)));
-                // gepRecord[nextInst] = getSumOffset(globlVal, inst, addInst);
+                int sum = getSumOffset(globlVal, inst, RInst);
+                if (sum <= 4096) {
+                    RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                    RInst->SetVirRegister();
+                    RInst->push_back(RInst->getOpreand(0));
+                    RInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+                    // gepRecord[nextInst] = getSumOffset(globlVal, inst, addInst);
+                } else {
+
+                    RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+                    liInst->SetVirRegister();
+                    liInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+
+                    RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    RInst->SetVirRegister();
+                    RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(liInst->getOpreand(0));
+                }
+
             }
             else{
                 getDynmicSumOffset(globlVal, inst, RInst, RInst);
@@ -1025,12 +1062,24 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
     else if((getCurFunction()->getGepGloblToLocal()[globlVal]) != nullptr)
     {
         // 找出 栈帧开辟此数组的首地址
-        RISCVInst* addiInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
-        addiInst->SetVirRegister();
-        addiInst->SetRealRegister("s0");
         size_t arroffset = getCurFunction()->getLocalArrToOffset()[globlVal];
-        addiInst->SetstackOffsetOp("-"+std::to_string(arroffset));
+        RISCVInst *addiInst = nullptr;
+        if (arroffset <= 4096)
+        {
+            addiInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+            addiInst->SetVirRegister();
+            addiInst->SetRealRegister("s0");
+            addiInst->SetstackOffsetOp("-" + std::to_string(arroffset));
+        } else {
+            addiInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+            addiInst->SetVirRegister();
+            addiInst->SetstackOffsetOp("-" + std::to_string(arroffset));
 
+            RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+            addInst->push_back(addiInst->getOpreand(0));
+            addInst->SetRealRegister("s0");
+            addInst->push_back(addiInst->getOpreand(0));
+        }
 
         int flag = 0;
         for(int i = inst->GetOperandNums()-1 ; i >= 2 ; i--) {
