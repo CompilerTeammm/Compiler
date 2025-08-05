@@ -116,7 +116,10 @@ void TransFunction::reWritestackOffse(RISCVFunction*& mfunc)
         auto RInst = ctx->mapTrans(inst)->as<RISCVInst>();
         std::string regName = RInst->getOpreand(1)->getName();
         RInst->deleteOp(1);
-        RInst->SetstackOffsetOp(std::to_string(off) +"(" + regName + ")");
+        if (off >= -2048 && off < 2047)
+            RInst->SetstackOffsetOp(std::to_string(off) +"(" + regName + ")");
+        else   
+            RInst->SetstackOffsetOp("0(" + regName + ")");
     }
 }
 

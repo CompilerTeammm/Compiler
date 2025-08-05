@@ -45,4 +45,8 @@ public:
     size_t caculate();
     bool DealStoreInsts();
     bool DealLoadInsts();
+    
+    // size > 2047 的情况
+    void DealExtraEpilo(size_t size);
+    void DealExtraProlo(size_t size);
 };

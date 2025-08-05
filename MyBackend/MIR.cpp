@@ -111,12 +111,14 @@ std::string  RISCVInst::ISAtoAsm()
     if(opCode == _seqz) { return "seqz";}
     if(opCode == _xor) { return "xor";}
     if(opCode == _mul) { return "mul"; }
+    if(opCode == _la) { return "la"; }
  
     return nullptr;
 }
 
 int RISCVBlock::counter = 0;
 std::string RISCVBlock:: getCounter() { 
+    
     return std::to_string(counter++); 
 }
 
@@ -130,6 +132,8 @@ std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
     return succBlocks;
 }
 
+//  有一个函数可以 getLocalArrToOffset
+//  RInst--> 后端语句    val---> size     alloca  ---> allocaInst*
 void RISCVFunction::getCurFuncArrStack(RISCVInst*& RInst,Value* val,Value* alloca)
 {
     arroffset += std::stoi(val->GetName());
