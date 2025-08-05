@@ -26,42 +26,49 @@ include_directories(
 )
 
 file(GLOB_RECURSE SOURCES
-  main.cpp
-  IR/Analysis/IDF.cpp
-  IR/Analysis/Dominant.cpp
-  IR/Analysis/SideEffect.cpp
-  IR/Analysis/AliasAnalysis.cpp
-  IR/Analysis/IDF.cpp
-  IR/Opt/Mem2reg.cpp
-  IR/Opt/MemoryToRegister.cpp
-  IR/Opt/DCE.cpp
-  IR/Opt/ConstantFold.cpp
-  IR/Opt/ConstantProp.cpp
-  IR/Opt/GVN.cpp
-  IR/Opt/DealOps.cpp
+  # main.cpp
+  # IR/Analysis/IDF.cpp
+  # IR/Analysis/Dominant.cpp
+  # IR/Analysis/SideEffect.cpp
+  # IR/Analysis/AliasAnalysis.cpp
+  # IR/Analysis/IDF.cpp
+  # IR/Opt/Mem2reg.cpp
+  # IR/Opt/MemoryToRegister.cpp
+  # IR/Opt/DCE.cpp
+  # IR/Opt/ConstantFold.cpp
+  # IR/Opt/ConstantProp.cpp
+  # IR/Opt/GVN.cpp
+  # IR/Opt/DealOps.cpp
 
-  IR/Opt/SSAPRE.cpp
-  IR/Opt/SimplifyCFG.cpp
-  IR/Opt/DSE.cpp
-  IR/Opt/SelfStoreElimination.cpp
-  IR/Opt/LoopSimping.cpp
-  IR/Opt/LoopParing.cpp
-  IR/Opt/LoopUnrolling.cpp
-  IR/Analysis/LoopInfo.cpp
+  # IR/Opt/SSAPRE.cpp
+  # IR/Opt/SimplifyCFG.cpp
+  # IR/Opt/DSE.cpp
+  # IR/Opt/SelfStoreElimination.cpp
+  # IR/Opt/LoopSimping.cpp
+  # IR/Opt/LoopParing.cpp
+  # IR/Opt/LoopUnrolling.cpp
+  # IR/Analysis/LoopInfo.cpp
 
-  IR/Opt/Inliner.cpp
-  IR/Opt/TRE.cpp
-  IR/Opt/SOGE.cpp
-  IR/Opt/ECE.cpp
-  IR/Opt/GepCombine.cpp
-  IR/Opt/GepEval.cpp
+  # IR/Opt/Inliner.cpp
+  # IR/Opt/TRE.cpp
+  # IR/Opt/SOGE.cpp
+  # IR/Opt/ECE.cpp
+  # IR/Opt/GepCombine.cpp
+  # IR/Opt/GepEval.cpp
 
-  MyBackend/*.cpp
-  Log/log.cpp
+  # MyBackend/*.cpp
+  # Log/log.cpp
 
+  # lib/*.cpp
+  # yacc/scanner_output.cpp       
+  # yacc/parser_output.cpp 
+  
+  main.cpp 
+  yacc/*.cpp
+  IR/*.cpp
   lib/*.cpp
-  yacc/scanner_output.cpp       
-  yacc/parser_output.cpp 
+  Log/*.cpp
+  MyBackend/*.cpp
 )
 
 list(REMOVE_ITEM ALL_HEADERS
