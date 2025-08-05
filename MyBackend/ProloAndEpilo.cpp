@@ -27,16 +27,19 @@ bool ProloAndEpilo:: DealStoreInsts()
     std::set<AllocaInst*> tmp;
     for (auto& alloc:mfunc->getAllocas())
     {
-        AOffsetRecord[alloc] = offset;
         auto it = alloc->GetType()->GetLayer();
         auto it2 =  dynamic_cast<PointerType*> (alloc->GetType())->GetSubType()->GetTypeEnum();
         if(alloc->GetType()->GetLayer() > 1)
             if (dynamic_cast<PointerType*>(alloc->GetType())->GetSubType()->GetTypeEnum() == IR_ARRAY)
                 offset += 0;
-            else 
+            else {
+                if (offset %8 != 0)
+                    offset-=4;
                 offset -= 8;
+            }
         else 
             offset -= 4;
+        AOffsetRecord[alloc] = offset;
     }
 
     for(auto[StackInst,alloc] : MallocVec)
@@ -138,6 +141,7 @@ size_t ProloAndEpilo::caculate()
     while (N * ALIGN < sumMallocSize)   N++;
 
     size_t size = (N + INITSIZE) * ALIGN;
+    size += 32;
     return size; 
 }
 

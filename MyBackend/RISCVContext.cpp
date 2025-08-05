@@ -282,6 +282,8 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
             if (inst->GetOperand(1)->GetType()->GetLayer() > 1)
             {
                 SwInst = CreateInstAndBuildBind(RISCVInst::_sd, inst);
+                curMfunc->sdNums++;
+                
                 // SwInst->setStoreOp(Inst);
                 auto it = mapTrans(inst->GetOperand(0))->as<Register>();
                 auto Rop = std::make_shared<Register>(it->getRegop());

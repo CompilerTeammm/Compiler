@@ -666,6 +666,8 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
 public:
     offset arroffset = 16;
     offset defaultSize = 16;
+
+    int sdNums = 0;
 private:
     // 处理数组，局部与全局的处理
     std::map<Instruction*,offset> recordGepOffset;
