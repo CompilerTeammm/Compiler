@@ -52,6 +52,7 @@ public:
         if (lvl == O1){
             //启用全部中端优化
             enabledPasses={
+                "SSE",
                 // 前期规范化
                 "mem2reg",
                 "sccp", 
@@ -66,7 +67,7 @@ public:
                 
 
                 // 局部清理
-                "SSE",
+                
                 // "TRE",
                 "CondMerge",
 
@@ -119,6 +120,13 @@ public:
                 DominantTree tree(func);
                 tree.BuildDominantTree();
                 Mem2reg(func, &tree).run();
+
+                for (auto& bb_ptr : func->GetBBs()) {
+                    BasicBlock* B = bb_ptr.get();
+                    if (!B) continue;
+                    B->PredBlocks = tree.getPredBBs(B);
+                    B->NextBlocks = tree.getSuccBBs(B);
+                    }
             }
         }
 
@@ -169,6 +177,13 @@ public:
                 AM.add<DominantTree>(fun, &tree);
                 AM.add<SideEffect>(&Singleton<Module>(), se);
                 SelfStoreElimination(fun,AM).run();
+                //如果先跑SSE那就把这个打开
+                // for (auto& bb_ptr : fun->GetBBs()) {
+                //     BasicBlock* B = bb_ptr.get();
+                //     if (!B) continue;
+                //     B->PredBlocks = tree.getPredBBs(B);
+                //     B->NextBlocks = tree.getSuccBBs(B);
+                //     }
             }
         }
 
