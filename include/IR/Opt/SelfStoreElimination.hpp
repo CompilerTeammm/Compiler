@@ -11,6 +11,7 @@ class SelfStoreElimination : public _PassBase<SelfStoreElimination, Function>{
 private:
     Function* func;
     DominantTree* tree;
+    SideEffect* sideEffect;
     std::set<User*> wait_del;
     std::vector<BasicBlock*> DFSOrder;
     AnalysisManager &AM;
@@ -21,7 +22,10 @@ private:
     void removeInsts();
 
 public:
-    SelfStoreElimination(Function* _func, AnalysisManager &_AM) :func(_func),AM(_AM){};
+    SelfStoreElimination(Function* _func, AnalysisManager &_AM) :func(_func),AM(_AM){
+        tree = AM.get<DominantTree>(func);
+        sideEffect = AM.get<SideEffect>(&Singleton<Module>());
+    };
     ~SelfStoreElimination() = default;
 
     bool run() override;

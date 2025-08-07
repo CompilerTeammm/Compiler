@@ -16,6 +16,7 @@
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
+#include "CondMerge.hpp"
 #include "../Analysis/SideEffect.hpp"
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
@@ -31,6 +32,7 @@ enum OptLevel {
     None,
     O1,
     Test,     // --test=GVN,DCE
+    hu1_test
 };
 
 class PassManager{
@@ -53,19 +55,20 @@ public:
                 // 前期规范化
                 "mem2reg",
                 "sccp", 
-                "SCFG",
+                // "SCFG",
                 
-                "ECE",
+                // "ECE",
                 // 过程间优化
-                "inline",
+                // "inline",
 
-                "SOGE",
+                // "SOGE",
 
                 
 
                 // 局部清理
-                // "SSE",
-                "TRE",
+                "SSE",
+                // "TRE",
+                "CondMerge",
 
                 // 循环优化
                 // "Loop_Simplifying",
@@ -74,15 +77,15 @@ public:
                 // 数据流优化
                 // "SSAPRE",
                 //"GVN",
-                "DCE",
+                // "DCE",
 
                 //数组重写
-                "gepcombine",
+                // "gepcombine",
 
 
                 //后端准备
 
-
+                
 
             };
         } else if(lvl == None){
@@ -156,13 +159,26 @@ public:
 
         // 局部清理
         if(IsEnabled("SSE")){
+            SideEffect* se = new SideEffect(&Singleton<Module>());
+            se->GetResult();
             for(auto &function : funcVec)
             {
                 auto fun = function.get();
                 DominantTree tree(fun);
                 tree.BuildDominantTree();
                 AM.add<DominantTree>(fun, &tree);
+                AM.add<SideEffect>(&Singleton<Module>(), se);
                 SelfStoreElimination(fun,AM).run();
+            }
+        }
+
+        if(IsEnabled("CondMerge")){
+            for(auto &function :funcVec){
+                auto fun=function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+                AM.add<DominantTree>(fun, &tree);
+                CondMerge(fun,AM).run();
             }
         }
 
