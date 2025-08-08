@@ -242,6 +242,8 @@ public:
     u->usee = val;
     val->add_use(u);
   }
+  bool HasSideEffect();
+  bool IsTerminateInst();
   void ReplaceSomeUseWith(int num, Operand val); // ww RSUW
   void ReplaceSomeUseWith(Use *use, Operand val);
   /*   void RSUW(int num, Operand val)

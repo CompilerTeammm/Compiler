@@ -2130,3 +2130,41 @@ PhiInst *PhiInst::NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, Typ
     tmp->id = Op::Phi;
     return tmp;
 }
+
+bool Function::MemWrite()
+{
+    for (auto bb : *this)
+        for (auto inst : *bb)
+        {
+            if (dynamic_cast<StoreInst *>(inst))
+                return true;
+        }
+    return false;
+}
+
+bool Function::MemRead()
+{
+    for (auto bb : *this)
+        for (auto inst : *bb)
+        {
+            if (dynamic_cast<LoadInst *>(inst) ||
+                dynamic_cast<GepInst *>(inst))
+                return true;
+        }
+    return false;
+}
+
+BasicBlock *PhiInst::ReturnBBIn(Use *use)
+{
+    int num = UseRecord[use];
+    return PhiRecord[num].second;
+}
+
+void Function::RenumberBBs()
+{
+    num = 0;
+    for (auto &bb : GetBBs())
+    {
+        bb->num = num++;
+    }
+}

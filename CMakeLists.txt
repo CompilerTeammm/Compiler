@@ -26,6 +26,7 @@ include_directories(
 )
 
 file(GLOB_RECURSE SOURCES
+<<<<<<< HEAD
   # main.cpp
   # IR/Analysis/IDF.cpp
   # IR/Analysis/Dominant.cpp
@@ -48,6 +49,32 @@ file(GLOB_RECURSE SOURCES
   # IR/Opt/LoopParing.cpp
   # IR/Opt/LoopUnrolling.cpp
   # IR/Analysis/LoopInfo.cpp
+=======
+  main.cpp
+  IR/Analysis/IDF.cpp
+  IR/Analysis/Dominant.cpp
+  IR/Analysis/SideEffect.cpp
+  IR/Analysis/AliasAnalysis.cpp
+  IR/Analysis/IDF.cpp
+  IR/Analysis/LoopInfo.cpp
+  IR/Opt/Mem2reg.cpp
+  IR/Opt/MemoryToRegister.cpp
+  IR/Opt/DCE.cpp
+  IR/Opt/ConstantFold.cpp
+  IR/Opt/ConstantProp.cpp
+  IR/Opt/GVN.cpp
+  IR/Opt/DealOps.cpp
+
+  IR/Opt/SSAPRE.cpp
+  IR/Opt/SimplifyCFG.cpp
+  IR/Opt/DSE.cpp
+  IR/Opt/SelfStoreElimination.cpp
+  IR/Opt/LoopSimping.cpp
+  IR/Opt/LoopRotaing.cpp
+  IR/Opt/LoopParing.cpp
+  IR/Opt/LoopUnrolling.cpp
+  IR/Analysis/LoopInfo.cpp
+>>>>>>> ba98cdc (rota)
 
   # IR/Opt/Inliner.cpp
   # IR/Opt/TRE.cpp

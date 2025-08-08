@@ -742,6 +742,7 @@ public:
   void FormatPhi();
   void ModifyBlock(BasicBlock *Old, BasicBlock *New);
   void ReplaceVal(Use *use, Value *new_val);
+  BasicBlock *ReturnBBIn(Use *use);
   // void RSUW(Use *u, Operand val)//移到基类User了，更通用
   // {
   //   u->RemoveFromValUseList(this);
@@ -866,6 +867,15 @@ public:
       return nullptr;
     return NextBlocks[i];
   }
+  friend bool operator==(const std::shared_ptr<BasicBlock> &lhs, BasicBlock *rhs)
+  {
+    return lhs.get() == rhs;
+  }
+
+  friend bool operator==(BasicBlock *lhs, const std::shared_ptr<BasicBlock> &rhs)
+  {
+    return lhs == rhs.get();
+  }
 };
 
 class BuiltinFunc : public Value
@@ -938,7 +948,8 @@ public:
   std::pair<Value *, BasicBlock *> InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping);
   std::pair<size_t, size_t> &GetInlineInfo();
   inline void ClearInlineInfo() { inlineinfo.first = inlineinfo.second = 0; };
-
+  bool MemWrite();
+  bool MemRead();
   // 封装了一个链表操作ww
   void InsertBlockAfter(BasicBlock *pos, BasicBlock *new_bb);
   bool isRecursive(bool = true);
@@ -951,6 +962,7 @@ public:
       bb->visited = false;
     }
   }
+  void RenumberBBs();
 };
 
 class Module : public SymbolTable
