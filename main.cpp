@@ -10,8 +10,8 @@
 #include "Log/log.hpp"
 #include <filesystem>
 
-#define OPT
-// #define backend
+// #define OPT
+#define backend
 
 extern FILE *yyin;
 extern int optind, opterr, optopt;
@@ -20,7 +20,7 @@ std::string asmoutput_path;
 void copyFile(const std::string &sourcePath, const std::string &destinationPath) {
   std::ifstream source(sourcePath, std::ios::binary);
   std::ofstream destination(destinationPath, std::ios::binary);
-  destination << source.rdbuf();
+//   destination << source.rdbuf();
 }
 
 // hu1 add it:解析 --test=xxx,yyy
