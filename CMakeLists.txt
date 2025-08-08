@@ -26,7 +26,6 @@ include_directories(
 )
 
 file(GLOB_RECURSE SOURCES
-<<<<<<< HEAD
   # main.cpp
   # IR/Analysis/IDF.cpp
   # IR/Analysis/Dominant.cpp
@@ -49,7 +48,7 @@ file(GLOB_RECURSE SOURCES
   # IR/Opt/LoopParing.cpp
   # IR/Opt/LoopUnrolling.cpp
   # IR/Analysis/LoopInfo.cpp
-=======
+
   main.cpp
   IR/Analysis/IDF.cpp
   IR/Analysis/Dominant.cpp
@@ -74,7 +73,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/LoopParing.cpp
   IR/Opt/LoopUnrolling.cpp
   IR/Analysis/LoopInfo.cpp
->>>>>>> ba98cdc (rota)
+
 
   # IR/Opt/Inliner.cpp
   # IR/Opt/TRE.cpp
