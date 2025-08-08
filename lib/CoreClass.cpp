@@ -424,7 +424,8 @@ void User::ReplaceSomeUseWith(int num, Operand val)
   assert(0 <= num && num < uselist.size() && "Invalid Location!");
   uselist[num]->RemoveFromValUseList(this);
   uselist[num]->usee = val;
-  val->add_use(uselist[num].get());
+  if (val)  // DCE 用 nullptr 去当做的替换值，nullptr 并不需要维护关系
+    val->add_use(uselist[num].get());
 }
 
 bool User::IsTerminateInst()

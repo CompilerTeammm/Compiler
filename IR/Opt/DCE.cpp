@@ -20,8 +20,7 @@ bool DCE::hasSideEffect(Instruction* inst)
             || inst->IsCallInst();
 }
 
-bool DCE::DCEInstruction(Instruction* I,
-                          std::vector<Instruction*> &WorkList)
+bool DCE::DCEInstruction(Instruction* I, std::vector<Instruction*> &WorkList)
 {
    if(isInstructionTriviallyDead(I))
    {
