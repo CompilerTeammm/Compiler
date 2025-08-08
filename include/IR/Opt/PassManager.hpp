@@ -16,7 +16,6 @@
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
-#include "CondMerge.hpp"
 #include "../Analysis/SideEffect.hpp"
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
@@ -187,15 +186,15 @@ public:
             }
         }
 
-        if(IsEnabled("CondMerge")){
-            for(auto &function :funcVec){
-                auto fun=function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                CondMerge(fun,AM).run();
-            }
-        }
+        // if(IsEnabled("CondMerge")){
+        //     for(auto &function :funcVec){
+        //         auto fun=function.get();
+        //         DominantTree tree(fun);
+        //         tree.BuildDominantTree();
+        //         AM.add<DominantTree>(fun, &tree);
+        //         CondMerge(fun,AM).run();
+        //     }
+        // }
 
         if(IsEnabled("TRE")){
             for (auto &function : funcVec)
