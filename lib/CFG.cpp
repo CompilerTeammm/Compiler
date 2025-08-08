@@ -1815,6 +1815,28 @@ void PhiInst::removeIncomingFrom(BasicBlock *fromBB)
         }
     }
 }
+void PhiInst::ReplaceIncomingBlock(BasicBlock* oldBB, BasicBlock* newBB) {
+    int oldIndex = -1;
+    bool newExists = false;
+
+    // 找到oldBB对应索引，检查newBB是否存在
+    for (auto& [idx, val] : PhiRecord) {
+        if (val.second == oldBB) oldIndex = idx;
+        if (val.second == newBB) newExists = true;
+    }
+
+    if (oldIndex == -1) return; // oldBB没找到，不做改动
+
+    if (newExists) {
+        // newBB已存在，删除oldBB记录
+        PhiRecord.erase(oldIndex);
+        oprandNum--;
+    } else {
+        // 直接替换oldBB为newBB
+        PhiRecord[oldIndex].second = newBB;
+    }
+}
+
 BasicBlock *BasicBlock::SplitAt(User *inst)
 {
     auto tmp = new BasicBlock();
@@ -2129,4 +2151,42 @@ PhiInst *PhiInst::NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, Typ
         tmp->SetName(Name);
     tmp->id = Op::Phi;
     return tmp;
+}
+
+bool Function::MemWrite()
+{
+    for (auto bb : *this)
+        for (auto inst : *bb)
+        {
+            if (dynamic_cast<StoreInst *>(inst))
+                return true;
+        }
+    return false;
+}
+
+bool Function::MemRead()
+{
+    for (auto bb : *this)
+        for (auto inst : *bb)
+        {
+            if (dynamic_cast<LoadInst *>(inst) ||
+                dynamic_cast<GepInst *>(inst))
+                return true;
+        }
+    return false;
+}
+
+BasicBlock *PhiInst::ReturnBBIn(Use *use)
+{
+    int num = UseRecord[use];
+    return PhiRecord[num].second;
+}
+
+void Function::RenumberBBs()
+{
+    num = 0;
+    for (auto &bb : GetBBs())
+    {
+        bb->num = num++;
+    }
 }

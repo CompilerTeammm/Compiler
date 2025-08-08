@@ -742,6 +742,7 @@ public:
   void FormatPhi();
   void ModifyBlock(BasicBlock *Old, BasicBlock *New);
   void ReplaceVal(Use *use, Value *new_val);
+  BasicBlock *ReturnBBIn(Use *use);
   // void RSUW(Use *u, Operand val)//移到基类User了，更通用
   // {
   //   u->RemoveFromValUseList(this);
@@ -755,7 +756,9 @@ public:
   //  %r = phi i32 [ %b, %bb2 ]
   // 但需要注意,如果删完了之后是空phi了,需要自己删除掉这条指令
   void removeIncomingFrom(BasicBlock *fromBB);
-
+  //hu1 add it
+  //做了“前驱块替换”并且防止重复条目出现。
+  void ReplaceIncomingBlock(BasicBlock* oldBB, BasicBlock* newBB);
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
   void SetIncomingBlock(int index, BasicBlock *bb)
@@ -866,6 +869,15 @@ public:
       return nullptr;
     return NextBlocks[i];
   }
+  friend bool operator==(const std::shared_ptr<BasicBlock> &lhs, BasicBlock *rhs)
+  {
+    return lhs.get() == rhs;
+  }
+
+  friend bool operator==(BasicBlock *lhs, const std::shared_ptr<BasicBlock> &rhs)
+  {
+    return lhs == rhs.get();
+  }
 };
 
 class BuiltinFunc : public Value
@@ -938,7 +950,8 @@ public:
   std::pair<Value *, BasicBlock *> InlineCall(CallInst *inst, std::unordered_map<Operand, Operand> &OperandMapping);
   std::pair<size_t, size_t> &GetInlineInfo();
   inline void ClearInlineInfo() { inlineinfo.first = inlineinfo.second = 0; };
-
+  bool MemWrite();
+  bool MemRead();
   // 封装了一个链表操作ww
   void InsertBlockAfter(BasicBlock *pos, BasicBlock *new_bb);
   bool isRecursive(bool = true);
@@ -951,6 +964,7 @@ public:
       bb->visited = false;
     }
   }
+  void RenumberBBs();
 };
 
 class Module : public SymbolTable

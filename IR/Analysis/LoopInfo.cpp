@@ -2,16 +2,21 @@
 
 bool Loop::ContainBB(BasicBlock *bb)
 {
-  if (bb == Header)
+  std::unordered_set<BasicBlock *> assist{this->BBs.begin(), this->BBs.end()};
+  assist.insert(Header);
+  if (assist.find(bb) != assist.end())
     return true;
-  return std::find(this->BBs.begin(), this->BBs.end(), bb) != this->BBs.end();
+  return false;
 }
 
 bool Loop::ContainLoop(Loop *loop)
 {
-  if (loop == Parent)
+  if (loop == this)
     return true;
-  return std::find(Loops.begin(), Loops.end(), loop) != Loops.end();
+  if (!loop)
+    return false;
+
+  return ContainLoop(loop->GetParent());
 }
 
 void LoopInfoAnalysis::runAnalysis()
@@ -159,7 +164,11 @@ bool LoopInfoAnalysis::ContainsBlock(Loop *loop, BasicBlock *bb)
 
 bool LoopInfoAnalysis::isLoopExiting(Loop *loop, BasicBlock *bb)
 {
-  return std::find(getExitingBlocks(loop).begin(), getExitingBlocks(loop).end(), bb) != getExitingBlocks(loop).end();
+  auto exiting = getExitingBlocks(loop);
+  auto it = std::find(exiting.begin(), exiting.end(), bb);
+  if (it != exiting.end())
+    return true;
+  return false;
 }
 
 void LoopInfoAnalysis::getLoopDepth(Loop *loop, int depth)
@@ -220,20 +229,6 @@ BasicBlock *LoopInfoAnalysis::getLoopHeader(BasicBlock *bb)
   return iter->second->getHeader();
 }
 
-std::vector<BasicBlock *> LoopInfoAnalysis::getOverBlocks(Loop *loop)
-{
-  std::vector<BasicBlock *> workList;
-  for (auto bb : loop->getLoopBody())
-  {
-    for (auto curbb : _dom->getSuccBBs(bb))
-    {
-      // if (!ContainsBlock(loop, curbb))
-      // PushVecSingleVal(workList, curbb);
-    }
-  }
-  return workList;
-}
-
 std::vector<BasicBlock *> LoopInfoAnalysis::GetExit(Loop *loop)
 {
   std::vector<BasicBlock *> workList;
@@ -251,13 +246,16 @@ std::vector<BasicBlock *> LoopInfoAnalysis::GetExit(Loop *loop)
 
 std::vector<BasicBlock *> LoopInfoAnalysis::getExitingBlocks(Loop *loop)
 {
-  std::vector<BasicBlock *> exit = getOverBlocks(loop);
+  std::vector<BasicBlock *> exit = GetExit(loop);
   std::vector<BasicBlock *> exiting;
   for (auto bb : exit)
   {
     for (auto rev : _dom->getPredBBs(bb))
     {
-      // if (ContainsBlock(loop, rev))
+      if (ContainsBlock(loop, rev))
+      {
+        exiting.push_back(_dom->getNode(rev)->curBlock);
+      }
       // PushVecSingleVal(exiting, rev);
     }
   }
@@ -308,7 +306,7 @@ void LoopInfoAnalysis::newBB(BasicBlock *Old, BasicBlock *New)
   while (loop)
   {
     loop->deleteBB(Old);
-    loop->addLoopBody(New);
+    loop->InsertLoopBody(New);
     loop = loop->GetParent();
   }
 }
@@ -411,4 +409,24 @@ void LoopInfoAnalysis::ReplBlock(BasicBlock *Old, BasicBlock *New)
     loop->InsertLoopBody(New);
     loop = loop->GetParent();
   }
+}
+
+bool LoopInfoAnalysis::IsLoopInvariant(const std::set<BasicBlock *> &contain, User *I, Loop *curloop)
+{
+  bool res =
+      std::all_of(I->GetUserUseList().begin(), I->GetUserUseList().end(),
+                  [curloop, &contain](auto &ele)
+                  {
+                    auto val = ele->GetValue();
+                    if (auto user = dynamic_cast<User *>(val))
+                    {
+                      if (user->isParam())
+                        return true;
+                      auto user1 = dynamic_cast<Instruction *>(user);
+                      if (contain.find(user1->GetParent()) != contain.end())
+                        return false;
+                    }
+                    return true;
+                  });
+  return res;
 }

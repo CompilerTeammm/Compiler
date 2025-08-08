@@ -43,20 +43,17 @@ public:
 
   // 单个循环重写成一个“基本块列表”
   void addHeader(BasicBlock *BB) { Header = BB; }
-  void addLoopBody(BasicBlock *BB)
-  {
-    // PushVecSingleVal(BBs, BB);
-  }
+
   void addLatch(BasicBlock *BB)
   {
     Latch = BB;
-    // PushVecSingleVal(BBs, BB);
+    InsertLoopBody(BB);
   }
   void deleteBB(BasicBlock *BB)
   {
     auto iter = std::find(BBs.begin(), BBs.end(), BB);
-    if (iter != BBs.end())
-      BBs.erase(iter);
+    assert(iter != BBs.end());
+    BBs.erase(iter);
   }
   BasicBlock *getHeader() { return Header; }
   BasicBlock *getLatch() { return Latch; }
@@ -128,7 +125,6 @@ public:
     InsertLoopBody(bb);
   }
 
-private:
   // 单个循环
   std::vector<BasicBlock *> BBs; // 一个循环重写成“基本块列表”
   BasicBlock *Header = nullptr;  // 单个循环头
@@ -145,6 +141,7 @@ private:
   BasicBlock *PreHeader = nullptr; // 前驱头
   // important
   bool isSimplified = false;
+  int RotateTimes = 0;
 };
 
 class LoopInfoAnalysis : public _AnalysisBase<LoopInfoAnalysis, Function>
@@ -200,12 +197,12 @@ public:
   BasicBlock *getLatch(Loop *loop);
 
   // 循环退出、循环跳转
-  std::vector<BasicBlock *> getOverBlocks(Loop *loop);
+
   std::vector<BasicBlock *> getExitingBlocks(Loop *loop);
 
   // 删除
-  void deleteLoop(Loop *loop);
   void deleteBB(BasicBlock *bb);
+  void deleteLoop(Loop *loop);
 
   // 功能
   void newBB(BasicBlock *oldBB, BasicBlock *newBB);
@@ -226,8 +223,8 @@ public:
   bool IsLoopIncludeBB(Loop *loop, BasicBlock *bb);
   std::vector<BasicBlock *> GetExit(Loop *loopinfo);
   void ReplBlock(BasicBlock *Old, BasicBlock *New);
-  bool IsLoopInvariant(const std::set<BasicBlock *> &contain, User *I, Loop *curloop);
-
+  static bool IsLoopInvariant(const std::set<BasicBlock *> &contain, User *I, Loop *curloop);
+  std::vector<Loop *> GetLoops() { return LoopRecord; }
   ~LoopInfoAnalysis()
   {
     for (auto loop : LoopRecord)
