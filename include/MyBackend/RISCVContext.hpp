@@ -46,7 +46,6 @@ public:
     std::vector<MFuncPtr>& getMfuncs() {    return Mfuncs;  }
 
     void setCurFunction(RISCVFunction* func) {   curMfunc = func;  }
-
     RISCVFunction* getCurFunction() { return curMfunc; }
 
     RISCVOp* Create(Value*);
@@ -76,7 +75,6 @@ public:
     {
         BasicBlock *BB = Inst->GetParent();
         auto it = mapTrans(BB)->as<RISCVBlock>();
-        
         it->push_back(RCInst);
         // Inst 把 BB 设为 Parent，貌似 在 push_back 之后已经建立了父子关系 
         // RCInst->SetManager(it);
@@ -86,8 +84,7 @@ public:
     void extraDealStoreInst(RISCVInst* RISCVinst,StoreInst* inst);
     void extraDealLoadInst(RISCVInst* RISCVinst,LoadInst* inst);
 
-    void extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,
-                                        Instruction* CmpInst);
+    void extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,Instruction* CmpInst);
     void extraDealBeqInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst);    
 
 
