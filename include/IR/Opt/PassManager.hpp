@@ -27,6 +27,8 @@
 #include "ECE.hpp"
 #include "GepCombine.hpp"
 #include "GepEval.hpp"
+#include "LoopRotaing.hpp"
+#include "LoopSimping.hpp"
 
 enum OptLevel
 {
@@ -74,8 +76,9 @@ public:
                 "CondMerge",
 
                 // 循环优化
-                // "Loop_Simplifying",
-                // "Loop_Unrolling",
+                "Loop_Simplifying",
+                "Loop_Rotaing"
+                //"Loop_Unrolling",
 
                 // 数据流优化
                 // "SSAPRE",
@@ -211,7 +214,7 @@ public:
                 AM.add<DominantTree>(fun, &tree);
                 CondMerge(fun, AM).run();
             }
-        } 
+        }
 
         if (IsEnabled("TRE"))
         {
@@ -224,14 +227,33 @@ public:
         }
 
         // 循环优化
-        // if(IsEnabled("Loop_Simplifying")){
-        //     for (auto &function : funcVec)
-        //     {
-        //         auto fun = function.get();
-        //         AnalysisManager *AM;
-        //         Loop_Simplying(fun, AM).run();
-        //     }
-        // }
+        if (IsEnabled("Loop_Simplifying"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+
+                AM.add<DominantTree>(fun, &tree);
+                LoopSimping LoopSimping(fun, AM);
+                LoopSimping.run();
+            }
+        }
+
+        if (IsEnabled("Loop_Rotaing"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+
+                AM.add<DominantTree>(fun, &tree);
+                LoopRotaing Loop_Rotaing(fun, AM);
+                Loop_Rotaing.run();
+            }
+        }
 
         if (IsEnabled("Loop_Unrolling"))
         {
