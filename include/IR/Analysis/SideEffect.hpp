@@ -26,9 +26,10 @@ private:
     void VisitFunc(Function* entry, std::set<Function*>& visited);
     void DetectRecursive();//递归检测
     void AnalyzeFuncSideEffect(Function* func);
-    bool FuncHasSideEffect(Function* func);
 
 public:
     SideEffect(Module* mod,bool Judge_=true) : module(mod),Judge(Judge_) {}
     void* GetResult() { RunOnModule(module); return this; }
+
+    bool FuncHasSideEffect(Function* func);
 };

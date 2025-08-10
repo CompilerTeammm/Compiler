@@ -29,6 +29,8 @@ file(GLOB_RECURSE SOURCES
   main.cpp
   IR/Analysis/IDF.cpp
   IR/Analysis/Dominant.cpp
+  IR/Analysis/SideEffect.cpp
+  IR/Analysis/AliasAnalysis.cpp
   IR/Analysis/IDF.cpp
   IR/Opt/Mem2reg.cpp
   IR/Opt/MemoryToRegister.cpp
@@ -40,9 +42,12 @@ file(GLOB_RECURSE SOURCES
 
   IR/Opt/SSAPRE.cpp
   IR/Opt/SimplifyCFG.cpp
-  IR/Opt/LoopParing.cpp
   IR/Opt/DSE.cpp
   IR/Opt/SelfStoreElimination.cpp
+  IR/Opt/CodeMerge.cpp
+
+  IR/Opt/LoopSimping.cpp
+  IR/Opt/LoopParing.cpp
   IR/Opt/LoopUnrolling.cpp
   IR/Analysis/LoopInfo.cpp
 
@@ -59,6 +64,13 @@ file(GLOB_RECURSE SOURCES
   lib/*.cpp
   yacc/scanner_output.cpp       
   yacc/parser_output.cpp 
+  
+  main.cpp 
+  yacc/*.cpp
+  IR/*.cpp
+  lib/*.cpp
+  Log/*.cpp
+  MyBackend/*.cpp
 )
 
 list(REMOVE_ITEM ALL_HEADERS

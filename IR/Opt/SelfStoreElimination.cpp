@@ -8,14 +8,15 @@ bool SelfStoreElimination::run() {
     OrderBlock(func->front);
     std::reverse(DFSOrder.begin(), DFSOrder.end());
 
+    // 如果整个函数有副作用，则跳过优化，保守处理
+    // if (sideEffect && sideEffect->FuncHasSideEffect(func)) {
+    //     std::cerr << "[SSE] skipped due to side effect: " << func->GetName() << "\n";
+    //     return false;
+    // }
+
     std::unordered_map<Value*, std::vector<User*>> storeMap;
     CollectStoreInfo(storeMap); // 收集“每个地址”上的所有 store
     CheckSelfStore(storeMap); // 保守判断冗余并插入待删列表
-
-    for (auto &[key, vec] : storeMap) {
-        for (auto inst : vec)
-            wait_del.insert(inst);
-    }
 
     removeInsts();
 
@@ -43,7 +44,8 @@ void SelfStoreElimination::CollectStoreInfo(std::unordered_map<Value*, std::vect
 
                 //GEP->ALLOCA
                 if(auto* gep=dynamic_cast<GepInst*>(dst)){
-                    if (auto* alloca = dynamic_cast<AllocaInst*>(gep->GetUserUseList()[0]->usee)) {
+                    Value* gep_base = gep->GetOperand(0);
+                    if (auto* alloca = dynamic_cast<AllocaInst*>(gep_base)) {
                         storeMap[alloca].push_back(store);
                     }
                 }else if(auto* alloca = dynamic_cast<AllocaInst*>(dst)){
@@ -54,75 +56,118 @@ void SelfStoreElimination::CollectStoreInfo(std::unordered_map<Value*, std::vect
             }
         }
     }
+    for (auto& [val, list] : storeMap) {
+        std::cerr << "[Collect] Store target: " << val->GetName() << ", Count: " << list.size() << "\n";
+    }
 }
 
-void SelfStoreElimination::CheckSelfStore(std::unordered_map<Value*, std::vector<User*>>& storeMap){
-    for (auto* bb : DFSOrder){
-        for (auto* inst : *bb){
-            // case1: store(load(x), x)
-            if (auto* store = dynamic_cast<StoreInst*>(inst)){
-                if (auto* load = dynamic_cast<LoadInst*>(store->GetOperand(0))){
-                    Value* load_src =load->GetUserUseList()[0]->usee;
-                    Value* store_dst = store->GetOperand(1);
+static bool IsSameGEP(Value* a, Value* b) {
+    auto* gep1 = dynamic_cast<GepInst*>(a);
+    auto* gep2 = dynamic_cast<GepInst*>(b);
+    if (!gep1 || !gep2) return false;
 
-                    if (load_src == store_dst){
-                        if (auto* alloca = dynamic_cast<AllocaInst*>(load_src)) {
-                            storeMap.erase(alloca);
-                        }else{
-                            storeMap.erase(load_src);
+    if (gep1->GetOperandNums() != gep2->GetOperandNums())
+        return false;
+
+    for (int i = 0; i < gep1->GetOperandNums(); ++i) {
+        if (gep1->GetOperand(i) != gep2->GetOperand(i))
+            return false;
+    }
+    return true;
+}
+
+
+
+void SelfStoreElimination::CheckSelfStore(std::unordered_map<Value*, std::vector<User*>>& storeMap) {
+    std::set<Value*> unsafe_addr;
+
+    for (auto* bb : DFSOrder) {
+        for (auto* inst : *bb) {
+            // case 1: 自写入 store(load(x), x)
+            if (auto* store = dynamic_cast<StoreInst*>(inst)) {
+                Value* src = store->GetOperand(0);
+                Value* dst = store->GetOperand(1);
+
+                if (auto* load = dynamic_cast<LoadInst*>(src)) {
+                    Value* load_src = load->GetOperand(0);
+                    if (load_src == dst || IsSameGEP(load_src, dst)) {
+                        if (!wait_del.count(store)){
+                            wait_del.insert(store);  // 直接删除该指令，不清除 map
                         }
+                        
                     }
-                }else{
-                    storeMap.erase(store->GetOperand(0));
                 }
             }
-            // case2: GEP 被其他未知指令使用
-            else if(auto* gep=dynamic_cast<GepInst*>(inst)){
-                if(auto* base=dynamic_cast<AllocaInst*>(gep->GetUserUseList()[0]->usee)){
-                    for(auto* u:gep->GetValUseList()){
-                        User* user = u->GetUser();
-                        if(!dynamic_cast<StoreInst*>(user)&& !dynamic_cast<GepInst*>(user)){
-                            storeMap.erase(base);
-                            break;   
+
+            // case 2: GEP 被其他非 store / GEP 使用
+            else if (auto* gep = dynamic_cast<GepInst*>(inst)) {
+                Value* base = gep->GetOperand(0);
+                if (storeMap.count(base)) {
+                    for (auto* use : gep->GetValUseList()) {
+                        User* user = use->GetUser();
+                        if (!dynamic_cast<StoreInst*>(user) && !dynamic_cast<GepInst*>(user)) {
+                            unsafe_addr.insert(base); // 标记该地址不安全
+                            break;
                         }
                     }
                 }
             }
-            // case3: memcpy to memory
-            else if (auto* call = dynamic_cast<CallInst*>(inst)){
+
+            // case 3: 调用了无法分析的函数，保守跳过所有
+            else if (auto* call = dynamic_cast<CallInst*>(inst)) {
                 std::string name = call->GetOperand(0)->GetName();
-                if (name == "llvm.memcpy.p0.p0.i32"){
-                    Value* dst = call->GetOperand(1);
-                    if(auto* gep=dynamic_cast<GepInst*>(dst)){
-                        if(auto* alloca=dynamic_cast<AllocaInst*>(gep->GetUserUseList()[0]->usee)){
-                            storeMap[alloca].push_back(call);
-                        }
-                    }else if(auto* alloca = dynamic_cast<AllocaInst*>(dst)){
-                        storeMap[alloca].push_back(call);
-                    }
-                }else{
-                    // conservatively remove all
-                    for (auto& [val, list] : storeMap) {
-                        storeMap.erase(val);
-                    }
+                if (name != "llvm.memcpy.p0.p0.i32") {
+                    // 其他函数调用不可分析
+                    storeMap.clear();
                     return;
                 }
-            }
-            // case4: 非 store 的其他指令对 alloca 使用
-            else{
-                for (auto& use : inst->GetUserUseList()) {
-                    Value* v = use->usee;
-                    storeMap.erase(v);
+
+                // memcpy 处理
+                Value* dst = call->GetOperand(1);
+                if (auto* gep = dynamic_cast<GepInst*>(dst)) {
+                    if (auto* alloca = dynamic_cast<AllocaInst*>(gep->GetOperand(0))) {
+                        storeMap[alloca].push_back(call);
+                    }
+                } else if (auto* alloca = dynamic_cast<AllocaInst*>(dst)) {
+                    storeMap[alloca].push_back(call);
                 }
             }
-                
-        }   
+
+            // case 4: 普通指令使用到了 alloca，不再安全
+            else {
+                for (auto& use : inst->GetUserUseList()) {
+                    Value* v = use->usee;
+                    unsafe_addr.insert(v);
+                }
+            }
+        }
+    }
+
+    // 删除所有 unsafe 地址
+    for (Value* addr : unsafe_addr) {
+        storeMap.erase(addr);
+    }
+
+    // case 5: 对剩余 safe 地址，保留最后一次写，前面的都冗余
+    for (auto& [addr, stores] : storeMap) {
+        for (size_t i = 0; i + 1 < stores.size(); ++i) {
+            if (!wait_del.count(stores[i])){
+                wait_del.insert(stores[i]);
+            }
+            
+        }
     }
 }
 
 void SelfStoreElimination::removeInsts() {
     for (auto* user : wait_del) {
         if (auto* inst = dynamic_cast<Instruction*>(user)) {
+            if (!inst->GetParent()) {
+                std::cerr << "[SSE] Warning: Attempt to remove already-erased instruction: "
+                          << inst->GetName() << "\n";
+                continue;
+            }
+            
             inst->ClearRelation();             // 清除 use-def 链
             inst->EraseFromManager();    // 从基本块中移除    
             delete inst;                  // 回收内存

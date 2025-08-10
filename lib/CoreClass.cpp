@@ -124,25 +124,32 @@ void ValUseList::clear()
   size = 0;
 }
 
-void ValUseList::remove(Use *target) {
-    if (!target || !head) return;
+void ValUseList::remove(Use *target)
+{
+  if (!target || !head)
+    return;
 
-    Use *prev = nullptr;
-    Use *curr = head;
+  Use *prev = nullptr;
+  Use *curr = head;
 
-    while (curr) {
-        if (curr == target) {
-            if (prev) {
-                prev->next = curr->next;
-            } else {
-                head = curr->next;
-            }
-            size--;
-            return;
-        }
-        prev = curr;
-        curr = curr->next;
+  while (curr)
+  {
+    if (curr == target)
+    {
+      if (prev)
+      {
+        prev->next = curr->next;
+      }
+      else
+      {
+        head = curr->next;
+      }
+      size--;
+      return;
     }
+    prev = curr;
+    curr = curr->next;
+  }
 }
 
 // Value
@@ -218,7 +225,8 @@ void Value::print()
 {
   if (isConst())
     std::cout << GetName();
-  else if (isGlobal()) {
+  else if (isGlobal())
+  {
     std::cout << "@" << GetName();
   }
   else if (auto temp = dynamic_cast<Function *>(this))
@@ -303,17 +311,20 @@ bool User::remove_use(Use *_use)
 
 void User::clear_use() { useruselist.clear(); }
 
-void User::DropAllUsesOfThis() {
+void User::DropAllUsesOfThis()
+{
   auto &useList = this->GetValUseList();
-  for (auto it = useList.begin(); it != useList.end(); ) {
-    Use* currentUse = *it;
+  for (auto it = useList.begin(); it != useList.end();)
+  {
+    Use *currentUse = *it;
     ++it;
     currentUse->RemoveFromValUseList(currentUse->GetUser());
   }
   assert(useList.is_empty() && "The user list (who I use) must be empty before dropping users of me!");
 }
 
-void User::ClearRelation() {
+void User::ClearRelation()
+{
   assert(this->GetValUseList().is_empty() && "the head must be nullptr!");
   for (auto &use : useruselist)
     use->RemoveFromValUseList(use->GetUser());
@@ -401,17 +412,100 @@ User *User::CloneInst()
 bool User::is_empty() const { return useruselist.empty(); }
 
 size_t User::GetUserUseListSize() const { return useruselist.size(); }
-void User::ReplaceSomeUseWith(Use *use, Operand val) {
+void User::ReplaceSomeUseWith(Use *use, Operand val)
+{
   use->RemoveFromValUseList(this);
   use->usee = val;
   val->add_use(use);
 }
-void User::ReplaceSomeUseWith(int num, Operand val) {
+void User::ReplaceSomeUseWith(int num, Operand val)
+{
   auto &uselist = GetUserUseList();
   assert(0 <= num && num < uselist.size() && "Invalid Location!");
   uselist[num]->RemoveFromValUseList(this);
   uselist[num]->usee = val;
-  val->add_use(uselist[num].get());
+  if (val)  // DCE 用 nullptr 去当做的替换值，nullptr 并不需要维护关系
+    val->add_use(uselist[num].get());
+}
+
+bool User::IsTerminateInst()
+{
+  if (dynamic_cast<UnCondInst *>(this))
+    return true;
+  else if (dynamic_cast<CondInst *>(this))
+    return true;
+  else if (dynamic_cast<RetInst *>(this))
+    return true;
+  else
+    return false;
+}
+
+bool User::HasSideEffect()
+{
+  if (auto bin = dynamic_cast<BinaryInst *>(this))
+  {
+    if (bin->IsAtomic())
+      return true;
+  }
+  if (IsTerminateInst())
+    return true;
+  if (dynamic_cast<StoreInst *>(this))
+  {
+    return true;
+  }
+  if (auto binary = dynamic_cast<BinaryInst *>(this))
+  {
+    if (binary->IsAtomic())
+      return true;
+  }
+  if (dynamic_cast<CallInst *>(this))
+  {
+    std::string name = this->GetUserUseList()[0]->usee->GetName();
+    if (name == "getint" || name == "getch" || name == "getfloat" ||
+        name == "getfarray" || name == "putint" || name == "putfloat" ||
+        name == "putarray" || name == "putfarray" || name == "putf" ||
+        name == "getarray" || name == "putch" || name == "_sysy_starttime" ||
+        name == "_sysy_stoptime" || name == "llvm.memcpy.p0.p0.i32")
+      return true;
+    Function *func =
+        dynamic_cast<Function *>(this->GetUserUseList()[0]->GetValue());
+    if (func)
+    {
+      if (func->HasSideEffect || func->tag != Function::Normal)
+        return true;
+      for (auto it = func->begin(); it != func->end(); ++it)
+      {
+        BasicBlock *block = *it;
+        for (auto iter = block->begin(); iter != block->end(); ++iter)
+        {
+          if (dynamic_cast<CallInst *>(*iter))
+          {
+            Function *Func =
+                dynamic_cast<Function *>((*iter)->GetUserUseList()[0]->usee);
+            if (Func && Func->HasSideEffect)
+              return true;
+          }
+        }
+      }
+    }
+  }
+  if (dynamic_cast<GepInst *>(this))
+  {
+    auto &users = this->GetUserUseList();
+    for (auto &user_ : users)
+    {
+      User *user = user_->GetUser();
+      if (user->HasSideEffect())
+        return true;
+      else
+        return false;
+    }
+  }
+  if (dynamic_cast<RetInst *>(this))
+    return true;
+  if (this->GetUserUseList().empty())
+    return false;
+  return false;
 }
 
 // Instruction

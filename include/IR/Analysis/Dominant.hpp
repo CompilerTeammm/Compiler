@@ -31,7 +31,7 @@ class DominantTree
     friend class IDFCalculator;
     friend class SSAPRE;
 
-public://ww改成public的了，不然有些pass访问不到
+public: // ww改成public的了，不然有些pass访问不到
     // 输入的应该是func，func->BBs
     // Node 要和 BasicBlock一一对应
     struct TreeNode // 实际上称为了BBs
@@ -58,7 +58,8 @@ public://ww改成public的了，不然有些pass访问不到
         {
         }
     };
-private:
+
+public:
     // 重新设计，不采用指针的形式，化简成int形式
     struct dsuNode
     {
@@ -108,6 +109,7 @@ private:
     std::vector<std::vector<int>> Dest; // CFG中的后继
 
     std::vector<TreeNode *> dfsDom;
+
 public:
     DominantTree(Function *func)
         : _func(func), Nodes(func->Size()), count(1),
@@ -171,8 +173,8 @@ public:
     void caculateLevel(TreeNode *node, int level);
 
     bool dominates(BasicBlock *bb1, BasicBlock *bb2);
-
+    bool dominates_(BasicBlock *bb1, BasicBlock *bb2);
     ~DominantTree() = default;
 
-    std::vector<BasicBlock*> getIdomVec(BasicBlock* );
+    std::vector<BasicBlock *> getIdomVec(BasicBlock *);
 };

@@ -111,22 +111,21 @@ bool SideEffect::FuncHasSideEffect(Function* func){
                     }
                 }
             }
-            else if(auto store = dynamic_cast<StoreInst*>(inst)){
-                auto& operandList = store->GetUserUseList();
+            else if (auto store = dynamic_cast<StoreInst*>(inst)) {
+                if (store->GetOperandNums() < 2) continue;
 
-                if (operandList.size() < 2 || !operandList[1] || !operandList[1]->usee) continue;
+                Value* dst = store->GetOperand(1);
+                if (!dst) continue;
 
-                Value* dst = operandList[1]->usee;
+                if (dst->isGlobal()) return true;
 
-                if (dst->isGlobal()){
-                    return true;
-                }
                 if (auto gep = dynamic_cast<GepInst*>(dst)) {
-                    auto& gepOperands = gep->GetUserUseList();
-                    if (!gepOperands.empty() && gepOperands[0]->usee->isGlobal())
+                    Value* base = gep->GetOperand(0);
+                    if (base && base->isGlobal()) {
                         return true;
+                    }
                 }
-            }    
+            }
             else if(auto binary = dynamic_cast<BinaryInst*>(inst)){
                 if(binary->IsAtomic()){
                     for (auto& u : binary->GetUserUseList()){

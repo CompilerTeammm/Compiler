@@ -15,18 +15,17 @@ bool LoopUnrolling::run()
 
   for (auto iter = loopAnalysis_Unroll.begin(); iter != loopAnalysis_Unroll.end();)
   {
-    auto currLoop = *iter;
+    auto currLoop = iter;
     ++iter;
-    if (!CanBeUnroll(currLoop))
+    if (CanBeUnroll(*currLoop))
     {
-      continue; // 跳过不可展开的循环
-    }
-    auto unrollbody = GetLoopBody(currLoop);
-    if (unrollbody)
-    {
-      auto bb = Unroll(currLoop, unrollbody);
-      CleanUp(currLoop, bb);
-      return true;
+      auto unrollbody = GetLoopBody(*currLoop);
+      if (unrollbody)
+      {
+        auto bb = Unroll(*currLoop, unrollbody);
+        CleanUp(*currLoop, bb);
+        return true;
+      }
     }
   }
   return false;
@@ -34,7 +33,11 @@ bool LoopUnrolling::run()
 
 bool LoopUnrolling::CanBeUnroll(Loop *loop)
 {
-  auto body = loop->getLoopBody();
+  const auto body = loop->getLoopBody();
+  if (loop->CantCalcTrait())
+    return false;
+  if (loop->trait.boundary->GetTypeEnum() != IR_Value_INT)
+    return false;
   auto header = loop->getHeader();
   auto latch = loopAnalysis->getLatch(loop);
   if (header != latch)

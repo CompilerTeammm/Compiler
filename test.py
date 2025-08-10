@@ -8,6 +8,8 @@ import re
 
 compiler_path = "./build/compiler"
 test_folder="./testcases"
+#额外参数
+extra_args = sys.argv[1:]
 # pass_args=["--mem2reg"]
 
 # grab all the testcases
@@ -31,7 +33,7 @@ for test in test_list:
     if test.endswith(".sy"):
         # add test_args to list
         print("Run pass: "+test)
-        compile_args=[compiler_path, test]
+        compile_args=[compiler_path, test] + extra_args #加上额外参数
         # for arg in pass_args:
         #     compile_args.append(arg)
         try:

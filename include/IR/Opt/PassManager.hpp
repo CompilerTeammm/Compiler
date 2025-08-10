@@ -16,218 +16,310 @@
 #include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
+#include "CondMerge.hpp"
 #include "../Analysis/SideEffect.hpp"
+#include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
 #include "SelfStoreElimination.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
-#include "SOGE.hpp" 
-#include "ECE.hpp" 
-#include "GepCombine.hpp" 
-#include "GepEval.hpp" 
+#include "SOGE.hpp"
+#include "ECE.hpp"
+#include "GepCombine.hpp"
+#include "GepEval.hpp"
+#include "LoopRotaing.hpp"
+#include "LoopSimping.hpp"
 
-// 互不影响，完全没问题再放出来
-// #define dce
-// #define sccp
-//#define pre
-// #define SCFG
-// #define DSE 用不到了重复了
-// #define SSE
-// 循环优化
-// #define Loop_Simplifying
-// #define Loop_Unrolling
-//内联优化
-// #define MY_INLINE_PASS
-//TRE
-// #define MY_TRE_PASS
-//SOGE
-// #define MY_SOGE_PASS
-//ECE
-// #define MY_ECE_PASS
-//array
-// #define gepcombine
-// #define gepeval
-
-enum PassName
+enum OptLevel
 {
-    mem2reg_pass,
-    // inline_pass,
-    dce_pass,
+    None,
+    O1,
+    Test, // --test=GVN,DCE
+    hu1_test
 };
 
-// PassManager 用来管理Passes
-class PassManager : _PassBase<PassManager, Function>
+class PassManager
 {
 private:
-    std::queue<PassName> Passque;
-    Function *_func;
-    Module *_mod;
+    Module *module;
+    std::unordered_set<std::string> enabledPasses;
+    OptLevel level = None;
 
+    AnalysisManager AM; // 只有这一个实例，Run里所有Pass共用
 public:
-    void addPass(PassName pass) { Passque.emplace(pass); }
-    PassName pushPass()
+    PassManager() : module(&Singleton<Module>()) {}
+
+    void SetLevel(OptLevel lvl)
     {
-        PassName pass = Passque.front();
-        Passque.pop();
-        return pass;
+        level = lvl;
+        enabledPasses.clear();
+
+        if (lvl == O1)
+        {
+            // 启用全部中端优化
+            enabledPasses = {
+                "SSE",
+                // 前期规范化
+                "mem2reg",
+                "sccp",
+                // "SCFG",
+
+                // "ECE",
+                // 过程间优化
+                // "inline",
+
+                // "SOGE",
+
+                // 局部清理
+
+                // "TRE",
+                "CondMerge",
+
+                // 循环优化
+                "Loop_Simplifying",
+                "Loop_Rotaing"
+                //"Loop_Unrolling",
+
+                // 数据流优化
+                // "SSAPRE",
+                //"GVN",
+                // "DCE",
+
+                // 数组重写
+                //  "gepcombine",
+
+                // 后端准备
+
+            };
+        }
+        else if (lvl == None)
+        {
+            enabledPasses = {}; // 默认都不开
+        }
     }
-    // 我这里从前端获取到内存形式的 M-SSA
-    PassManager() { _mod = &Singleton<Module>(); }
-    void RunOnTest();
-    bool run() override
+
+    void EnableTestPasses(const std::vector<std::string> &tags)
     {
-        return true;
+        level = Test;
+        enabledPasses.clear();
+        for (auto &tag : tags)
+            enabledPasses.insert(tag);
+    }
+
+    bool IsEnabled(const std::string &tag) const
+    {
+        return enabledPasses.count(tag);
+    }
+
+    void Run()
+    {
+        auto &funcVec = module->GetFuncTion();
+        // 前期规范化
+        if (IsEnabled("mem2reg"))
+        {
+            for (auto &f : funcVec)
+            {
+                auto *func = f.get();
+                int idx = 0;
+                func->GetBBs().clear();
+                for (auto *bb : *func)
+                {
+                    bb->index = idx++;
+                    func->GetBBs().push_back(std::shared_ptr<BasicBlock>(bb));
+                }
+                DominantTree tree(func);
+                tree.BuildDominantTree();
+                Mem2reg(func, &tree).run();
+
+                for (auto &bb_ptr : func->GetBBs())
+                {
+                    BasicBlock *B = bb_ptr.get();
+                    if (!B)
+                        continue;
+                    B->PredBlocks = tree.getPredBBs(B);
+                    B->NextBlocks = tree.getSuccBBs(B);
+                }
+            }
+        }
+
+        if (IsEnabled("sccp"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                AnalysisManager *AM;
+                ConstantProp(fun).run();
+            }
+        }
+
+        if (IsEnabled("SCFG"))
+        {
+            for (auto &func : funcVec)
+                SimplifyCFG(func.get()).run();
+        }
+
+        // 过程间优化
+        if (IsEnabled("inline"))
+        {
+            Inliner inlinerPass(&Singleton<Module>());
+            inlinerPass.run();
+        }
+
+        if (IsEnabled("SOGE"))
+        {
+            SOGE sogePass(&Singleton<Module>());
+            sogePass.run();
+        }
+
+        // 数据流整理
+        if (IsEnabled("ECE"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                ECE ECEpass(fun);
+                ECEpass.run();
+            }
+        }
+
+        // 局部清理
+        if (IsEnabled("SSE"))
+        {
+            SideEffect *se = new SideEffect(&Singleton<Module>());
+            se->GetResult();
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+                AM.add<DominantTree>(fun, &tree);
+                AM.add<SideEffect>(&Singleton<Module>(), se);
+                SelfStoreElimination(fun, AM).run();
+                // 如果先跑SSE那就把这个打开
+                //  for (auto& bb_ptr : fun->GetBBs()) {
+                //      BasicBlock* B = bb_ptr.get();
+                //      if (!B) continue;
+                //      B->PredBlocks = tree.getPredBBs(B);
+                //      B->NextBlocks = tree.getSuccBBs(B);
+                //      }
+            }
+        }
+        if (IsEnabled("CondMerge"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+                AM.add<DominantTree>(fun, &tree);
+                CondMerge(fun, AM).run();
+            }
+        }
+
+        if (IsEnabled("TRE"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                TRE TREPass(fun);
+                TREPass.run();
+            }
+        }
+
+        // 循环优化
+        if (IsEnabled("Loop_Simplifying"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+
+                AM.add<DominantTree>(fun, &tree);
+                LoopSimping LoopSimping(fun, AM);
+                LoopSimping.run();
+            }
+        }
+
+        if (IsEnabled("Loop_Rotaing"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+
+                AM.add<DominantTree>(fun, &tree);
+                LoopRotaing Loop_Rotaing(fun, AM);
+                Loop_Rotaing.run();
+            }
+        }
+
+        if (IsEnabled("Loop_Unrolling"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                AnalysisManager *AM;
+                LoopUnrolling(fun, AM).run();
+            }
+        }
+
+        // 数据流优化
+        if (IsEnabled("SSAPRE"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+                AM.add<DominantTree>(fun, &tree);
+                SSAPRE(fun, AM).run();
+            }
+        }
+
+        if (IsEnabled("GVN"))
+        {
+            for (auto &function : funcVec)
+            {
+                // Function;
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+                AM.add<DominantTree>(fun, &tree);
+                GVN(fun, AM).run();
+            }
+        }
+
+        if (IsEnabled("DCE"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                AnalysisManager *AM;
+                DCE(fun, AM).run();
+            }
+        }
+
+        // 数组重写
+        if (IsEnabled("gepcombine"))
+        {
+            SideEffect *se = new SideEffect(&Singleton<Module>());
+            se->GetResult();
+
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+
+                AM.add<DominantTree>(fun, &tree);
+                AM.add<SideEffect>(&Singleton<Module>(), se);
+
+                GepCombine gepCombinePass(fun, AM);
+                gepCombinePass.run();
+            }
+        }
+        // 后端准备
     }
 };
-
-inline void PassManager::RunOnTest()
-{
-    auto &funcVec = _mod->GetFuncTion();
-    for (auto &function : funcVec)
-    {
-        // Function;
-        auto fun = function.get();
-        int bb_index = 0;
-        fun->GetBBs().clear();
-        for (auto bb : *fun)
-        {
-            // BasicBlock
-            bb->index = bb_index++;
-            std::shared_ptr<BasicBlock> shared_bb(bb);
-            fun->GetBBs().push_back(shared_bb);
-        }
-        DominantTree tree(fun);
-        tree.BuildDominantTree();
-        Mem2reg(fun, &tree).run();
-        for (auto& bb_ptr : fun->GetBBs()) {
-        BasicBlock* B = bb_ptr.get();
-        if (!B) continue;
-        B->PredBlocks = tree.getPredBBs(B);
-        B->NextBlocks = tree.getSuccBBs(B);
-        }
-    }
-
-    //内敛优化
-#ifdef dce
-    for (auto &function : funcVec)
-    {
-        auto fun = function.get();
-        AnalysisManager *AM;
-        DCE(fun, AM).run();
-    }
-#endif
-#ifdef sccp
-    for (auto &function : funcVec)
-    {
-        auto fun = function.get();
-        AnalysisManager *AM;
-        ConstantProp(fun).run();
-    }
-#endif
-#ifdef gvn
-    for (auto &function : funcVec)
-    {
-        // Function;
-        auto fun = function.get();
-        DominantTree tree(fun);
-        tree.BuildDominantTree();
-        GVN(fun, &tree).run();
-    }
-#endif
-#ifdef Loop_Simplying
-    for (auto &function : funcVec)
-    {
-        auto fun = function.get();
-        AnalysisManager *AM;
-        Loop_Simplying(fun, AM).run();
-    }
-#endif
-#ifdef Loop_Unrolling
-    for (auto &function : funcVec)
-    {
-        auto fun = function.get();
-        AnalysisManager *AM;
-        LoopUnrolling(fun, AM).run();
-    }
-#endif
-#ifdef pre
-    for (auto &function : funcVec)
-    {
-        auto fun = function.get();
-        DominantTree tree(fun);
-        tree.BuildDominantTree();
-        SSAPRE(fun, &tree).run();
-    }
-#endif
-#ifdef SCFG
-    for (auto &function : funcVec)
-    {
-        auto fun = function.get();
-        SimplifyCFG(fun).run();
-    }
-#endif
-#ifdef DSE
-
-    SideEffect* se = new SideEffect(&Singleton<Module>());//在module级别做一次副作用分析
-    se->GetResult();
-    
-    for (auto &function : funcVec)
-    {   
-        auto fun = function.get();
-        DominantTree tree(fun);
-        tree.BuildDominantTree();
-        (DSE(fun, &tree,se)).run();
-    }
-#endif
-#ifdef SSE
-    for(auto &function : funcVec)
-    {
-        auto fun = function.get();
-        DominantTree tree(fun);
-        tree.BuildDominantTree();
-        SelfStoreElimination(fun,&tree).run();
-    }
-#endif
-
-#ifdef MY_INLINE_PASS
-    Inliner inlinerPass(&Singleton<Module>());
-    inlinerPass.run();
-#endif
-#ifdef MY_TRE_PASS
-for (auto &function : funcVec)
-{
-    auto fun = function.get();
-    TRE TREPass(fun);
-    TREPass.run();
-}
-#endif
-#ifdef MY_SOGE_PASS
-    SOGE sogePass(&Singleton<Module>());
-    sogePass.run();
-#endif
-#ifdef MY_ECE_PASS
-for (auto &function : funcVec) {
-    auto fun = function.get();
-    ECE ECEpass(fun);
-    ECEpass.run();
-}
-#endif
-#ifdef gepcombine
-SideEffect* se = new SideEffect(&Singleton<Module>());
-se->GetResult();
-
-for (auto &function : funcVec) {
-    auto fun = function.get();
-    DominantTree tree(fun);
-    tree.BuildDominantTree();
-
-    AnalysisManager AM;
-    AM.add<DominantTree>(fun, &tree);
-    AM.add<SideEffect>(&Singleton<Module>(), se);
-
-    GepCombine gepCombinePass(fun, AM);
-    gepCombinePass.run();
-}
-#endif
-
-}     
