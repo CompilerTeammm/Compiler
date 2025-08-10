@@ -42,7 +42,7 @@ class GepCombine : public _PassBase<GepCombine, Function>
         {
             return ChildGeps;
         }
-        std::unordered_set<GepInst*> GetGeps()
+        std::unordered_set<GepInst*>& GetGeps()
         {
             return Geps;
         }

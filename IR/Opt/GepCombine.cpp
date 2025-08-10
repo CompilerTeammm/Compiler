@@ -7,7 +7,7 @@
 bool GepCombine::run()
 {
     DomTree = AM.get<DominantTree>(func);
-    AM.get<SideEffect>(&Singleton<Module>());
+    auto* SE=AM.get<SideEffect>(&Singleton<Module>());
     bool modified = false;
     std::deque<HandleNode *> WorkList;
     BasicBlock *entryBB = func->GetFront();
@@ -51,12 +51,91 @@ bool GepCombine::run()
     return modified;
 }
 
+// bool GepCombine::run()
+// {
+//     std::cerr << "[GepCombine] Entry\n";
+
+//     DomTree = AM.get<DominantTree>(func);
+//     auto* SE = AM.get<SideEffect>(&Singleton<Module>());
+//     if (!SE) {
+//         std::cerr << "[GepCombine] SideEffect not connected!\n";
+//     }
+
+//     bool modified = false;
+//     std::deque<HandleNode *> WorkList;
+
+//     BasicBlock *entryBB = func->GetFront();
+//     DominantTree::TreeNode *entryNode = DomTree->getNode(entryBB);
+
+//     std::cerr << "[GepCombine] Pushing entry node: " << entryBB->GetName() << "\n";
+
+//     WorkList.push_back(new HandleNode(
+//         DomTree,
+//         entryNode,
+//         entryNode->idomChild.begin(),
+//         entryNode->idomChild.end(),
+//         std::unordered_set<GepInst*>()
+//     ));
+
+//     while (!WorkList.empty())
+//     {
+//         GepCombine::HandleNode *cur = WorkList.back();
+
+//         if (!cur->isProcessed())
+//         {
+//             std::cerr << "[GepCombine] Visiting BB: " << cur->GetBlock()->GetName() << "\n";
+//             std::cerr << "[GepCombine] GEPs in BB: " << cur->GetGeps().size() << "\n";
+
+//             bool changed = ProcessNode(cur);
+//             std::cerr << "[GepCombine] ProcessNode modified: " << changed << "\n";
+
+//             modified |= changed;
+//             cur->Process();
+//             cur->SetChildGeps(cur->GetGeps());
+//         }
+//         else if (cur->Child() != cur->EndIter())
+//         {
+//             auto childIter = cur->NextChild();
+//             DominantTree::TreeNode* childNode = *childIter;
+
+//             std::cerr << "[GepCombine] Descending to child BB: " << childNode->curBlock->GetName() << "\n";
+
+//             WorkList.push_back(new HandleNode(
+//                 DomTree,
+//                 childNode,
+//                 childNode->idomChild.begin(),
+//                 childNode->idomChild.end(),
+//                 cur->GetChildGeps()
+//             ));
+//         }
+//         else
+//         {
+//             delete cur;
+//             WorkList.pop_back();
+//         }
+//     }
+
+//     if (!wait_del.empty()) {
+//         std::cerr << "[GepCombine] Total deleted instructions: " << wait_del.size() << "\n";
+//     }
+
+//     while (!wait_del.empty())
+//     {
+//         auto inst = wait_del.back();
+//         wait_del.pop_back();
+//         delete inst;
+//     }
+
+//     std::cerr << "[GepCombine] Final modified: " << modified << "\n";
+//     return modified;
+// }
+
 bool GepCombine::ProcessNode(HandleNode *node)
 {
     bool modified = false;
     BasicBlock *block = node->GetBlock();
-    std::unordered_set<GepInst *> geps = node->GetGeps();
-    for (Instruction*inst : *block)
+    std::unordered_set<GepInst *> &geps = node->GetGeps();
+    for (Instruction* inst : *block)
     {
         if (auto gep = dynamic_cast<GepInst *>(inst))
         {
@@ -82,6 +161,50 @@ bool GepCombine::ProcessNode(HandleNode *node)
     node->SetGeps(geps);
     return modified;
 }
+
+// bool GepCombine::ProcessNode(HandleNode *node) 
+// {
+//     bool modified = false;
+//     BasicBlock *block = node->GetBlock();
+//     std::unordered_set<GepInst *> &geps = node->GetGeps();
+
+//     std::cerr << "[ProcessNode] Processing BB: " << block->GetName() << "\n";
+
+//     for (Instruction* inst : *block)
+//     {
+//         if (auto gep = dynamic_cast<GepInst *>(inst))
+//         {
+//             std::cerr << "  [ProcessNode] Found GEP: " << (*gep).GetName() << "\n";
+
+//             geps.insert(gep);
+
+//             if (auto val = SimplifyGepInst(gep, geps))
+//             {
+//                 std::cerr << "    [ProcessNode] SimplifyGepInst modified GEP\n";
+//                 modified = true;
+//                 continue;
+//             }
+
+//             if (GepInst *new_gep = HandleGepPhi(gep, geps))
+//             {
+//                 std::cerr << "    [ProcessNode] HandleGepPhi replaced GEP\n";
+//                 gep = new_gep;
+//                 modified = true;
+//             }
+
+//             if (GepInst *new_gep = Normal_Handle_With_GepBase(gep, geps))
+//             {
+//                 std::cerr << "    [ProcessNode] Normal_Handle_With_GepBase replaced GEP\n";
+//                 modified = true;
+//             }
+//         }
+//     }
+
+//     std::cerr << "[ProcessNode] Modified: " << modified << "\n";
+//     node->SetGeps(geps);
+//     return modified;
+// }
+
 
 Value *GepCombine::SimplifyGepInst(GepInst *inst, std::unordered_set<GepInst *> &geps)
 {
