@@ -457,10 +457,10 @@ void LoopSimping::UpdateInfo(std::vector<BasicBlock *> &bbs, BasicBlock *insert,
   UpdateLoopInfo(head, insert, bbs);
 }
 
-void LoopSimping::CaculateLoopInfo(Loop *loop, LoopInfoAnalysis *Anlay)
+void LoopSimping::CaculateLoopInfo(Loop *loop, LoopInfoAnalysis *Anlay, DominantTree *m_dom)
 {
   const auto Header = loop->getHeader();
-  const auto Latch = Anlay->getLatch(loop);
+  const auto Latch = Anlay->getLatch(loop, m_dom);
   const auto br = dynamic_cast<CondInst *>(*(Latch->rbegin()));
   assert(br);
   const auto cmp = dynamic_cast<BinaryInst *>(dynamic_cast<User *>(br)->GetUserUseList()[0]->GetValue());

@@ -345,6 +345,7 @@ public:
   void InstReplace(Instruction *inst);
   // 将指令类型转换为字符串,便于调试
   static const char *OpToString(Op op);
+  Instruction *CloneInst_();
   virtual ~Instruction() = default;
 };
 

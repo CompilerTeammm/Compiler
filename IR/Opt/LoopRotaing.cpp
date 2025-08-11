@@ -48,7 +48,7 @@ bool LoopRotaing::RotateLoop(Loop *loop, bool Succ)
   // loopAnlasis = new LoopInfoAnalysis(m_func, &m_dom, DeleteLoop);
   auto prehead = loopAnlasis->getPreHeader(loop);
   auto header = loop->getHeader();
-  auto latch = loopAnlasis->getLatch(loop);
+  auto latch = loopAnlasis->getLatch(loop, &m_dom);
   assert(latch && prehead && header && "After Simplify Loop Must Be Conon");
   if (!loopAnlasis->isLoopExiting(loop, header))
   {
@@ -90,7 +90,8 @@ bool LoopRotaing::RotateLoop(Loop *loop, bool Succ)
     }
     else
     {
-      auto new_inst = inst->CloneInst();
+      auto new_inst1 = inst->CloneInst();
+      auto new_inst = dynamic_cast<Instruction *>(new_inst1);
       // ���ܴ�phi��ȡ��ѭ�����Ϊ�˿ɼ򻯵�ָ��?
       Value *simplify = nullptr;
       for (int i = 0; i < new_inst->GetUserUseListSize(); i++)
@@ -119,9 +120,8 @@ bool LoopRotaing::RotateLoop(Loop *loop, bool Succ)
       else
       {
         PreHeaderValue[inst] = new_inst;
-        auto new_inst1 = dynamic_cast<Instruction *>(new_inst);
-        new_inst1->SetManager(prehead);
-        It.InsertBefore(new_inst1);
+        new_inst->SetManager(prehead);
+        It.InsertBefore(new_inst);
         It = prehead->rbegin();
         CloneMap[inst] = new_inst;
       }
@@ -306,9 +306,9 @@ void LoopRotaing::PreservePhi(
       {
         auto &use = *iter;
         ++iter;
-        auto user = use->GetUser();
-        auto user1 = dynamic_cast<Instruction *>(user);
-        auto targetBB = user1->GetParent();
+        auto user1 = use->GetUser();
+        auto user = dynamic_cast<Instruction *>(user1);
+        auto targetBB = user->GetParent();
         if (targetBB == header)
           continue;
         if (!loop->ContainBB(targetBB))
@@ -348,9 +348,9 @@ void LoopRotaing::PreservePhi(
       {
         auto &use = *iter;
         ++iter;
-        auto user = use->GetUser();
-        auto user2 = dynamic_cast<Instruction *>(user);
-        auto targetBB = user2->GetParent();
+        auto user2 = use->GetUser();
+        auto user = dynamic_cast<Instruction *>(user2);
+        auto targetBB = user->GetParent();
         if (targetBB == header)
           continue;
         // if (!loop->Contain(targetBB))
@@ -543,7 +543,7 @@ void LoopRotaing::PreserveLcssa(BasicBlock *new_exit, BasicBlock *old_exit, Basi
 bool LoopRotaing::TryRotate(Loop *loop, DominantTree *m_dom)
 {
   bool Legal = false;
-  auto latch = loopAnlasis->getLatch(loop);
+  auto latch = loopAnlasis->getLatch(loop, m_dom);
   auto head = loop->getHeader();
   auto prehead = loopAnlasis->getPreHeader(loop, LoopInfoAnalysis::Loose);
   auto uncond = dynamic_cast<UnCondInst *>(latch->GetBack());
@@ -580,9 +580,9 @@ bool LoopRotaing::TryRotate(Loop *loop, DominantTree *m_dom)
         auto lhs = inst->GetOperand(0);
         for (auto use : lhs->GetValUseList())
         {
-          auto user = use->GetUser();
-          auto user1 = dynamic_cast<Instruction *>(user);
-          if (!loop->ContainBB(user1->GetParent()))
+          auto user1 = use->GetUser();
+          auto user = dynamic_cast<Instruction *>(user1);
+          if (!loop->ContainBB(user->GetParent()))
           {
             Legal = false;
             break;
@@ -591,9 +591,9 @@ bool LoopRotaing::TryRotate(Loop *loop, DominantTree *m_dom)
       }
       for (auto use : inst->GetValUseList())
       {
-        auto user = use->GetUser();
-        auto user2 = dynamic_cast<Instruction *>(user);
-        if (!loop->ContainBB(user2->GetParent()))
+        auto user2 = use->GetUser();
+        auto user = dynamic_cast<Instruction *>(user2);
+        if (!loop->ContainBB(user->GetParent()))
         {
           Legal = false;
           break;

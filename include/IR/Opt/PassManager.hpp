@@ -265,8 +265,12 @@ public:
             for (auto &function : funcVec)
             {
                 auto fun = function.get();
-                AnalysisManager *AM;
-                LoopUnrolling(fun, AM).run();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+
+                AM.add<DominantTree>(fun, &tree);
+                LoopUnrolling Loop_Unrolling(fun, AM);
+                Loop_Unrolling.run();
             }
         }
 

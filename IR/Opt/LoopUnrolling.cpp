@@ -1,7 +1,8 @@
 #include "../../include/IR/Opt/LoopUnrolling.hpp"
+#include "../../include/IR/Opt/LoopSimping.hpp"
 #include <memory>
 
-bool LoopUnrolling::run()
+bool LoopUnrolling::Run()
 {
   DominantTree dom(_func);
   dom.BuildDominantTree(); // 计算支配关系
@@ -15,15 +16,26 @@ bool LoopUnrolling::run()
 
   for (auto iter = loopAnalysis_Unroll.begin(); iter != loopAnalysis_Unroll.end();)
   {
-    auto currLoop = iter;
+    auto currLoop = *iter;
     ++iter;
-    if (CanBeUnroll(*currLoop))
+    if ((_AM.FindAttr(currLoop->getHeader(), Rotate) || _func->tag == Function::ParallelBody) && CanBeUnroll(currLoop, &dom))
     {
-      auto unrollbody = GetLoopBody(*currLoop);
+      auto unrollbody = GetLoopBody(currLoop);
       if (unrollbody)
       {
-        auto bb = Unroll(*currLoop, unrollbody);
-        CleanUp(*currLoop, bb);
+        auto bb = Unroll(currLoop, unrollbody);
+        CleanUp(currLoop, bb);
+        return true;
+      }
+    }
+    else if ((_AM.FindAttr(currLoop->getHeader(), Rotate) || _func->tag == Function::ParallelBody) && CanBeHalfUnroll(currLoop, loopAnalysis, &dom) && !_AM.IsUnrolled(currLoop->getHeader()))
+    {
+      static int x = 0;
+      x++;
+      auto unrollbody = GetLoopBody(currLoop);
+      if (unrollbody)
+      {
+        auto bb = Half_Unroll(currLoop, unrollbody);
         return true;
       }
     }
@@ -31,15 +43,16 @@ bool LoopUnrolling::run()
   return false;
 }
 
-bool LoopUnrolling::CanBeUnroll(Loop *loop)
+bool LoopUnrolling::CanBeUnroll(Loop *loop, DominantTree *dom)
 {
   const auto body = loop->getLoopBody();
+  LoopSimping::CaculateLoopInfo(loop, loopAnalysis, dom);
   if (loop->CantCalcTrait())
     return false;
   if (loop->trait.boundary->GetTypeEnum() != IR_Value_INT)
     return false;
   auto header = loop->getHeader();
-  auto latch = loopAnalysis->getLatch(loop);
+  auto latch = loopAnalysis->getLatch(loop, dom);
   if (header != latch)
     return false;
   if (!dynamic_cast<ConstIRInt *>(loop->trait.initial) || !dynamic_cast<ConstIRInt *>(loop->trait.boundary))
@@ -448,6 +461,257 @@ CallInst *LoopUnrolling::GetLoopBody(Loop *loop)
   return callinst;
 }
 
+BasicBlock *LoopUnrolling::Half_Unroll(Loop *loop, CallInst *UnrollBody)
+{
+  auto Unroll_Entry = new BasicBlock();
+  auto MutiUnrollBlock = new BasicBlock();
+  auto SingleHeader = new BasicBlock();
+  _func->PushBothBB(Unroll_Entry);
+  _func->PushBothBB(MutiUnrollBlock);
+  _func->PushBothBB(SingleHeader);
+  auto Single = loop->getHeader();
+  auto Exitbbs = loopAnalysis->GetExit(loop);
+  assert(Exitbbs.size() == 1 && "Rotate Header");
+  auto Exit = Exitbbs[0];
+  Unroll_Entry->SetName(Unroll_Entry->GetName() + ".entry");
+  MutiUnrollBlock->SetName(MutiUnrollBlock->GetName() + ".muti");
+  SingleHeader->SetName(SingleHeader->GetName() + ".single_header");
+  auto head = loop->getHeader();
+  auto preheader = loopAnalysis->getPreHeader(loop, LoopInfoAnalysis::Loose);
+  auto bound = loop->trait.boundary;
+  auto op = loop->trait.cmp->GetOp();
+  auto change_op =
+      dynamic_cast<BinaryInst *>(loop->trait.change)->GetOp();
+  auto initial = loop->trait.initial;
+  bool NeedReverse = false;
+  User *new_call = nullptr;
+  BasicBlock *tmp = nullptr;
+  std::unordered_map<Value *, Value *> HeaderValMap;
+  // check the bound side, bound is not promised to be rhs
+  if (bound == loop->trait.cmp->GetOperand(0))
+  {
+    NeedReverse = true;
+  }
+  auto ReverOp = [](BinaryInst::Operation _op)
+  {
+    switch (_op)
+    {
+    case BinaryInst::Op_L:
+      return BinaryInst::Op_G;
+    case BinaryInst::Op_G:
+      return BinaryInst::Op_L;
+    case BinaryInst::Op_GE:
+      return BinaryInst::Op_LE;
+    case BinaryInst::Op_LE:
+      return BinaryInst::Op_GE;
+    default:
+      assert(0 && "What happened?");
+    }
+  };
+  if (NeedReverse)
+    op = ReverOp(op);
+  std::unordered_map<Value *, Value *> Arg2Orig;
+  Value *IndVarOrigin = loop->trait.initial;
+  Value *ResOrigin = nullptr;
+  if (loop->trait.res)
+    ResOrigin = loop->trait.res->ReturnValIn(prehead);
+
+  BinaryInst *cmp = nullptr;
+  BinaryInst *add = nullptr;
+  PhiInst *entry_res = nullptr;
+  auto entry_indvar = PhiInst::NewPhiNode(initial->GetType());
+  entry_indvar->addIncoming(initial, preheader);
+  Unroll_Entry->push_back(entry_indvar);
+  HeaderValMap[loop->trait.indvar] = entry_indvar;
+  if (ResOrigin)
+  {
+    entry_res = PhiInst::NewPhiNode(ResOrigin->GetType());
+    entry_res->addIncoming(ResOrigin, preheader);
+    Unroll_Entry->push_back(entry_res);
+    HeaderValMap[loop->trait.res] = entry_res;
+  }
+  add = BinaryInst::CreateInst(entry_indvar, change_op, ConstIRInt::GetNewConstant(HalfUnrollTimes));
+  cmp = BinaryInst::CreateInst(add, op, bound);
+
+  // Unroll_Entry->push_back(add);
+  Unroll_Entry->push_back(cmp);
+
+  Unroll_Entry->GenerateCondInst(cmp, MutiUnrollBlock, SingleHeader);
+
+  // map the new block
+  bool insert = false;
+  for (auto inst : *head)
+  {
+    if (auto phi = dynamic_cast<PhiInst *>(inst))
+    {
+      continue;
+    }
+    else
+    {
+      // if(dynamic_cast<CondInst*>(inst)||dynamic_cast<UnCondInst*>(inst))
+      //   continue;
+      auto new_inst = inst->CloneInst();
+      HeaderValMap[inst] = new_inst;
+      if (inst == UnrollBody)
+      {
+        auto new_call = dynamic_cast<Instruction *>(new_inst);
+      }
+      for (int i = 0; i < new_inst->GetUserUseListSize(); i++)
+      {
+        if (HeaderValMap.find(new_inst->GetOperand(i)) != HeaderValMap.end())
+        {
+          new_inst->ReplaceSomeUseWith(i, HeaderValMap[new_inst->GetOperand(i)]);
+        }
+      }
+      auto new_inst1 = dynamic_cast<Instruction *>(new_inst);
+      MutiUnrollBlock->push_back(new_inst1);
+    }
+  }
+
+  auto replceArg_muti = [&](User *call, Value *IndVar, Value *Res)
+  {
+    for (int i = 1; i < call->GetUserUseListSize(); i++)
+    {
+      auto arg = call->GetOperand(i);
+      if (auto phi = dynamic_cast<PhiInst *>(arg))
+      {
+        if (phi == entry_indvar)
+        {
+          Arg2Orig[arg] = IndVar;
+        }
+        else if (phi == entry_res)
+        {
+          Arg2Orig[arg] = Res;
+        }
+      }
+      else
+      {
+        Arg2Orig[arg] = arg;
+      }
+    }
+  };
+
+  auto new_call1 = dynamic_cast<Instruction *>(new_call);
+  replceArg_muti(new_call1, entry_indvar, entry_res);
+  BasicBlock::List<BasicBlock, Instruction>::iterator call_pos(new_call1);
+  std::vector<Instruction *> Erase;
+  Instruction *cloned = new_call1;
+  Erase.push_back(cloned);
+  Value *CurChange = nullptr;
+  for (int i = 0; i < HalfUnrollTimes; i++)
+  {
+    auto Ret = _func->InlineCall(dynamic_cast<CallInst *>(cloned), Arg2Orig);
+    if (Ret.first != nullptr)
+      ResOrigin = Ret.first;
+    tmp = Ret.second;
+    CurChange = Arg2Orig[OriginChange];
+    Arg2Orig.clear();
+    cloned = cloned->CloneInst_();
+    Erase.push_back(cloned);
+    call_pos = call_pos.InsertAfter(cloned);
+    replceArg_muti(cloned, CurChange, ResOrigin);
+  }
+  for (auto iter = Erase.begin(); iter != Erase.end();)
+  {
+    auto call = *iter;
+    ++iter;
+    delete call;
+  }
+  cmp->ReplaceSomeUseWith(0, entry_indvar);
+  delete add;
+
+  delete tmp->GetBack();
+  auto muti_uncond = new UnCondInst(Unroll_Entry);
+  tmp->push_back(muti_uncond);
+
+  // update phi
+  entry_indvar->addIncoming(CurChange, tmp);
+  if (entry_res)
+    entry_res->addIncoming(ResOrigin, tmp);
+  PhiInst *singlehead_ind = nullptr, *singlehead_res = nullptr;
+  singlehead_ind = PhiInst::NewPhiNode(entry_indvar->GetType());
+  singlehead_ind->addIncoming(entry_indvar, Unroll_Entry);
+  SingleHeader->push_back(singlehead_ind);
+  PhiInst *new_Res = nullptr;
+  if (ResOrigin)
+  {
+    singlehead_res = PhiInst::NewPhiNode(entry_res->GetType());
+    singlehead_res->addIncoming(entry_res, Unroll_Entry);
+    SingleHeader->push_back(singlehead_res);
+    new_Res = singlehead_res;
+  }
+  // deal with real unroll body
+  Arg2Orig.clear();
+  for (int i = 1; i < UnrollBody->GetUserUseListSize(); i++)
+  {
+    auto op = UnrollBody->GetOperand(i);
+    if (op == loop->trait.indvar)
+      Arg2Orig[op] = singlehead_ind;
+    else if (op == loop->trait.res)
+      Arg2Orig[op] = singlehead_res;
+    else
+      Arg2Orig[op] = op;
+  }
+  auto Ret = _func->InlineCall(UnrollBody, Arg2Orig);
+  tmp = Ret.second;
+  delete tmp->GetBack();
+  auto single_uncond = new UnCondInst(SingleHeader);
+  tmp->push_back(single_uncond);
+
+  // update header phi
+  singlehead_ind->addIncoming(Arg2Orig[OriginChange], tmp);
+  if (Ret.first)
+    singlehead_res->addIncoming(Ret.first, tmp);
+  auto singlehead_cmp = BinaryInst::CreateInst(singlehead_ind, op, bound);
+  auto singlehead_cond = new CondInst(singlehead_cmp, Single, Exit);
+  SingleHeader->push_back(singlehead_cmp);
+  SingleHeader->push_back(singlehead_cond);
+  // protect exit phis: 按理说extract
+  // body之后只有ind和res可能会被外部使用，维护这两个值
+  auto callee = dynamic_cast<Function *>(UnrollBody->GetOperand(0));
+  if (ResOrigin)
+  {
+    UnrollBody->ReplaceAllUseWith(singlehead_res);
+  }
+  for (auto iter = Exit->begin();
+       iter != Exit->end() && dynamic_cast<PhiInst *>(*iter);)
+  {
+    auto inst = dynamic_cast<PhiInst *>(*iter);
+    ++iter;
+    inst->ModifyBlock(tmp, SingleHeader);
+  }
+  delete UnrollBody;
+
+  // change preheader edge
+  if (auto uncond = dynamic_cast<UnCondInst *>(preheader->GetBack()))
+  {
+    uncond->ReplaceSomeUseWith(0, Unroll_Entry);
+  }
+  else if (auto cond = dynamic_cast<CondInst *>(preheader->GetBack()))
+  {
+    for (int i = 1; i < 3; i++)
+    {
+      if (cond->GetOperand(i) == Single)
+      {
+        cond->ReplaceSomeUseWith(i, Unroll_Entry);
+        break;
+      }
+    }
+  }
+
+  loop->trait.change->ReplaceAllUseWith(singlehead_ind);
+  delete loop->trait.change;
+  loop->trait.indvar->ReplaceAllUseWith(singlehead_ind);
+  delete loop->trait.indvar;
+  if (loop->trait.res)
+    delete loop->trait.res;
+  Singleton<Module>().EraseFunction(callee);
+  _AM.Unrolled(MutiUnrollBlock);
+  _AM.Unrolled(SingleHeader);
+  _AM.Unrolled(Single);
+  return tmp;
+}
+
 BasicBlock *LoopUnrolling::Unroll(Loop *loop, CallInst *UnrollBody)
 {
   // 1. 验证和提取循环特征
@@ -627,4 +891,58 @@ void LoopUnrolling::CleanUp(Loop *loop, BasicBlock *clean)
   delete cond;
   clean->push_back(uncond);
   loopAnalysis->deleteLoop(loop);
+}
+
+bool LoopUnrolling::CanBeHalfUnroll(Loop *loop, LoopInfoAnalysis *loopAnalysis, DominantTree *_dom)
+{
+  const auto body = loop->getLoopBody();
+  int iteration = 0;
+  LoopSimping::CaculateLoopInfo(loop, loopAnalysis, _dom);
+  if (loop->CantCalcTrait())
+    return false;
+  if (loop->trait.boundary->GetTypeEnum() != IR_Value_INT)
+    return false;
+  auto header = loop->getHeader();
+  auto latch = loopAnalysis->getLatch(loop, _dom);
+  if (header != latch)
+    return false;
+  if (dynamic_cast<PhiInst *>(loop->trait.boundary))
+    return false;
+  if (auto user = dynamic_cast<User *>(loop->trait.boundary))
+  {
+    auto user1 = dynamic_cast<Instruction *>(user);
+    if (loop->ContainBB(user1->GetParent()))
+      return false;
+  }
+  if (auto Con = dynamic_cast<ConstIRInt *>(loop->trait.boundary))
+  {
+    iteration = Con->GetVal();
+    if (iteration < 30)
+      return false;
+  }
+  auto op = loop->trait.cmp->GetOp();
+  switch (op)
+  {
+  case BinaryInst::Op_G:
+  case BinaryInst::Op_GE:
+  case BinaryInst::Op_L:
+  case BinaryInst::Op_LE:
+    break;
+  default:
+    return false;
+  }
+  int cost = CaculatePrice(body, _func, 1);
+  if (cost == MaxInstCost + 1)
+    return false;
+  if (cost < 200 && iteration > 999)
+    HalfUnrollTimes = 50;
+  else if (cost < 200 && iteration > 300)
+    HalfUnrollTimes = 32;
+  else if (cost < 200 && iteration > 100)
+    HalfUnrollTimes = 16;
+  else if (cost < 100)
+    HalfUnrollTimes = 32;
+  else
+    HalfUnrollTimes = 4;
+  return true;
 }

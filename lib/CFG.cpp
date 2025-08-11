@@ -1815,23 +1815,31 @@ void PhiInst::removeIncomingFrom(BasicBlock *fromBB)
         }
     }
 }
-void PhiInst::ReplaceIncomingBlock(BasicBlock* oldBB, BasicBlock* newBB) {
+void PhiInst::ReplaceIncomingBlock(BasicBlock *oldBB, BasicBlock *newBB)
+{
     int oldIndex = -1;
     bool newExists = false;
 
     // 找到oldBB对应索引，检查newBB是否存在
-    for (auto& [idx, val] : PhiRecord) {
-        if (val.second == oldBB) oldIndex = idx;
-        if (val.second == newBB) newExists = true;
+    for (auto &[idx, val] : PhiRecord)
+    {
+        if (val.second == oldBB)
+            oldIndex = idx;
+        if (val.second == newBB)
+            newExists = true;
     }
 
-    if (oldIndex == -1) return; // oldBB没找到，不做改动
+    if (oldIndex == -1)
+        return; // oldBB没找到，不做改动
 
-    if (newExists) {
+    if (newExists)
+    {
         // newBB已存在，删除oldBB记录
         PhiRecord.erase(oldIndex);
         oprandNum--;
-    } else {
+    }
+    else
+    {
         // 直接替换oldBB为newBB
         PhiRecord[oldIndex].second = newBB;
     }
@@ -2189,4 +2197,29 @@ void Function::RenumberBBs()
     {
         bb->num = num++;
     }
+}
+BinaryInst *BinaryInst::CreateInst(Operand _A, Operation __op, Operand _B, User *place)
+{
+
+    BinaryInst *bin = new BinaryInst(_A, __op, _B);
+    if (place != nullptr)
+    {
+        auto place1 = dynamic_cast<Instruction *>(place);
+        BasicBlock *instbb = place1->GetParent();
+        for (auto iter = instbb->begin(); iter != instbb->end(); ++iter)
+            if (*iter == place)
+            {
+                iter.InsertBefore(bin);
+                break;
+            }
+    }
+    return bin;
+}
+
+PhiInst *PhiInst::NewPhiNode(Type *ty)
+{
+    assert(ty);
+    PhiInst *tmp = new PhiInst(ty);
+    tmp->id = Op::Phi;
+    return tmp;
 }

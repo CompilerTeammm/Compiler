@@ -261,17 +261,22 @@ std::vector<BasicBlock *> LoopInfoAnalysis::getExitingBlocks(Loop *loop)
   }
   return exiting;
 }
-BasicBlock *LoopInfoAnalysis::getLatch(Loop *loop)
+BasicBlock *LoopInfoAnalysis::getLatch(Loop *loop, DominantTree *_dom)
 {
   auto header = loop->getHeader();
   auto preheader = getPreHeader(loop);
   BasicBlock *latch = nullptr;
-  for (auto rev : _dom->getPredBBs(header))
+  for (auto rev : _dom->getNode(header)->predNodes)
   {
-    if (rev != preheader && loop->ContainBB(rev))
+    auto B = _dom->getNode(rev->curBlock)->curBlock;
+    if (B != preheader && loop->ContainBB(B))
     {
+      if (B == nullptr)
+      {
+        int a = 1;
+      }
       if (!latch)
-        latch = rev;
+        latch = B;
       else
         break;
     }

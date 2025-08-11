@@ -338,7 +338,7 @@ public:
   BinaryInst(Type *_tp) : Instruction(_tp, Op::BinaryUnknown) {};
   BinaryInst(Operand _A, Operation __op, Operand _B, bool Atom = false);
   BinaryInst *clone(std::unordered_map<Operand, Operand> &) override;
-
+  static BinaryInst *CreateInst(Operand _A, Operation __op, Operand _B, User *place = nullptr);
   bool IsAtomic() const { return Atomic; } // hu1 add it
 
   const Operation &GetOp() { return op; }
@@ -756,9 +756,9 @@ public:
   //  %r = phi i32 [ %b, %bb2 ]
   // 但需要注意,如果删完了之后是空phi了,需要自己删除掉这条指令
   void removeIncomingFrom(BasicBlock *fromBB);
-  //hu1 add it
-  //做了“前驱块替换”并且防止重复条目出现。
-  void ReplaceIncomingBlock(BasicBlock* oldBB, BasicBlock* newBB);
+  // hu1 add it
+  // 做了“前驱块替换”并且防止重复条目出现。
+  void ReplaceIncomingBlock(BasicBlock *oldBB, BasicBlock *newBB);
   // 常量传播处理phi函数的,在RAUW里面做的处理
   void PhiProp(Value *old, Value *val);
   void SetIncomingBlock(int index, BasicBlock *bb)
@@ -777,6 +777,7 @@ public:
       u->usee = val;
       val->add_use(u);
     } */
+  static PhiInst *NewPhiNode(Type *ty);
 };
 
 // BasicBlock管理Instruction和Function管理BasicBlock都提供了两种数据结构

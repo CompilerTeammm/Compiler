@@ -13,7 +13,7 @@ public:
     return Run(); // 如果已有 Run() 的实现
   }
   void PrintPass();
-  static void CaculateLoopInfo(Loop *loop, LoopInfoAnalysis *Anlay);
+  static void CaculateLoopInfo(Loop *loop, LoopInfoAnalysis *Anlay, DominantTree *m_dom);
   ~LoopSimping()
   {
     for (auto l : DeleteLoop)

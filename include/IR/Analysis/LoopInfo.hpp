@@ -194,7 +194,7 @@ public:
   // 获取循环头、前继
   BasicBlock *getPreHeader(Loop *loop, Flag flag = Strict);
   BasicBlock *getLoopHeader(BasicBlock *bb);
-  BasicBlock *getLatch(Loop *loop);
+  BasicBlock *getLatch(Loop *loop, DominantTree *_dom);
 
   // 循环退出、循环跳转
 

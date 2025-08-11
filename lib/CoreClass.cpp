@@ -424,7 +424,7 @@ void User::ReplaceSomeUseWith(int num, Operand val)
   assert(0 <= num && num < uselist.size() && "Invalid Location!");
   uselist[num]->RemoveFromValUseList(this);
   uselist[num]->usee = val;
-  if (val)  // DCE 用 nullptr 去当做的替换值，nullptr 并不需要维护关系
+  if (val) // DCE 用 nullptr 去当做的替换值，nullptr 并不需要维护关系
     val->add_use(uselist[num].get());
 }
 
@@ -784,4 +784,64 @@ float ConstIRFloat::GetVal()
 double ConstIRFloat::GetValAsDouble() const
 {
   return static_cast<double>(val);
+}
+
+Instruction *Instruction::CloneInst_()
+{
+  if (auto call = dynamic_cast<CallInst *>(this))
+  {
+    std::vector<Value *> tmp;
+    std::for_each(call->GetUserUseList().begin() + 1, call->GetUserUseList().end(),
+                  [&tmp](auto &ele)
+                  { tmp.push_back(ele->GetValue()); });
+    return new CallInst(call->GetUserUseList()[0]->GetValue(), tmp);
+  }
+  else if (auto bin = dynamic_cast<BinaryInst *>(this))
+  {
+    return new BinaryInst(bin->GetOperand(0), bin->GetOp(),
+                          bin->GetOperand(1));
+  }
+  else if (auto gep = dynamic_cast<GepInst *>(this))
+  {
+    std::vector<Value *> tmp;
+    for (int i = 1; i < gep->GetUserUseListSize(); i++)
+    {
+      tmp.push_back(gep->GetOperand(i));
+    }
+    return new GepInst(gep->GetOperand(0), tmp);
+  }
+  else if (auto ld = dynamic_cast<LoadInst *>(this))
+  {
+    return new LoadInst(ld->GetOperand(0));
+  }
+  else if (auto st = dynamic_cast<StoreInst *>(this))
+  {
+    return new StoreInst(st->GetOperand(0), st->GetOperand(1));
+  }
+  else if (auto cond = dynamic_cast<CondInst *>(this))
+  {
+    return new CondInst(cond->GetOperand(0),
+                        dynamic_cast<BasicBlock *>(cond->GetOperand(1)),
+                        dynamic_cast<BasicBlock *>(cond->GetOperand(2)));
+  }
+  else if (auto uncond = dynamic_cast<UnCondInst *>(this))
+  {
+    return new UnCondInst(dynamic_cast<BasicBlock *>(uncond->GetOperand(0)));
+  }
+  else if (auto phi = dynamic_cast<PhiInst *>(this))
+  {
+    auto new_phi = PhiInst::Create(phi->GetType());
+    for (const auto &[index, val] : phi->PhiRecord)
+    {
+      phi->addIncoming(val.first, val.second);
+    }
+    return new_phi;
+  }
+  else if (auto max = dynamic_cast<MaxInst *>(this))
+    return new MaxInst(GetOperand(0), GetOperand(1));
+  else if (auto min = dynamic_cast<MinInst *>(this))
+    return new MinInst(GetOperand(0), GetOperand(1));
+  else if (auto select = dynamic_cast<SelectInst *>(this))
+    return new SelectInst(GetOperand(0), GetOperand(1), GetOperand(2));
+  assert(0);
 }
