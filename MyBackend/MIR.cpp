@@ -28,6 +28,7 @@ std::shared_ptr<Imm> Imm::GetImm(ConstantData* _data)
     return Immpool[_data];
 }
 
+
 int Register::VirtualReg = 0;
 Register::Register(std::string _name, bool Flag,int _Fflag) 
                   :RISCVOp(_name), RVflag(Flag),Fflag(_Fflag)
@@ -63,6 +64,8 @@ void Register::reWirteRegWithReal(Register* _real)
     auto op = _real->getRegop();
     setName(realRegToString(op));
 }
+
+
 
 
 std::string  RISCVInst::ISAtoAsm()

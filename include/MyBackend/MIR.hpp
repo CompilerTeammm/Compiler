@@ -212,47 +212,20 @@ public:
         case realReg::fa6:  return "fa6";
         case realReg::fa7:  return "fa7";
 
-        // 特殊别名（与基础寄存器共享值）
-        // case realReg::x0:   return "x0";   // = zero
-        // case realReg::x1:   return "x1";   // = ra
-        // case realReg::x2:   return "x2";   // = sp
-        // case realReg::x3:   return "x3";   // = gp
-        // case realReg::x4:   return "x4";   // = tp
-        // case realReg::x5:   return "x5";   // = t0
-        // case realReg::x6:   return "x6";   // = t1
-        // case realReg::x7:   return "x7";   // = t2
-        // case realReg::x8:   return "x8";   // = s0
-        // case realReg::x9:   return "x9";   // = s1
-        // case realReg::x10:  return "x10";  // = a0
-        // case realReg::x11:  return "x11";  // = a1
-        // case realReg::x12:  return "x12";  // = a2
-        // case realReg::x13:  return "x13";  // = a3
-        // case realReg::x14:  return "x14";  // = a4
-        // case realReg::x15:  return "x15";  // = a5
-        // case realReg::x16:  return "x16";  // = a6
-        // case realReg::x17:  return "x17";  // = a7
-        // case realReg::x18:  return "x18";  // = s2
-        // case realReg::x19:  return "x19";  // = s3
-        // case realReg::x20:  return "x20";  // = s4
-        // case realReg::x21:  return "x21";  // = s5
-        // case realReg::x22:  return "x22";  // = s6
-        // case realReg::x23:  return "x23";  // = s7
-        // case realReg::x24:  return "x24";  // = s8
-        // case realReg::x25:  return "x25";  // = s9
-        // case realReg::x26:  return "x26";  // = s10
-        // case realReg::x27:  return "x27";  // = s11
-        // case realReg::x28:  return "x28";  // = t3
-        // case realReg::x29:  return "x29";  // = t4
-        // case realReg::x30:  return "x30";  // = t5
-        // case realReg::x31:  return "x31";  // = t6
-
-        // 特殊值（如 _NULL）
-       // case realReg::_NULL: return "_NULL";
-
         default:
             throw std::invalid_argument("Invalid realReg value");
         }
     }
+};
+
+class VirRegister:public Register
+{
+
+};
+
+class RealRegister:public Register
+{
+
 };
 
 // 地址操作符

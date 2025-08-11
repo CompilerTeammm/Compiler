@@ -24,7 +24,6 @@ RISCVInst* RISCVContext::CreateInstAndBuildBind(RISCVInst::ISA op, Instruction *
 {
     auto RISCVInst = new class RISCVInst(op); // RISCVInst::ISA::_ret
     (*this)(inst, RISCVInst);
-
     return RISCVInst;
     // 这两种写法是等效的  this->operator()(inst,RCInst);  operator()(inst,RCInst);
 }

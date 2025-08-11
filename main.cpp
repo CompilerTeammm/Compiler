@@ -10,7 +10,7 @@
 #include "Log/log.hpp"
 #include <filesystem>
 
-// #define OPT
+#define OPT
 #define backend
 
 extern FILE *yyin;

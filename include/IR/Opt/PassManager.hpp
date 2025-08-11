@@ -27,6 +27,8 @@
 #include "GepCombine.hpp" 
 #include "GepEval.hpp" 
 
+// #define dh
+
 enum OptLevel {
     None,
     O1,
@@ -89,7 +91,11 @@ public:
 
             };
         } else if(lvl == None){
-            enabledPasses = {}; // 默认都不开
+            enabledPasses = {
+#ifdef dh
+                "mem2reg"
+#endif
+            }; // 默认都不开
         }
     }
 
