@@ -62,33 +62,38 @@ public:
                 // 前期规范化
                 "mem2reg",
                 "sccp",
-                // "SCFG",
+                "SCFG",
 
                 // "ECE",
                 // 过程间优化
-                // "inline",
+                "inline",
 
-                // "SOGE",
+                "SOGE",
 
                 // 局部清理
 
-                // "TRE",
-                "CondMerge",
+                "TRE",
+                // "CondMerge",
 
                 // 循环优化
                 "Loop_Simplifying",
-                "Loop_Rotaing"
+                // "Loop_Rotaing"
                 //"Loop_Unrolling",
 
                 // 数据流优化
                 // "SSAPRE",
                 //"GVN",
-                // "DCE",
+                "DCE",
 
                 // 数组重写
                 //  "gepcombine",
 
                 // 后端准备
+
+            };
+        }
+        else if(lvl=hu1_test){
+            enabledPasses={
 
             };
         }

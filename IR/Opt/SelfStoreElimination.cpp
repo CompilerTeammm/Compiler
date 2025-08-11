@@ -56,9 +56,9 @@ void SelfStoreElimination::CollectStoreInfo(std::unordered_map<Value*, std::vect
             }
         }
     }
-    for (auto& [val, list] : storeMap) {
-        std::cerr << "[Collect] Store target: " << val->GetName() << ", Count: " << list.size() << "\n";
-    }
+    // for (auto& [val, list] : storeMap) {
+    //     std::cerr << "[Collect] Store target: " << val->GetName() << ", Count: " << list.size() << "\n";
+    // }
 }
 
 static bool IsSameGEP(Value* a, Value* b) {

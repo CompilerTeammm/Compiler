@@ -71,7 +71,11 @@ int main(int argc, char **argv) {
            PM.SetLevel(O1);
            optimization_set = true;
        }
-   
+       //识别hu1的test(非线性)
+       else if(arg=="hu1"){
+         PM.SetLevel(hu1_test);
+         optimization_set = true;
+       }
        // 识别 --test=xxx,yyy
        else if (arg.rfind("--test=", 0) == 0) {
            std::string param = arg.substr(7); // 去掉前缀 "--test="
