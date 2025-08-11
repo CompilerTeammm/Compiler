@@ -16,8 +16,8 @@ class RegAllocation :public BackendPassBase
     LiveInterval interval;
     std::vector<std::pair<Register*,LiveInterval::rangeInfoptr>> LinerScaner;
     std::list<std::pair<Register*,LiveInterval::rangeInfoptr>> active_list;
-    std::vector<Register*> RegisterIntpool;                    // realReg  
-    std::vector<Register*> RegisterFloatpool;                  // realReg  
+    std::vector<RealRegister*> RegisterIntpool;                    // realReg  
+    std::vector<RealRegister*> RegisterFloatpool;                  // realReg  
     std::map<Register*,Register*> activeRegs;           // map<vir,real> --> 虚拟寄存器分配的实际寄存器
     std::unordered_map<Register*,int> stackLocation;    // map<vir, offset>
 

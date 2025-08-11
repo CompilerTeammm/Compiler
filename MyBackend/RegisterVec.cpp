@@ -1,11 +1,11 @@
 #include "../include/MyBackend/RegisterVec.hpp"
 
-using realReg=Register::realReg;
+using realReg=RealRegister::realReg;
 RegisterVec::RegisterVec()
 {
     realReg regOp = realReg::a0;
-    auto appendReg = [&](std::vector<Register*>& vec) {
-        vec.push_back(Register::GetRealReg(regOp));
+    auto appendReg = [&](std::vector<RealRegister*>& vec) {
+        vec.push_back(RealRegister::GetRealReg(regOp));
         regOp = realReg(regOp + 1);
     };
     // int      t2   a0-a7 t3-t6  s1-s11       24
@@ -14,13 +14,13 @@ RegisterVec::RegisterVec()
       appendReg(intRegVec);
     }
 
-    intRegVec.push_back(Register::GetRealReg(realReg::s1));
+    intRegVec.push_back(RealRegister::GetRealReg(realReg::s1));
     regOp = realReg::s2;
     while(regOp<=realReg::s11) {
       appendReg(intRegVec);
     }
     
-    intRegVec.push_back(Register::GetRealReg(realReg::t2));
+    intRegVec.push_back(RealRegister::GetRealReg(realReg::t2));
     regOp = realReg::t3;
     while(regOp<=realReg::t6) {
       appendReg(intRegVec);
@@ -40,7 +40,7 @@ RegisterVec::RegisterVec()
     }
 
     // caller
-    callerRegVec.push_back(Register::GetRealReg(realReg::t2));
+    callerRegVec.push_back(RealRegister::GetRealReg(realReg::t2));
     regOp = realReg::a0;
     while(regOp<=realReg::a7) {
       appendReg(callerRegVec);

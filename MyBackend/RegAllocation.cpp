@@ -9,7 +9,7 @@
 
 bool RegAllocation::isFloatReg(Register *reg)
 {
-    return reg->IsFflag();
+    return reg->IsFloatFlag();
 }
 int RegAllocation::getAvailableRegNum(Register* reg) {
     return isFloatReg(reg) ? FLOATREGNUM : INTREGNUM;
@@ -59,7 +59,7 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
     {
         if (oldInterval.second->end < newInterval.second->start) {
             auto realReg = activeRegs[oldInterval.first];
-            if (oldInterval.first->IsFflag())
+            if (oldInterval.first->IsFloatFlag())
                 RegisterFloatpool.emplace_back(realReg);
             else   
                 RegisterIntpool.emplace_back(realReg);
@@ -115,7 +115,7 @@ void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr> interval)
 {   
     Register* reg;
 
-    auto func = [&](std::vector<Register*>& pool){
+    auto func = [&](std::vector<RealRegister*& pool){
         if (pool.empty()){
             spillInterval(interval);
             return;
@@ -124,7 +124,7 @@ void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr> interval)
         pool.pop_back();
     };
 
-    if (interval.first->IsFflag()) {
+    if (interval.first->IsFloatFlag()) {
         func(RegisterFloatpool);
     } else {
         func(RegisterIntpool);
@@ -163,7 +163,7 @@ void RegAllocation::ReWriteRegs()
 {
     for(auto [v,r] : activeRegs)
     {
-        v->reWirteRegWithReal(r);
+        // v->reWriteRegWithReal(r);
     }
 }
 

@@ -19,7 +19,6 @@ bool RISCVContext::dealGlobalVal(Value* val)
     return true;
 }
 
-
 RISCVInst* RISCVContext::CreateInstAndBuildBind(RISCVInst::ISA op, Instruction *inst)
 {
     auto RISCVInst = new class RISCVInst(op); // RISCVInst::ISA::_ret
@@ -98,7 +97,7 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
             Inst0  = CreateInstAndBuildBind(RISCVInst::_li,inst);
             Inst0->setRealLIOp(op);
             auto Inst1 = CreateInstAndBuildBind(RISCVInst::_fmv_w_x,inst);
-            Inst1->SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+            Inst1->SetVirRegister();
             Inst1->setStoreOp(Inst0);
             auto Inst2  = CreateInstAndBuildBind(RISCVInst::_fmv_s,inst);
             auto LoadInst = Inst2->GetPrevNode();
@@ -159,7 +158,7 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
         if (inst->GetType() == IntType::NewIntTypeGet())
         {
             Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
-            Inst->setLoadOp();
+            Inst->SetVirRegister();
             extraDealLoadInst(Inst, inst);
         }
         else if (inst->GetType() == FloatType::NewFloatTypeGet())
@@ -171,7 +170,7 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
         else {  
             // 指针的处理     
             Inst = CreateInstAndBuildBind(RISCVInst::_ld, inst);
-            Inst->setLoadOp();
+            Inst->SetVirRegister();
             extraDealLoadInst(Inst, inst);
         }
             
@@ -282,16 +281,16 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
             {
                 SwInst = CreateInstAndBuildBind(RISCVInst::_sd, inst);
                 // SwInst->setStoreOp(Inst);
-                auto it = mapTrans(inst->GetOperand(0))->as<Register>();
-                auto Rop = std::make_shared<Register>(it->getRegop());
+                auto it = mapTrans(inst->GetOperand(0))->as<RealRegister>();
+                auto Rop = std::make_shared<RealRegister>(it->getRegop());
                 SwInst->push_back(Rop);
                 extraDealStoreInst(SwInst, inst);                
             }
             else {
                 SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
                 // SwInst->setStoreOp(Inst);
-                auto it = mapTrans(inst->GetOperand(0))->as<Register>();
-                auto Rop = std::make_shared<Register>(it->getRegop());
+                auto it = mapTrans(inst->GetOperand(0))->as<RealRegister>();
+                auto Rop = std::make_shared<RealRegister>(it->getRegop());
                 SwInst->push_back(Rop);
                 extraDealStoreInst(SwInst, inst);
             }
@@ -565,7 +564,7 @@ void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVIns
 void RISCVContext::extraDealFlCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op,op op1,op op2)
 {
     RInst = CreateInstAndBuildBind(Op, inst);
-    RInst->SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+    RInst->SetVirRegister();
     RInst->push_back(op1);
     RInst->push_back(op2);
 }
@@ -636,7 +635,7 @@ void RISCVContext::extraDealCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::
         case BinaryInst::Op_NE: {
             extraDealFlCmp(RInst,inst,RISCVInst::_feq_s,tmp1->getOpreand(0),tmp2->getOpreand(0));
             auto Inst1 = CreateInstAndBuildBind(RISCVInst::_seqz, inst);
-            Inst1->SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+            Inst1->SetVirRegister();
             Inst1->setStoreOp(RInst);
             break;
         }
@@ -706,9 +705,6 @@ RISCVInst* RISCVContext::CreateBInst(BinaryInst *inst)
         case BinaryInst::Op_And:
         case BinaryInst::Op_Or:
         case BinaryInst::Op_Xor:
-            {
-                int a = 10;
-            }
             break;
         default:
             break;
@@ -731,12 +727,12 @@ RISCVInst*RISCVContext::CreateF2IInst(FP2SIInst *inst)
 
         auto Inst3 = CreateInstAndBuildBind(RISCVInst::_fcvt_w_s, inst);
         Inst->DealMore(Inst3);
-        Inst3->SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        Inst3->SetVirRegister();
         Inst3->setStoreOp(Inst3->GetPrevNode());
         Inst3->push_back(std::make_shared<RISCVOp>("rtz"));
     } else {
         Inst = CreateInstAndBuildBind(RISCVInst::_fcvt_w_s, inst);
-        Inst->SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        Inst->SetVirRegister();
         Inst->setStoreOp(Inst->GetPrevNode());
         Inst->push_back(std::make_shared<RISCVOp>("rtz"));
     }
@@ -754,12 +750,12 @@ RISCVInst* RISCVContext::CreateI2Fnst(SI2FPInst *inst)
         Inst->setRealLIOp(val);
 
         auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fcvt_s_w, inst);
-        Inst2->SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        Inst2->SetVirRegister();
         Inst2->setStoreOp(Inst2->GetPrevNode());
         Inst->DealMore(Inst2);
     } else {
         Inst = CreateInstAndBuildBind(RISCVInst::_fcvt_s_w, inst);
-        Inst->SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        Inst->SetVirRegister();
         Inst->setStoreOp(Inst->GetPrevNode());
     }
 
@@ -1293,13 +1289,13 @@ RISCVOp* RISCVContext::mapTrans(Value* val)
              dynamic_cast<Function*>(val) )
     {
         auto func = dynamic_cast<Function*>(val);
-        Register::realReg  counter = Register::a0;
+        RealRegister::realReg  counter = RealRegister::a0;
         for(auto& parm : func->GetParams())
         {
-            auto op = Register::GetRealReg(counter);
+            auto op = RealRegister::GetRealReg(counter);
             valToRiscvOp[parm.get()] = op;
-            counter = Register::realReg(counter + 1);
-            if (counter == Register::a7)
+            counter = RealRegister::realReg(counter + 1);
+            if (counter == RealRegister::a7)
                 break;  // 对栈帧的处理
         }
     }

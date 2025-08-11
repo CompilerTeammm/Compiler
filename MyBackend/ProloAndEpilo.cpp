@@ -144,8 +144,8 @@ size_t ProloAndEpilo::caculate()
 
 void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool flag)
 {
-    inst->SetRegisterOp(std::move("sp"),Register::real);
-    inst->SetRegisterOp (std::move("sp"),Register::real);
+    inst->SetRealRegister(std::move("sp"));
+    inst->SetRealRegister(std::move("sp"));
 
     if(flag == _malloc)
         inst->SetstackOffsetOp(std::move("-"+std::to_string(size)));
@@ -154,18 +154,18 @@ void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool fla
 }
 void ProloAndEpilo::SetsdRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("ra",Register::real);
-    inst->SetRegisterOp(std::to_string(size-8)+"(sp)",Register::real);
+    inst->SetRealRegister("ra");
+    inst->SetRealRegister(std::to_string(size-8)+"(sp)");
 }
 void ProloAndEpilo::SetsdS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("s0",Register::real);
-    inst->SetRegisterOp(std::to_string(size-16)+"(sp)",Register::real);
+    inst->SetRealRegister("s0");
+    inst->SetRealRegister(std::to_string(size-16)+"(sp)");
 }
 void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("s0",Register::real);
-    inst->SetRegisterOp("sp",Register::real);
+    inst->SetRealRegister("s0");
+    inst->SetRealRegister("sp");
     
     inst->SetstackOffsetOp(std::to_string(size));
 
@@ -173,13 +173,13 @@ void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 
 void ProloAndEpilo::SetldRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("ra",Register::real);
-    inst->SetRegisterOp (std::to_string(size-8)+"(sp)",Register::real);
+    inst->SetRealRegister("ra");
+    inst->SetRealRegister(std::to_string(size-8)+"(sp)");
 }
 void ProloAndEpilo::SetldS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("s0",Register::real);
-    inst->SetRegisterOp (std::to_string(size-16)+"(sp)",Register::real);
+    inst->SetRealRegister("s0");
+    inst->SetRealRegister(std::to_string(size-16)+"(sp)");
 }
 
 void ProloAndEpilo::CreateProlo(size_t size)

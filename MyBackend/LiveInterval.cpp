@@ -13,7 +13,7 @@ void LiveInfo::GetLiveUseAndDef()
             {
                 if (auto reg = dynamic_cast<Register*>(op.get()) ) 
                 {
-                    if (!reg->IsrealRegister())
+                    if (!dynamic_cast<RealRegister*>(reg))
                     {
                         if (reg == mInst->getOpreand(0).get())
                         {
@@ -119,7 +119,7 @@ void LiveInterval::CalcuLiveIntervals()
             {
                 if(auto reg = dynamic_cast<Register*> (op.get()))
                 {
-                    if(!reg->IsrealRegister())
+                    if(!dynamic_cast<RealRegister*>(reg))
                     {
 
                     }
@@ -190,7 +190,7 @@ void LiveInterval::FinalCalcu()
             {
                 if (auto reg = dynamic_cast<Register*>(op.get()) ) 
                 {
-                    if (!reg->IsrealRegister())
+                    if (!dynamic_cast<RealRegister*>(reg))
                     {
                         if (LiveDef.find(reg) == LiveDef.end())
                         {

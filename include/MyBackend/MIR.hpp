@@ -104,17 +104,35 @@ public:
     stackOffset(Value *_val) : val(_val), RISCVOp(_val->GetName()) {}
     stackOffset(std::string name) : RISCVOp(name) {}
 };
+// 地址操作符
+class RISCVAddrOp:public RISCVOp 
+{
+public:
+    RISCVAddrOp(std::string name) :RISCVOp(name) { }
+};
 
-// 虚拟实际寄存器封装到一起
-// 我将 虚拟寄存器和 物理实际寄存器进行了封装
+class RealRegister;
+class VirRegister;
 class Register:public RISCVOp
 {
 public:
-    static int VirtualReg;
-    enum FLAG {
-        real,   // 0
-        vir     // 1
-    };
+    Register(std::string _name);
+    int Floatflag; 
+    bool IsFloatFlag() { return Floatflag == 1; }   // FloatReg or  IntReg
+};
+
+class VirRegister:public Register
+{
+public:
+    static int VirtualRegNum;
+    VirRegister():Register("%"+ std::to_string(VirtualRegNum)) 
+                  {   VirtualRegNum++;   }
+    void reWriteRegWithReal(RealRegister* );
+};
+
+class RealRegister:public Register
+{
+public:
     enum realReg{
         // int  ABI name
         zero,ra,sp,gp,tp,t0,t1,t2,
@@ -132,108 +150,14 @@ public:
         fs0,fs1,fs2,fs3,fs4,fs5,fs6,fs7,fs8,fs9,fs10,fs11,
         fa0,fa1,fa2,fa3,fa4,fa5,fa6,fa7, _NULL,
     } realRegop;
-    Register(std::string _name,bool Flag = vir,int _Fflag=0 );
-    Register(realReg _Regop,bool Flag = real,int _Fflag=0);
-    int Fflag;
-    int RVflag;
-    bool IsrealRegister() { return RVflag == real; }  // vir or real Reg
-    bool IsFflag() { return Fflag == 1; }           // FloatReg or  IntReg
+
+    static std::string realRegToString(realReg reg);
+    static RealRegister* GetRealReg(realReg);
     realReg getRegop();
-    void setRVflag() { RVflag = real; }
-    void reWirteRegWithReal(Register* );
-    static Register* GetRealReg(realReg);
-    std::string realRegToString(realReg reg) {
-    switch(reg) {
-        // 基础整数寄存器
-        case realReg::zero: return "zero";
-        case realReg::ra:   return "ra";
-        case realReg::sp:   return "sp";
-        case realReg::gp:   return "gp";
-        case realReg::tp:   return "tp";
-        case realReg::t0:   return "t0";
-        case realReg::t1:   return "t1";
-        case realReg::t2:   return "t2";
-        case realReg::s0:   return "s0";
-        case realReg::s1:   return "s1";
-        case realReg::a0:   return "a0";
-        case realReg::a1:   return "a1";
-        case realReg::a2:   return "a2";
-        case realReg::a3:   return "a3";
-        case realReg::a4:   return "a4";
-        case realReg::a5:   return "a5";
-        case realReg::a6:   return "a6";
-        case realReg::a7:   return "a7";
-        case realReg::s2:   return "s2";
-        case realReg::s3:   return "s3";
-        case realReg::s4:   return "s4";
-        case realReg::s5:   return "s5";
-        case realReg::s6:   return "s6";
-        case realReg::s7:   return "s7";
-        case realReg::s8:   return "s8";
-        case realReg::s9:   return "s9";
-        case realReg::s10:  return "s10";
-        case realReg::s11:  return "s11";
-        case realReg::t3:   return "t3";
-        case realReg::t4:   return "t4";
-        case realReg::t5:   return "t5";
-        case realReg::t6:   return "t6";
-
-        // 浮点寄存器
-        case realReg::ft0:  return "ft0";
-        case realReg::ft1:  return "ft1";
-        case realReg::ft2:  return "ft2";
-        case realReg::ft3:  return "ft3";
-        case realReg::ft4:  return "ft4";
-        case realReg::ft5:  return "ft5";
-        case realReg::ft6:  return "ft6";
-        case realReg::ft7:  return "ft7";
-        case realReg::ft8:  return "ft8";
-        case realReg::ft9:  return "ft9";
-        case realReg::ft10: return "ft10";
-        case realReg::ft11: return "ft11";
-        case realReg::fs0:  return "fs0";
-        case realReg::fs1:  return "fs1";
-        case realReg::fs2:  return "fs2";
-        case realReg::fs3:  return "fs3";
-        case realReg::fs4:  return "fs4";
-        case realReg::fs5:  return "fs5";
-        case realReg::fs6:  return "fs6";
-        case realReg::fs7:  return "fs7";
-        case realReg::fs8:  return "fs8";
-        case realReg::fs9:  return "fs9";
-        case realReg::fs10: return "fs10";
-        case realReg::fs11: return "fs11";
-        case realReg::fa0:  return "fa0";
-        case realReg::fa1:  return "fa1";
-        case realReg::fa2:  return "fa2";
-        case realReg::fa3:  return "fa3";
-        case realReg::fa4:  return "fa4";
-        case realReg::fa5:  return "fa5";
-        case realReg::fa6:  return "fa6";
-        case realReg::fa7:  return "fa7";
-
-        default:
-            throw std::invalid_argument("Invalid realReg value");
-        }
-    }
+    RealRegister(realReg _Regop):Register(realRegToString(_Regop)) {}
+    RealRegister(std::string name):Register(name) {}
 };
 
-class VirRegister:public Register
-{
-
-};
-
-class RealRegister:public Register
-{
-
-};
-
-// 地址操作符
-class RISCVAddrOp:public RISCVOp 
-{
-public:
-    RISCVAddrOp(std::string name) :RISCVOp(name) { }
-};
 
 class RISCVInst:public RISCVOp,public Node<RISCVBlock,RISCVInst>
 {
@@ -414,6 +338,7 @@ public:
     };
 
     Status status = ONE;
+
 public:
     RISCVInst(ISA op) :opCode(op) { }
     ISA getOpcode() { return opCode;}
@@ -432,17 +357,17 @@ public:
             opCode = _ble;
     }
 
-    void SetRegisterOp(std::string&& str,bool Flag = Register::vir)
-    {
-        auto Regop = std::make_shared<Register>(str, Flag);
+    // Virtual
+    void SetVirRegister()  {
+        auto Regop = std::make_shared<VirRegister>();
         opsVec.push_back(Regop);
     }
-    void SetVirRegister()  {
-        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
-    }
+    // Real
     void SetRealRegister(std::string&& str) {
-        SetRegisterOp(std::move(str),Register::real);   
+        auto Regop = std::make_shared<RealRegister>(str);
+        opsVec.push_back(Regop); 
     } 
+
     void SetstackOffsetOp(std::string &&str) {   // prolo  epilo
         auto stackOff = std::make_shared<stackOffset>(str);
         opsVec.push_back(stackOff);
@@ -451,13 +376,6 @@ public:
     {
         std::shared_ptr<Imm> Immop = Imm::GetImm(val->as<ConstantData>());
         opsVec.push_back(Immop);
-    }
-    
-    void SetAddrOp(std::string hi_lo,Value* val)
-    {
-        std::string s1(hi_lo+"(" + val->GetName() + ")");
-        std::shared_ptr<RISCVAddrOp> addrOp = std::make_shared<RISCVAddrOp> (s1);
-        opsVec.push_back(addrOp);
     }
     
     void SetAddrOp(Value* val)  // la reg, .G.a
@@ -497,57 +415,51 @@ public:
     }
     void setStoreStackOp(size_t offset)
     {
-       opsVec.push_back(std::make_shared<RISCVOp> 
-                       ("-" + std::to_string(offset) + "(s0)"));
+       opsVec.push_back(std::make_shared<stackOffset>("-" + std::to_string(offset) + "(s0)"));
     }
 
     void setThreeRigs(op op1, op op2) // addw
     {
-        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        SetVirRegister();
         opsVec.push_back(op1);
         opsVec.push_back(op2);
     }
 
     void setRetOp(Value* val)  // ret
     {
-        SetRegisterOp("a0",Register::real);
+        SetRealRegister("a0");
         SetImmOp(val);
     }
     void setFRetOp(Value* val)  // ret
     {
-        SetRegisterOp("fa0",Register::real);
+        SetRealRegister("fa0");
         SetImmOp(val);
     }
     void setRetOp(op val)
     {
-        SetRegisterOp("a0",Register::real);
+        SetRealRegister("a0");
         opsVec.push_back(val);
     }
     void setFRetOp(op val)
     {
-        SetRegisterOp("fa0",Register::real);
+        SetRealRegister("fa0");
         opsVec.push_back(val);
-    }
-
-    void setLoadOp()  // ld
-    {
-        SetRegisterOp ("%." + std::to_string(Register::VirtualReg));
     }
 
     void setVirLIOp(Value* val) // li
     {
-        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        SetVirRegister();
         SetImmOp(val);
     }
     void setRealLIOp(Value* val) // li
     {
-        SetRegisterOp("t0",Register::real);
+        SetRealRegister("t0");
         SetImmOp(val);
     }
 
     void setMVOp(RISCVInst* Inst)
     {
-        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        SetVirRegister();
         auto reg = Inst->getOpreand(0);
         opsVec.push_back(reg);
     }
