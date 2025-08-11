@@ -122,9 +122,20 @@ public:
                 "TRE",
 
                 //loop基础优化
+                "Loop_Simplifying",
 
+
+                "sccp",
+                "DCE",
+                "SCFG",
+                "inline",
+                "sccp",
+                "SCFG",
+                "SOGE",
+                "DCE",
+                "TRE",
                 //loop展开+常规优化
-
+                
                 //再来波常规清理
                 "sccp",
                 "SCFG",
