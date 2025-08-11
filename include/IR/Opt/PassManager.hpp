@@ -77,7 +77,7 @@ public:
 
                 // 循环优化
                 "Loop_Simplifying",
-                // "Loop_Rotaing"
+                // "Loop_Rotaing",
                 //"Loop_Unrolling",
 
                 // 数据流优化
@@ -94,7 +94,42 @@ public:
         }
         else if(lvl=hu1_test){
             enabledPasses={
+                //第一波
+                "SSE",
+                "SOGE",
+                // "CondMerge"//为什么学长会放在这里
+                "mem2reg",
+                "sccp",
+                "SCFG",
+                "DCE",
+                "SOGE",
+                "sccp",
+                "SCFG",
 
+
+                //第一次内联,循环清理两次
+                "inline",
+                "sccp",
+                "SCFG",
+                "SOGE",
+                "DCE",
+                "TRE",
+                "inline",
+                "sccp",
+                "SCFG",
+                "SOGE",
+                "DCE",
+                "TRE",
+
+                //loop基础优化
+
+                //loop展开+常规优化
+
+                //再来波常规清理
+                "sccp",
+                "SCFG",
+                "SOGE",
+                "DCE",
             };
         }
         else if (lvl == None)
