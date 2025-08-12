@@ -43,6 +43,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/SSAPRE.cpp
   IR/Opt/SimplifyCFG.cpp
   IR/Opt/DSE.cpp
+  IR/Opt/DAE.cpp
   IR/Opt/SelfStoreElimination.cpp
   IR/Opt/CodeMerge.cpp
 

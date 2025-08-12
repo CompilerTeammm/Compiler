@@ -20,6 +20,7 @@
 #include "../Analysis/SideEffect.hpp"
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
+#include "DAE.hpp"
 #include "SelfStoreElimination.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
@@ -71,7 +72,7 @@ public:
                 "SOGE",
 
                 // 局部清理
-
+                "DAE",
                 "TRE",
                 // "CondMerge",
 
@@ -124,7 +125,7 @@ public:
                 //loop基础优化
                 "Loop_Simplifying",
                 //loop展开+常规优化
-
+                
                 //再来波常规清理
                 "sccp",
                 "SCFG",
@@ -252,7 +253,9 @@ public:
                 CondMerge(fun, AM).run();
             }
         }
-
+        if(IsEnabled("DAE")){
+            DAE(&Singleton<Module>(),AM).run();
+        }
         if (IsEnabled("TRE"))
         {
             for (auto &function : funcVec)

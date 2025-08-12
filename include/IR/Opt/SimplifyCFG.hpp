@@ -11,6 +11,7 @@
 #include <queue>
 class SimplifyCFG : public _PassBase<SimplifyCFG, Function>
 {
+    friend class CondMerge;
 private:
     Function *func;
 
