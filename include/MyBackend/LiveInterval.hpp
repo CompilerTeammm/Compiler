@@ -9,9 +9,10 @@ class LiveInfo
 public:
     std::unordered_map<RISCVBlock*,std::set<Register*>> BlockLiveIn;
     std::unordered_map<RISCVBlock*,std::set<Register*>> BlockLiveOut;
+    std::unordered_map<Register*,RISCVBlock*> DefValsInBlock;
+    
     RISCVFunction* curfunc;
     std::shared_ptr<RISCVContext> ctx;
-    std::unordered_map<Register*,RISCVBlock*> BlockWithVals;
     LiveInfo(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext>& _ctx)
             :curfunc(_curfunc),ctx(_ctx),BlockLiveIn{},BlockLiveOut{} { }
 

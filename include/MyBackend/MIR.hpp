@@ -479,7 +479,7 @@ public:
     ~RISCVBlock() = default;
     static std::string getCounter();
     std::vector<BasicBlock*> getSuccBlocks();
-    std::set<Register*>& getLiveUse()  {  return LiveUse; }
+    std::set<Register*>& getLiveUse()  {  return LiveUse; }   // LiveUse or LiveDef 都是VirReg
     std::set<Register*>& getLiveDef()  {  return LiveDef; }
     BasicBlock*& getIRbb() { return cur_bb; }
 };

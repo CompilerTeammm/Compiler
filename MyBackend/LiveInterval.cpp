@@ -1,6 +1,9 @@
 #include "../include/MyBackend/LiveInterval.hpp"
 #include <memory>
 
+// #define TEST_BLOCK_INOUT
+// #define TEST_LIVEUSE_DEF
+
 void LiveInfo::GetLiveUseAndDef()
 {
     for(RISCVBlock* mbb :*curfunc)
@@ -11,25 +14,45 @@ void LiveInfo::GetLiveUseAndDef()
         {
             for(auto& op : mInst->getOpsVec())
             {
-                if (auto reg = dynamic_cast<Register*>(op.get()) ) 
+                if (auto reg = dynamic_cast<VirRegister *>(op.get()))
                 {
-                    if (!dynamic_cast<RealRegister*>(reg))
+                    if (reg == mInst->getOpreand(0).get()&& (mInst->getOpcode() != RISCVInst::_lw 
+                                                            || mInst->getOpcode()!= RISCVInst::_sw))
                     {
-                        if (reg == mInst->getOpreand(0).get())
-                        {
-                            BlockWithVals[reg] = mbb;
-                            LiveDef.emplace(reg);
-                        }
-                        auto it = LiveDef.find(reg);
-                        if (LiveDef.find(reg) == LiveDef.end())
-                        {
-                            LiveUse.emplace(reg);
-                        }
+                        DefValsInBlock[reg] = mbb;
+                        LiveDef.emplace(reg);
+                    }
+
+                    if (LiveDef.find(reg) == LiveDef.end())
+                    {
+                        LiveUse.emplace(reg);
                     }
                 }
             }
         }
     }
+
+#ifdef TEST_LIVEUSE_DEF 
+    for(RISCVBlock* mbb :*curfunc)
+    {
+        auto& LiveUse = mbb->getLiveUse();
+        auto& LiveDef = mbb->getLiveDef();
+
+        std::cout <<"mbb: " << mbb->getName() << std::endl;
+        std::cout << "------ LiveUse -------" << std::endl;
+        for (auto& use : LiveUse)
+        {
+            std::cout << use->getName() << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "------ LiveDef -------" << std::endl;
+        for (auto& def : LiveDef)
+        {
+            std::cout << def->getName() << " ";
+        }
+        std::cout << std::endl;
+    }
+#endif
 }
 
 void LiveInfo::CalcuLiveInAndOut()
@@ -82,6 +105,28 @@ void LiveInfo::CalcuLiveInAndOut()
         }
 
     } while (changed);
+
+#ifdef TEST_BLOCK_INOUT
+    std::cout << "-----BlockLiveIn-----"<<std::endl;
+    for(auto&[bb,_set] :BlockLiveIn)
+    {
+        std::cout << bb->getName() << ":" << " ";
+        for (auto e : _set) {
+            std::cout << e->getName() << "  ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << "-----BlockLiveOut-----"<<std::endl;
+    for(auto&[bb,_set] :BlockLiveOut)
+    {
+        std::cout << bb->getName() << ":" << " ";
+        for (auto e : _set) {
+            std::cout << e->getName() << "  ";
+        }
+        std::cout << std::endl;
+    }
+#endif
 }
 
 void LiveInterval::orderInsts()
@@ -103,78 +148,11 @@ void LiveInterval::CalcuLiveIntervals()
 {
     for (auto bb = curfunc->rbegin(); bb != curfunc->rend(); --bb)
     {
-        for(auto [_val,_bb] : liveInfo.BlockWithVals) 
+        for(auto [_val,_bb] : liveInfo.DefValsInBlock) 
         {
             auto it = bbInfos[*bb];
             regLiveIntervals[_val].emplace_back(std::make_shared<range>(it->start,it->end));
         }
-
-        RISCVBlock* block = *bb;
-        RISCVInst *recordInst = nullptr;
-        for (auto inst = block->rbegin(); inst != block->rend(); --inst)
-        {
-            auto defSet = block->getLiveDef();
-            auto useSet = block->getLiveUse();
-            for(auto op: (*inst)->getOpsVec())
-            {
-                if(auto reg = dynamic_cast<Register*> (op.get()))
-                {
-                    if(!dynamic_cast<RealRegister*>(reg))
-                    {
-
-                    }
-                }
-            }
-        }
-
-        // for(auto val :liveInfo.BlockLiveOut[*bb])
-        // {
-        //     auto it = bbInfos[*bb];
-        //     regLiveIntervals[val].emplace_back(std::make_shared<range>(it->start,it->end));
-        // }
-
-        // RISCVBlock* block = *bb;
-
-        // int flag = 0;
-        // RISCVInst *recordInst = nullptr;
-        // for (auto inst = block->rbegin(); inst != block->rend(); --inst)
-        // {
-        //     auto def = block->getLiveDef();
-        //     for(auto op: (*inst)->getOpsVec())
-        //     {
-        //         if ( Register* use = dynamic_cast<Register*>(op.get()))
-        //         {
-        //             if (use->RVflag == 0)
-        //                 continue;
-        //             if(def.find(use) == def.end()) 
-        //                 continue;
-        //             else {
-        //                 recordInst = *inst;
-        //                 auto& vec = regLiveIntervals[use];
-
-        //                 auto &vecback = vec.back();
-        //                 vecback->start = RecordInstAndOrder[recordInst];
-        //                 int a = 10;
-        //             }   
-        //         }
-        //     }
-
-        //     auto useSet = block->getLiveUse();
-        //     for(auto op: (*inst)->getOpsVec())
-        //     {
-        //         if ( Register* use = dynamic_cast<Register*>(op.get()))
-        //         {
-        //             if (use->RVflag == 0)
-        //                 continue;
-        //             if (useSet.find(use) == useSet.end())
-        //             {
-        //                 auto it = bbInfos[*bb];
-        //                 regLiveIntervals[use].emplace_back(std::make_shared<range>(it->start,
-        //                                                          RecordInstAndOrder[*inst]));
-        //             }
-        //         }
-        //     }
-        // }
     }
 }
 
@@ -194,7 +172,7 @@ void LiveInterval::FinalCalcu()
                     {
                         if (LiveDef.find(reg) == LiveDef.end())
                         {
-                            liveInfo.BlockWithVals[reg] = mbb;
+                            liveInfo.DefValsInBlock[reg] = mbb;
                             LiveDef.emplace(reg);
                             regLiveIntervals[reg].emplace_back(std::make_shared<range>(RecordInstAndOrder[mInst]
                                                                                     ,RecordInstAndOrder[mInst]));
@@ -216,9 +194,10 @@ void LiveInterval::FinalCalcu()
 
 void LiveInterval::run()
 {
-    // liveInfo.GetLiveUseAndDef();
-    // liveInfo.CalcuLiveInAndOut();
+    liveInfo.GetLiveUseAndDef();
+    liveInfo.CalcuLiveInAndOut();
     orderInsts();
-    // CalcuLiveIntervals();
-    FinalCalcu();
+    CalcuLiveIntervals();
+
+    //FinalCalcu();
 }
