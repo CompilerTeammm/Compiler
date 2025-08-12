@@ -96,6 +96,7 @@ public:
         else if(lvl=hu1_test){
             enabledPasses={
                 //第一波
+                "DAE",
                 "SSE",
                 "SOGE",
                 // "CondMerge"//为什么学长会放在这里
@@ -112,18 +113,20 @@ public:
                 "inline",
                 "sccp",
                 "SCFG",
+                "DAE",
                 "SOGE",
                 "DCE",
                 "TRE",
                 "inline",
                 "sccp",
                 "SCFG",
+                "DAE",
                 "SOGE",
                 "DCE",
                 "TRE",
 
                 //loop基础优化
-                "Loop_Simplifying",
+                // "Loop_Simplifying",
                 //loop展开+常规优化
                 
                 //再来波常规清理
