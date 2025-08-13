@@ -82,13 +82,13 @@ bool TransFunction::run(Function* func)
     ret = phi.run();
     if(!ret)   LOG(ERROR,"Phi failed");
 
-    LiveInterval(mfunc,ctx).run();
+    // LiveInterval(mfunc,ctx).run();
 
     //寄存器分配算法
-    // RegAllocation RA(mfunc, ctx);
-    // ret = RA.run();
-    // if (!ret)
-    //     LOG(ERROR, "RA failed");
+    RegAllocation RA(mfunc, ctx);
+    ret = RA.run();
+    if (!ret)
+        LOG(ERROR, "RA failed");
         
     reWritestackOffse(mfunc);
 

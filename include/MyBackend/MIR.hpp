@@ -127,6 +127,7 @@ public:
     static int VirtualRegNum;
     VirRegister():Register("%"+ std::to_string(VirtualRegNum)) 
                   {   VirtualRegNum++;   }
+    void setFloatflag() { Floatflag = 1; }
     void reWriteRegWithReal(RealRegister* );
 };
 
@@ -149,12 +150,13 @@ public:
         ft0,ft1,ft2,ft3,ft4,ft5,ft6,ft7,ft8,ft9,ft10,ft11,
         fs0,fs1,fs2,fs3,fs4,fs5,fs6,fs7,fs8,fs9,fs10,fs11,
         fa0,fa1,fa2,fa3,fa4,fa5,fa6,fa7, _NULL,
-    } realRegop;
+    };
 
+    realReg realRegop;
     static std::string realRegToString(realReg reg);
     static RealRegister* GetRealReg(realReg);
     realReg getRegop();
-    RealRegister(realReg _Regop):Register(realRegToString(_Regop)) {}
+    RealRegister(realReg _Regop):Register(realRegToString(_Regop)),realRegop(_Regop) {}
     RealRegister(std::string name):Register(name) {}
 };
 
@@ -362,6 +364,12 @@ public:
         auto Regop = std::make_shared<VirRegister>();
         opsVec.push_back(Regop);
     }
+
+    void SetVirFloatRegister()  {
+        auto Regop = std::make_shared<VirRegister>();
+        Regop->setFloatflag();
+        opsVec.push_back(Regop);
+    }
     // Real
     void SetRealRegister(std::string&& str) {
         auto Regop = std::make_shared<RealRegister>(str);
@@ -418,9 +426,16 @@ public:
        opsVec.push_back(std::make_shared<stackOffset>("-" + std::to_string(offset) + "(s0)"));
     }
 
-    void setThreeRigs(op op1, op op2) // addw
+    void setThreeRegs(op op1, op op2) // addw
     {
         SetVirRegister();
+        opsVec.push_back(op1);
+        opsVec.push_back(op2);
+    }
+
+    void setThreeFRegs(op op1, op op2) // addw
+    {
+        SetVirFloatRegister();
         opsVec.push_back(op1);
         opsVec.push_back(op2);
     }
@@ -460,6 +475,12 @@ public:
     void setMVOp(RISCVInst* Inst)
     {
         SetVirRegister();
+        auto reg = Inst->getOpreand(0);
+        opsVec.push_back(reg);
+    }
+
+    void setOpWInstFOpread(RISCVInst* Inst) 
+    {
         auto reg = Inst->getOpreand(0);
         opsVec.push_back(reg);
     }

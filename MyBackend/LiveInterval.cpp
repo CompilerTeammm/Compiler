@@ -16,7 +16,6 @@ bool LiveInfo::isDefValue(RISCVInst* mInst)
     if(mInst->getOpcode() == RISCVInst::_bne)    return false;
     if(mInst->getOpcode() == RISCVInst::_blt)    return false;
     if(mInst->getOpcode() == RISCVInst::_beq)    return false;
-    
 
     return true;
 }

@@ -97,7 +97,7 @@ RISCVInst *RISCVContext::CreateRInst(RetInst *inst)
             Inst0  = CreateInstAndBuildBind(RISCVInst::_li,inst);
             Inst0->setRealLIOp(op);
             auto Inst1 = CreateInstAndBuildBind(RISCVInst::_fmv_w_x,inst);
-            Inst1->SetVirRegister();
+            Inst1->SetVirFloatRegister();
             Inst1->setStoreOp(Inst0);
             auto Inst2  = CreateInstAndBuildBind(RISCVInst::_fmv_s,inst);
             auto LoadInst = Inst2->GetPrevNode();
@@ -134,15 +134,6 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
     {
         Value *globlVal = inst->GetOperand(0);
 
-        // RISCVInst *luiInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
-        // luiInst->SetVirRegister();
-        // luiInst->SetAddrOp("%hi", globlVal);
-
-        // RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        // addInst->SetAddrOp("%lo", globlVal);
-
         RISCVInst* laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
         laInst->SetVirRegister();
         laInst->SetAddrOp(globlVal);
@@ -164,7 +155,7 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
         else if (inst->GetType() == FloatType::NewFloatTypeGet())
         {
             Inst = CreateInstAndBuildBind(RISCVInst::_flw, inst);
-            Inst->SetRealRegister("ft6");
+            Inst->SetVirFloatRegister();
             extraDealLoadInst(Inst, inst);
         } 
         else {  
@@ -217,14 +208,6 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
     {
         Value* globlVal = inst->GetOperand(1);
         if(dynamic_cast<ConstantData*> (val)) {
-            // RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
-            // luiInst->SetVirRegister();
-            // luiInst->SetAddrOp("%hi",globlVal);
-
-            // RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-            // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-            // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-            // addInst->SetAddrOp("%lo", globlVal);
 
             RISCVInst *laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
             laInst->SetVirRegister();
@@ -241,14 +224,6 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
             getCurFunction()->getGloblValRecord().push_back(inst);
 
         } else {
-            // RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
-            // luiInst->SetVirRegister();
-            // luiInst->SetAddrOp("%hi",globlVal);
-
-            // RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-            // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-            // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-            // addInst->SetAddrOp("%lo", globlVal);
 
             RISCVInst *laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
             laInst->SetVirRegister();
@@ -282,7 +257,7 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
                 SwInst = CreateInstAndBuildBind(RISCVInst::_sd, inst);
                 // SwInst->setStoreOp(Inst);
                 auto it = mapTrans(inst->GetOperand(0))->as<RealRegister>();
-                auto Rop = std::make_shared<RealRegister>(it->getRegop());
+                auto Rop = std::make_shared<RealRegister>(it->getName());
                 SwInst->push_back(Rop);
                 extraDealStoreInst(SwInst, inst);                
             }
@@ -290,7 +265,7 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
                 SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
                 // SwInst->setStoreOp(Inst);
                 auto it = mapTrans(inst->GetOperand(0))->as<RealRegister>();
-                auto Rop = std::make_shared<RealRegister>(it->getRegop());
+                auto Rop = std::make_shared<RealRegister>(it->getName());
                 SwInst->push_back(Rop);
                 extraDealStoreInst(SwInst, inst);
             }
@@ -347,7 +322,8 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
 
             auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fmv_w_x, inst);
             Inst->DealMore(Inst2);
-            Inst2->setMVOp(Inst);
+            Inst2->SetVirFloatRegister();
+            Inst2->setOpWInstFOpread(Inst);
 
             auto Inst3 = CreateInstAndBuildBind(RISCVInst::_fsw, inst);
             // fsw 的处理
@@ -504,14 +480,10 @@ RISCVInst* RISCVContext::CreateUCInst(UnCondInst *inst)
     return RInst;
 }
 
-void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op)
+void RISCVContext::extraDealIntBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op)
 {
     Value *valOp1 = inst->GetOperand(0);
     Value *valOp2 = inst->GetOperand(1);
-
-    // if (dynamic_cast<CallInst*>(valOp1));
-    // if (dynamic_cast<CallInst*>(valOp2));
-
 
     auto Immop1 = dynamic_cast<ConstantData*> (valOp1);
     auto Immop2 = dynamic_cast<ConstantData*> (valOp2);
@@ -520,18 +492,6 @@ void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVIns
 
     auto RISCVop1 = mapTrans(valOp1)->as<RISCVInst>();
     auto RISCVop2 = mapTrans(valOp2)->as<RISCVInst>();
-
-    if ( dynamic_cast<CallInst*> (inst->GetPrevNode()) && Op == RISCVInst::_addw)
-    {
-        if (auto it = dynamic_cast<LoadInst*>(inst->GetPrevNode()->GetPrevNode()))
-        {
-            RISCVInst* LInst= mapTrans(inst->GetPrevNode()->GetPrevNode())->as<RISCVInst>();
-            RISCVInst* newInst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
-            newInst->push_back(LInst->getOpreand(0));
-            extraDealLoadInst(newInst, it);
-
-        }
-    }
 
     if (Immop1 != nullptr) {
         ImmOneInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
@@ -544,19 +504,59 @@ void RISCVContext::extraDealBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVIns
         ImmTwoInst->SetVirRegister();
         ImmTwoInst->SetImmOp(Immop2);
     }
+    RInst = CreateInstAndBuildBind(Op, inst);
+    if(ImmOneInst != nullptr) {
+        if (ImmTwoInst != nullptr) {
+            RInst->setThreeRegs(ImmOneInst->getOpreand(0), ImmTwoInst->getOpreand(0));
+        } else {
+            RInst->setThreeRegs(ImmOneInst->getOpreand(0), RISCVop2->getOpreand(0));
+        }
+    } else {  // RISCVop1 != nullptr
+        if(ImmTwoInst != nullptr){
+            RInst->setThreeRegs(RISCVop1->getOpreand(0),ImmTwoInst->getOpreand(0));
+        } else {
+            RInst->setThreeRegs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
+        }
+    }
+}
+
+void RISCVContext::extraDealFloatBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op)
+{
+    Value *valOp1 = inst->GetOperand(0);
+    Value *valOp2 = inst->GetOperand(1);
+
+    auto Immop1 = dynamic_cast<ConstantData*> (valOp1);
+    auto Immop2 = dynamic_cast<ConstantData*> (valOp2);
+    RISCVInst* ImmOneInst = nullptr;
+    RISCVInst* ImmTwoInst = nullptr;
+
+    auto RISCVop1 = mapTrans(valOp1)->as<RISCVInst>();
+    auto RISCVop2 = mapTrans(valOp2)->as<RISCVInst>();
+
+    if (Immop1 != nullptr) {
+        ImmOneInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+        ImmOneInst->SetVirFloatRegister();
+        ImmOneInst->SetImmOp(Immop1);
+    }
+
+    if (Immop2 != nullptr) {
+        ImmTwoInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+        ImmTwoInst->SetVirFloatRegister();
+        ImmTwoInst->SetImmOp(Immop2);
+    }
 
     RInst = CreateInstAndBuildBind(Op, inst);
     if(ImmOneInst != nullptr) {
         if (ImmTwoInst != nullptr) {
-            RInst->setThreeRigs(ImmOneInst->getOpreand(0), ImmTwoInst->getOpreand(0));
+            RInst->setThreeFRegs(ImmOneInst->getOpreand(0), ImmTwoInst->getOpreand(0));
         } else {
-            RInst->setThreeRigs(ImmOneInst->getOpreand(0), RISCVop2->getOpreand(0));
+            RInst->setThreeFRegs(ImmOneInst->getOpreand(0), RISCVop2->getOpreand(0));
         }
     } else {  // RISCVop1 != nullptr
         if(ImmTwoInst != nullptr){
-            RInst->setThreeRigs(RISCVop1->getOpreand(0),ImmTwoInst->getOpreand(0));
+            RInst->setThreeFRegs(RISCVop1->getOpreand(0),ImmTwoInst->getOpreand(0));
         } else {
-            RInst->setThreeRigs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
+            RInst->setThreeFRegs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
         }
     }
 }
@@ -659,34 +659,34 @@ RISCVInst* RISCVContext::CreateBInst(BinaryInst *inst)
     {
         case BinaryInst::Op_Add:
             if(inst->GetType() == IntType::NewIntTypeGet())
-                extraDealBinary(RInst,inst,RISCVInst::_addw);
+                extraDealIntBinary(RInst,inst,RISCVInst::_addw);
             else if(inst->GetType() == FloatType::NewFloatTypeGet())
-                extraDealBinary(RInst,inst,RISCVInst::_fadd_s);
+                extraDealFloatBinary(RInst,inst,RISCVInst::_fadd_s);
             else { assert("other conditions"); }
             break;
         case BinaryInst::Op_Sub:
             if(inst->GetType() == IntType::NewIntTypeGet())
-                extraDealBinary(RInst,inst,RISCVInst::_subw);
+                extraDealIntBinary(RInst,inst,RISCVInst::_subw);
             else if(inst->GetType() == FloatType::NewFloatTypeGet())
-                extraDealBinary(RInst,inst,RISCVInst::_fsub_s);
+                extraDealFloatBinary(RInst,inst,RISCVInst::_fsub_s);
             else { assert("other conditions"); }
             break;
         case BinaryInst::Op_Mul:
             if(inst->GetType() == IntType::NewIntTypeGet())
-                extraDealBinary(RInst,inst,RISCVInst::_mulw);
+                extraDealIntBinary(RInst,inst,RISCVInst::_mulw);
             else if(inst->GetType() == FloatType::NewFloatTypeGet())
-                extraDealBinary(RInst,inst,RISCVInst::_fmul_s);
+                extraDealFloatBinary(RInst,inst,RISCVInst::_fmul_s);
             else { assert("other conditions"); }
             break;
         case BinaryInst::Op_Div:
             if(inst->GetType() == IntType::NewIntTypeGet())
-                extraDealBinary(RInst,inst,RISCVInst::_divw);
+                extraDealIntBinary(RInst,inst,RISCVInst::_divw);
             else if(inst->GetType() == FloatType::NewFloatTypeGet())
-                extraDealBinary(RInst,inst,RISCVInst::_fdiv_s);
+                extraDealFloatBinary(RInst,inst,RISCVInst::_fdiv_s);
             else { assert("other conditions"); }
             break;
         case BinaryInst::Op_Mod:
-            extraDealBinary(RInst,inst,RISCVInst::_remw);
+            extraDealIntBinary(RInst,inst,RISCVInst::_remw);
             break;
         // 比较在这里不分区别，在 UnCond 的时候才有分明
         case BinaryInst::Op_L:
@@ -750,12 +750,12 @@ RISCVInst* RISCVContext::CreateI2Fnst(SI2FPInst *inst)
         Inst->setRealLIOp(val);
 
         auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fcvt_s_w, inst);
-        Inst2->SetVirRegister();
+        Inst2->SetVirFloatRegister();
         Inst2->setStoreOp(Inst2->GetPrevNode());
         Inst->DealMore(Inst2);
     } else {
         Inst = CreateInstAndBuildBind(RISCVInst::_fcvt_s_w, inst);
-        Inst->SetVirRegister();
+        Inst->SetVirFloatRegister();
         Inst->setStoreOp(Inst->GetPrevNode());
     }
 
@@ -775,14 +775,6 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         getCurFunction()->getGepGloblToLocal()[tmpAlloc] = glVal;
 
         Value* val = inst->GetOperand(3);
-        // RISCVInst* luiInst = CreateInstAndBuildBind(RISCVInst::_lui,inst);
-        // luiInst->SetVirRegister();
-        // luiInst->SetAddrOp("%hi",inst->GetOperand(2));
-
-        // RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
-        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        // addInst->SetAddrOp("%lo", inst->GetOperand(2));
 
         RISCVInst *laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
         laInst->SetVirRegister();

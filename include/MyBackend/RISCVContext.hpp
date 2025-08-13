@@ -89,7 +89,8 @@ public:
 
 
     // BinanryInst 
-    void extraDealBinary(RISCVInst* & RInst, BinaryInst* inst, RISCVInst::ISA Op);
+    void extraDealIntBinary(RISCVInst* & RInst, BinaryInst* inst, RISCVInst::ISA Op);
+    void extraDealFloatBinary(RISCVInst* & RInst, BinaryInst* inst, RISCVInst::ISA Op);
     // CmpInst 
     void extraDealCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op=RISCVInst::_li);
     void extraDealFlCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op,

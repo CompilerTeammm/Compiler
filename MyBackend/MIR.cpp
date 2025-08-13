@@ -34,7 +34,7 @@ int VirRegister::VirtualRegNum = 0;
 void VirRegister::reWriteRegWithReal(RealRegister* _real)
 {
     auto op = _real->getRegop();
-    setName(RealRegister::realRegToString(op));
+    setName(_real->getName());
 }
 
 RealRegister::realReg RealRegister::getRegop()  
@@ -53,7 +53,6 @@ RealRegister* RealRegister::GetRealReg(RealRegister::realReg _Regop)
 
 std::string RealRegister::realRegToString(realReg reg)
 {
-    
     switch(reg) {
         // 基础整数寄存器
         case realReg::zero: return "zero";
