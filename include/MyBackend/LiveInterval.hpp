@@ -18,6 +18,7 @@ public:
 
     void GetLiveUseAndDef(); 
     void CalcuLiveInAndOut();
+    bool isDefValue(RISCVInst* mInst);
 };
 
 class LiveInterval
