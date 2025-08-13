@@ -988,8 +988,8 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
     }
 }
 
-// 处理数组  全局的数组应该 lui addi 进行首地址的加载
-// 局部数组已经通过了 memcpy 拷贝到了栈本地，因此不需要再 lui addi 
+// 处理数组  全局的数组应该 la 进行首地址的加载
+// 局部数组已经通过了 memcpy 拷贝到了栈本地，因此不需要再 la 
 // 而且局部数组的加载开销要小很多
 RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
 {
@@ -997,16 +997,6 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
     RISCVInst* RInst = nullptr;
 
     if (globlVal != nullptr && globlVal->isGlobal()) {  // 全局数组的处理
-        //auto text = valToText[globlVal];
-        // RInst = CreateInstAndBuildBind(RISCVInst::_lui, inst);
-        // RInst->SetVirRegister();
-        // RInst->SetAddrOp("%hi", globlVal);
-
-        // RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        // addInst->getOpsVec().push_back(addInst->GetPrevNode()->getOpreand(0));
-        // addInst->SetAddrOp("%lo", globlVal);
-
         RInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
         RInst->SetVirRegister();
         RInst->SetAddrOp(globlVal);
@@ -1046,17 +1036,11 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
                     RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
                     RInst->push_back(liInst->getOpreand(0));
                 }
-
             }
             else{
                 getDynmicSumOffset(globlVal, inst, RInst, RInst);
             }
         }
-        // if (dynamic_cast<LoadInst*>(nextInst) || dynamic_cast<StoreInst*>(nextInst))
-        // {
-        //     auto &gepRecord = getCurFunction()->getRecordGepOffset();  // 8(t0) 是差不多这样的形式
-        //     gepRecord[nextInst] = getSumOffset(globlVal,inst,addInst);
-        // }
     } 
     else if((getCurFunction()->getGepGloblToLocal()[globlVal]) != nullptr)
     {
@@ -1090,10 +1074,24 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             }
         }
         if (flag == 0) {   // addi 了 之后 0(t0) 这样的形式
-            RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-            RInst->SetVirRegister();
-            RInst->push_back(addiInst->getOpreand(0));
-            RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, addiInst)));
+            int size = getSumOffset(globlVal, inst, addiInst);
+            if (size <= 2047)
+            {
+                RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                RInst->SetVirRegister();
+                RInst->push_back(addiInst->getOpreand(0));
+                RInst->SetImmOp(ConstIRInt::GetNewConstant(size));
+            }
+            else  {
+                RISCVInst *liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+                liInst->SetVirRegister();
+                liInst->SetImmOp(ConstIRInt::GetNewConstant(size));
+
+                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                RInst->SetVirRegister();
+                RInst->push_back(addiInst->getOpreand(0));
+                RInst->push_back(liInst->getOpreand(0));
+            }
         }
         else {
             getDynmicSumOffset(globlVal, inst,addiInst, RInst);
@@ -1117,6 +1115,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
                 val *= numsRecord[i];
             }
             val = 4 * val;
+
             RISCVInst* addiInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
             addiInst->SetVirRegister();
             addiInst->SetRealRegister("s0");
@@ -1137,10 +1136,22 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             }
             if (flag == 0)
             { 
-                RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-                RInst->SetVirRegister();
-                RInst->push_back(addiInst->getOpreand(0));
-                RInst->SetImmOp(ConstIRInt::GetNewConstant(getSumOffset(globlVal, inst, addiInst)));
+                int size = getSumOffset(globlVal, inst, addiInst);
+                if (size <= 2047) {
+                    RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                    RInst->SetVirRegister();
+                    RInst->push_back(addiInst->getOpreand(0));
+                    RInst->SetImmOp(ConstIRInt::GetNewConstant(size));
+                } else {
+                    RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
+                    liInst->SetVirRegister();
+                    liInst->SetImmOp(ConstIRInt::GetNewConstant(size));
+
+                    RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    RInst->SetVirRegister();
+                    RInst->push_back(addiInst->getOpreand(0));
+                    RInst->push_back(liInst->getOpreand(0));
+                }
             }
             else
             {
