@@ -1,87 +1,72 @@
 #include "../../include/IR/Opt/SelfStoreElimination.hpp"
 
 bool SelfStoreElimination::run() {
-    DFSOrder.clear();
-    wait_del.clear();
-    func->init_visited_block();
-    //与DSE一样,构造DFS逆后序
-    OrderBlock(func->front);
-    std::reverse(DFSOrder.begin(), DFSOrder.end());
-
-    // 如果整个函数有副作用，则跳过优化，保守处理
-    // if (sideEffect && sideEffect->FuncHasSideEffect(func)) {
-    //     std::cerr << "[SSE] skipped due to side effect: " << func->GetName() << "\n";
-    //     return false;
-    // }
+    dfsOrder_.clear();
+    pendingRemoval_.clear();
+    func_->init_visited_block();
+    
+    orderBlocks(func_->front);
+    std::reverse(dfsOrder_.begin(), dfsOrder_.end());
 
     std::unordered_map<Value*, std::vector<User*>> storeMap;
-    CollectStoreInfo(storeMap); // 收集“每个地址”上的所有 store
-    CheckSelfStore(storeMap); // 保守判断冗余并插入待删列表
+    collectStores(storeMap);
+    identifySelfStores(storeMap);
 
-    removeInsts();
+    removeInstructions();
 
-    return !wait_del.empty();
+    return !pendingRemoval_.empty();
 }
 
-void SelfStoreElimination::OrderBlock(BasicBlock* bb) {
+void SelfStoreElimination::orderBlocks(BasicBlock* bb) {
     if (bb->visited) return;
     bb->visited = true;
 
-    // 获取该基本块的支配树节点
-    auto* node = tree->getNode(bb);
+    auto* node = domTree_->getNode(bb);
     for (auto succNode : node->succNodes) {
-        OrderBlock(succNode->curBlock);
+        orderBlocks(succNode->curBlock);
     }
 
-    DFSOrder.push_back(bb);
+    dfsOrder_.push_back(bb);
 }
 
-void SelfStoreElimination::CollectStoreInfo(std::unordered_map<Value*, std::vector<User*>>& storeMap) {
-    for(auto* bb:DFSOrder){
-        for(auto* inst:*bb){
+void SelfStoreElimination::collectStores(std::unordered_map<Value*, std::vector<User*>>& storeMap) {
+    for (auto* bb : dfsOrder_) {
+        for (auto* inst : *bb) {
             if (auto store = dynamic_cast<StoreInst*>(inst)) {
-                Value* dst = store->GetOperand(1); // 存储地址
+                Value* dst = store->GetOperand(1);
 
-                //GEP->ALLOCA
-                if(auto* gep=dynamic_cast<GepInst*>(dst)){
-                    Value* gep_base = gep->GetOperand(0);
-                    if (auto* alloca = dynamic_cast<AllocaInst*>(gep_base)) {
+                if (auto* gep = dynamic_cast<GepInst*>(dst)) {
+                    Value* base = gep->GetOperand(0);
+                    if (auto* alloca = dynamic_cast<AllocaInst*>(base)) {
                         storeMap[alloca].push_back(store);
                     }
-                }else if(auto* alloca = dynamic_cast<AllocaInst*>(dst)){
+                } else if (auto* alloca = dynamic_cast<AllocaInst*>(dst)) {
                     storeMap[alloca].push_back(store);
-                }else if(!dst->isGlobal()){
+                } else if (!dst->isGlobal()) {
                     storeMap[dst].push_back(store);
                 }
             }
         }
     }
-    // for (auto& [val, list] : storeMap) {
-    //     std::cerr << "[Collect] Store target: " << val->GetName() << ", Count: " << list.size() << "\n";
-    // }
 }
 
-static bool IsSameGEP(Value* a, Value* b) {
-    auto* gep1 = dynamic_cast<GepInst*>(a);
-    auto* gep2 = dynamic_cast<GepInst*>(b);
-    if (!gep1 || !gep2) return false;
+static bool isSameGEP(Value* a, Value* b) {
+    auto* gepA = dynamic_cast<GepInst*>(a);
+    auto* gepB = dynamic_cast<GepInst*>(b);
+    if (!gepA || !gepB) return false;
 
-    if (gep1->GetOperandNums() != gep2->GetOperandNums())
-        return false;
+    if (gepA->GetOperandNums() != gepB->GetOperandNums()) return false;
 
-    for (int i = 0; i < gep1->GetOperandNums(); ++i) {
-        if (gep1->GetOperand(i) != gep2->GetOperand(i))
-            return false;
+    for (int i = 0; i < gepA->GetOperandNums(); ++i) {
+        if (gepA->GetOperand(i) != gepB->GetOperand(i)) return false;
     }
     return true;
 }
 
+void SelfStoreElimination::identifySelfStores(std::unordered_map<Value*, std::vector<User*>>& storeMap) {
+    std::set<Value*> unsafeAddrs;
 
-
-void SelfStoreElimination::CheckSelfStore(std::unordered_map<Value*, std::vector<User*>>& storeMap) {
-    std::set<Value*> unsafe_addr;
-
-    for (auto* bb : DFSOrder) {
+    for (auto* bb : dfsOrder_) {
         for (auto* inst : *bb) {
             // case 1: 自写入 store(load(x), x)
             if (auto* store = dynamic_cast<StoreInst*>(inst)) {
@@ -89,12 +74,11 @@ void SelfStoreElimination::CheckSelfStore(std::unordered_map<Value*, std::vector
                 Value* dst = store->GetOperand(1);
 
                 if (auto* load = dynamic_cast<LoadInst*>(src)) {
-                    Value* load_src = load->GetOperand(0);
-                    if (load_src == dst || IsSameGEP(load_src, dst)) {
-                        if (!wait_del.count(store)){
-                            wait_del.insert(store);  // 直接删除该指令，不清除 map
+                    Value* loadSrc = load->GetOperand(0);
+                    if (loadSrc == dst || isSameGEP(loadSrc, dst)) {
+                        if (!pendingRemoval_.count(store)) {
+                            pendingRemoval_.insert(store);  // 直接删除该指令，不清除 map
                         }
-                        
                     }
                 }
             }
@@ -106,7 +90,7 @@ void SelfStoreElimination::CheckSelfStore(std::unordered_map<Value*, std::vector
                     for (auto* use : gep->GetValUseList()) {
                         User* user = use->GetUser();
                         if (!dynamic_cast<StoreInst*>(user) && !dynamic_cast<GepInst*>(user)) {
-                            unsafe_addr.insert(base); // 标记该地址不安全
+                            unsafeAddrs.insert(base); // 标记该地址不安全
                             break;
                         }
                     }
@@ -137,41 +121,41 @@ void SelfStoreElimination::CheckSelfStore(std::unordered_map<Value*, std::vector
             else {
                 for (auto& use : inst->GetUserUseList()) {
                     Value* v = use->usee;
-                    unsafe_addr.insert(v);
+                    unsafeAddrs.insert(v);
                 }
             }
         }
     }
 
     // 删除所有 unsafe 地址
-    for (Value* addr : unsafe_addr) {
+    for (Value* addr : unsafeAddrs) {
         storeMap.erase(addr);
     }
 
     // case 5: 对剩余 safe 地址，保留最后一次写，前面的都冗余
     for (auto& [addr, stores] : storeMap) {
         for (size_t i = 0; i + 1 < stores.size(); ++i) {
-            if (!wait_del.count(stores[i])){
-                wait_del.insert(stores[i]);
+            if (!pendingRemoval_.count(stores[i])) {
+                pendingRemoval_.insert(stores[i]);
             }
-            
         }
     }
 }
 
-void SelfStoreElimination::removeInsts() {
-    for (auto* user : wait_del) {
+
+
+void SelfStoreElimination::removeInstructions() {
+    for (auto* user : pendingRemoval_) {
         if (auto* inst = dynamic_cast<Instruction*>(user)) {
             if (!inst->GetParent()) {
                 std::cerr << "[SSE] Warning: Attempt to remove already-erased instruction: "
                           << inst->GetName() << "\n";
                 continue;
             }
-            
-            inst->ClearRelation();             // 清除 use-def 链
-            inst->EraseFromManager();    // 从基本块中移除    
-            delete inst;                  // 回收内存
+            inst->ClearRelation();
+            inst->EraseFromManager();
+            delete inst;
         }
     }
-    wait_del.clear(); // 清理集合（可选）
+    pendingRemoval_.clear();
 }

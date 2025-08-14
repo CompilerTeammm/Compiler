@@ -46,7 +46,7 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/DAE.cpp
   IR/Opt/SelfStoreElimination.cpp
   IR/Opt/CodeMerge.cpp
-
+  IR/Opt/Global2Local.cpp
   IR/Opt/LoopSimping.cpp
   IR/Opt/LoopParing.cpp
   IR/Opt/LoopUnrolling.cpp

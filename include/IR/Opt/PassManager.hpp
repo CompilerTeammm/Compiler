@@ -21,6 +21,7 @@
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
 #include "DAE.hpp"
+#include "Global2Local.hpp"
 #include "SelfStoreElimination.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
@@ -70,7 +71,7 @@ public:
                 "inline",
 
                 "SOGE",
-
+                // "G2L",
                 // 局部清理
                 "DAE",
                 "TRE",
@@ -124,7 +125,7 @@ public:
                 "SOGE",
                 "DCE",
                 "TRE",
-
+                "ECE",
                 //loop基础优化
                 // "Loop_Simplifying",
                 //loop展开+常规优化
@@ -214,7 +215,10 @@ public:
             SOGE sogePass(&Singleton<Module>());
             sogePass.run();
         }
-
+        if(IsEnabled("G2L"))
+        {
+            Global2Local(&Singleton<Module>(),AM).run();
+        }
         // 数据流整理
         if (IsEnabled("ECE"))
         {

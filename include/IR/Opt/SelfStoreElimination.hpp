@@ -7,25 +7,26 @@
 #include "../../IR/Analysis/IDF.hpp"
 #include "../Analysis/SideEffect.hpp"
 
-class SelfStoreElimination : public _PassBase<SelfStoreElimination, Function>{
+class SelfStoreElimination : public _PassBase<SelfStoreElimination, Function> {
 private:
-    Function* func;
-    DominantTree* tree;
-    SideEffect* sideEffect;
-    std::set<User*> wait_del;
-    std::vector<BasicBlock*> DFSOrder;
-    AnalysisManager &AM;
+    Function* func_;
+    DominantTree* domTree_;
+    SideEffect* sideEffect_;
+    std::set<User*> pendingRemoval_;
+    std::vector<BasicBlock*> dfsOrder_;
+    AnalysisManager& AM_;
 
-    void OrderBlock(BasicBlock* bb);
-    void CollectStoreInfo(std::unordered_map<Value*, std::vector<User*>>& storeMap);
-    void CheckSelfStore(std::unordered_map<Value*, std::vector<User*>>& storeMap);
-    void removeInsts();
+    void orderBlocks(BasicBlock* bb);
+    void collectStores(std::unordered_map<Value*, std::vector<User*>>& storeMap);
+    void identifySelfStores(std::unordered_map<Value*, std::vector<User*>>& storeMap);
+    void removeInstructions();
 
 public:
-    SelfStoreElimination(Function* _func, AnalysisManager &_AM) :func(_func),AM(_AM){
-        tree = AM.get<DominantTree>(func);
-        sideEffect = AM.get<SideEffect>(&Singleton<Module>());
-    };
+    SelfStoreElimination(Function* func, AnalysisManager& AM)
+        : func_(func), AM_(AM) {
+        domTree_ = AM_.get<DominantTree>(func_);
+        sideEffect_ = AM_.get<SideEffect>(&Singleton<Module>());
+    }
     ~SelfStoreElimination() = default;
 
     bool run() override;
