@@ -53,12 +53,6 @@ RegisterVec::RegisterVec()
     while(regOp <= realReg::ft11) {
       appendReg(callerRegVec);
     }
-
-    // // reglist_test
-    // regOp = realReg::a0;
-    // while(regOp<=realReg::a3) {
-    //   appendReg(reglist_test);
-    // }
 }
 
 RegisterVec& RegisterVec::GetRegVecs()

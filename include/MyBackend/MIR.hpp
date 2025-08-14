@@ -421,10 +421,11 @@ public:
         
         opsVec.push_back(reg);
     }
-    void setStoreStackOp(size_t offset)
+    void setStoreStackS0Op(size_t offset)
     {
        opsVec.push_back(std::make_shared<stackOffset>("-" + std::to_string(offset) + "(s0)"));
     }
+
 
     void setThreeRegs(op op1, op op2) // addw
     {
@@ -622,9 +623,21 @@ public:
 
 // solve the paramNums problem
 private:
+    // callee
     size_t paramNum;
     std::vector<RISCVInst*> spilledParam;
+    std::vector<IR_DataType> spilledParamType;
+    std::vector<RISCVInst*> spilledParamLoadInst;
+
+    // caller
+    int MallocStackForparam;
 public:
     size_t& getparamNum() { return paramNum; }
     std::vector<RISCVInst*>&  getSpilledParam()  { return spilledParam;}
+    // need to save the last value Type
+    std::vector<IR_DataType>& getSpilledParamType()  { return spilledParamType; }
+    std::vector<RISCVInst*>& getSpilledParamLoadInst() { return spilledParamLoadInst; }
+    
+    // caller 
+    int& getNeadStackForparam()  { return MallocStackForparam;} 
 };

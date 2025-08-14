@@ -66,10 +66,25 @@ size_t ProloAndEpilo::caculate()
     // callee saved register
 
     // deal spill arguments  small -> big
+    
+    // callee
+    auto& LoadInstVec = mfunc->getSpilledParamLoadInst();
+    size_t spillOffset = 0;
+    for (auto& inst : LoadInstVec)
+    {
+        inst->SetstackOffsetOp(std::to_string(spillOffset) + "(s0)");
+        spillOffset += 8;
+    }
+
+    // caller 
+    auto& paraNum = mfunc->getNeadStackForparam();
+    if ( paraNum  > 8) {
+        sumMallocSize += (paraNum -8) * 8;
+    }
 
 
+    // result
     while (N * ALIGN < sumMallocSize)  N++;
-
     size_t size = (N +1)* ALIGN;  // 1 is for sp/ra
     return size; 
 }
@@ -99,7 +114,7 @@ bool ProloAndEpilo:: DealStoreInsts()
     for(auto[StackInst,alloc] : MallocVec)
     {
         if(AOffsetRecord[alloc] <= 2047)
-            StackInst->setStoreStackOp(AOffsetRecord[alloc]);
+            StackInst->setStoreStackS0Op(AOffsetRecord[alloc]);
     }
 
     return true;
@@ -115,7 +130,7 @@ bool ProloAndEpilo:: DealLoadInsts()
         auto Alloc = record[Inst];
         size_t off = offset[Alloc];
         if (off <= 2047)
-            Inst->setStoreStackOp(off);  
+            Inst->setStoreStackS0Op(off);  
         else  {
            
         }
