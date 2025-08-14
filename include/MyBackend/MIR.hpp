@@ -554,15 +554,13 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::shared_ptr<RISCVPrologue> prologue;
     std::shared_ptr<RISCVEpilogue> epilogue;
 
-    //由所有函数记录该函数内的所有 storeInsts 语句 
-    using lastStoreRInst = RISCVInst*;
-    std::map<AllocaInst*,lastStoreRInst> StackStoreRecord;
     using matchLoadRInst = RISCVInst*;
     std::map<matchLoadRInst,AllocaInst*> StackLoadRecord;
     using offset = size_t;
     std::map<AllocaInst*,offset> AllocaOffsetRecord;
 
-    std::map<RISCVInst*,AllocaInst*> StoreInsts;
+    using matchStoreRInst = RISCVInst*;
+    std::map<matchStoreRInst,AllocaInst*> StackStoreRecord;
     std::vector<RISCVInst*> LoadInsts;
     std::vector<AllocaInst*> AllocaInsts;
 
@@ -595,13 +593,13 @@ public:
     
 
     // local Int float deal
-    std::map<AllocaInst*,lastStoreRInst>& getStoreRecord() {   return StackStoreRecord;   }
+    //std::map<AllocaInst*,lastStoreRInst>& getStoreRecord() {   return StackStoreRecord;   }
     std::map<matchLoadRInst,AllocaInst*>& getLoadRecord() {   return StackLoadRecord;   }
-    std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }   
+    std::map<matchStoreRInst,AllocaInst*>& getStoreRecord() {   return StackStoreRecord;    }   
     std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    } 
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
     void RecordStackMalloc(RISCVInst* inst,AllocaInst* alloca) {
-       StoreInsts.emplace( std::make_pair(inst,alloca) );
+       StackStoreRecord.emplace( std::make_pair(inst,alloca) );
     }
 
     // 处理arr stack offset     
@@ -621,4 +619,12 @@ public:
     std::shared_ptr<RISCVEpilogue>& getEpilogue() { return epilogue;}
             
     ~RISCVFunction() = default;
+
+// solve the paramNums problem
+private:
+    size_t paramNum;
+    std::vector<RISCVInst*> spilledParam;
+public:
+    size_t& getparamNum() { return paramNum; }
+    std::vector<RISCVInst*>&  getSpilledParam()  { return spilledParam;}
 };

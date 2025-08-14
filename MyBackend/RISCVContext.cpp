@@ -42,12 +42,12 @@ void RISCVContext::extraDealStoreInst(RISCVInst* RISCVinst,StoreInst* inst)
 {
     RISCVFunction* tmp = nullptr;
     Value *val = inst->GetOperand(1);
-    auto& storeRecord = curMfunc->getStoreRecord();
     AllocaInst *allocInst = dynamic_cast<AllocaInst *>(val);
     assert(allocInst && "must not be nullptr");
 
-    if(storeRecord.find(allocInst) == storeRecord.end())
-        storeRecord[allocInst] = RISCVinst;
+    // auto& storeRecord = curMfunc->getStoreRecord();
+    // if(storeRecord.find(allocInst) == storeRecord.end())
+    //     storeRecord[allocInst] = RISCVinst;
     
     curMfunc->RecordStackMalloc(RISCVinst,allocInst);
 }
@@ -346,9 +346,10 @@ RISCVInst* RISCVContext::CreateAInst(AllocaInst *inst)
 {
     // auto type = inst->GetType()->GetSize();
     curMfunc->getAllocas().push_back(inst);
-    auto storeRecord = curMfunc->getStoreRecord();
-    storeRecord[inst] = nullptr;
-    return storeRecord[inst];
+    // auto storeRecord = curMfunc->getStoreRecord();
+    // storeRecord[inst] = nullptr;
+    // return storeRecord[inst];
+    return nullptr;
 }
 
 // problem solved
@@ -824,7 +825,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     {
         return DealMemcpyFunc(inst);
     }
-    
+
     // param  callee_saved  caller_saved  call  ret 
     for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
     {
@@ -842,10 +843,7 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
             if (lwInst == nullptr)  // need to deal 
                 continue;
             param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
-            param->SetRealRegister("a" + std::to_string(paramNum - 1));
-            // if (dynamic_cast<GepInst*>(val))
-            //     param->push_back(param->GetPrevNode()->getOpreand(0));
-            // else     
+            param->SetRealRegister("a" + std::to_string(paramNum - 1));  
             param->push_back(lwInst->getOpreand(0));
         }
     }
@@ -1296,21 +1294,6 @@ RISCVOp* RISCVContext::Create(Value* val)
 
 RISCVOp* RISCVContext::mapTrans(Value* val)
 {
-    if ( valToRiscvOp.find(val) == valToRiscvOp.end() && 
-             dynamic_cast<Function*>(val) )
-    {
-        auto func = dynamic_cast<Function*>(val);
-        RealRegister::realReg  counter = RealRegister::a0;
-        for(auto& parm : func->GetParams())
-        {
-            auto op = RealRegister::GetRealReg(counter);
-            valToRiscvOp[parm.get()] = op;
-            counter = RealRegister::realReg(counter + 1);
-            if (counter == RealRegister::a7)
-                break;  // 对栈帧的处理
-        }
-    }
-
     if(valToRiscvOp.find(val) == valToRiscvOp.end() && val->isGlobal()) {
         auto op  = new RISCVOp(val->GetName());
         valToRiscvOp[val] = op;   // bug:: delete when???
@@ -1321,3 +1304,21 @@ RISCVOp* RISCVContext::mapTrans(Value* val)
     }
     return valToRiscvOp[val];
 };
+
+void RISCVContext::DealFunctionParam(Function *func)
+{
+    RealRegister::realReg counter = RealRegister::a0;
+    getCurFunction()->getparamNum() = func->GetParams().size();
+    for (auto &parm : func->GetParams())
+    {
+        // 前 7 个参数通过 a0 - a7 传递
+        auto op = RealRegister::GetRealReg(counter);
+        valToRiscvOp[parm.get()] = op;
+        counter = RealRegister::realReg(counter + 1);
+        if (counter > RealRegister::a7) // 通过栈帧传递
+        {
+            auto it = parm->GetTypeEnum();
+            auto ldInst = std::make_shared<RISCVInst>(RISCVInst::_lw);
+        }
+    }
+}

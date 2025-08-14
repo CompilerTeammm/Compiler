@@ -47,6 +47,8 @@ public:
 
     void setCurFunction(RISCVFunction* func) {   curMfunc = func;  }
     RISCVFunction* getCurFunction() { return curMfunc; }
+    void DealFunctionParam(Function* func);
+
 
     RISCVOp* Create(Value*);
     RISCVOp* mapTrans(Value* val);

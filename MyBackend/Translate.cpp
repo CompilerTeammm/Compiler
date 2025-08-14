@@ -61,6 +61,8 @@ bool TransFunction::run(Function* func)
     // 构造了 TransFunction
     auto mfunc = ctx->mapTrans(func)->as<RISCVFunction>();
     ctx->setCurFunction(mfunc);
+    ctx->DealFunctionParam(func);
+
     // RISCVFunc 与 RISCVBlock 建立了联系
     for (BasicBlock *BB : *func)
     {

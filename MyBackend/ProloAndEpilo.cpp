@@ -77,8 +77,7 @@ size_t ProloAndEpilo::caculate()
 // array  stack 传参
 bool ProloAndEpilo:: DealStoreInsts()
 {
-    auto MallocVec = mfunc->getStoreInsts();
-    // auto StoreRecord = mfunc->getStoreRecord();
+    auto MallocVec = mfunc->getStoreRecord();
     auto& AOffsetRecord = mfunc->getAOffsetRecord();
     size_t offset = mfunc->arroffset;
     std::set<AllocaInst*> tmp;
@@ -122,16 +121,6 @@ bool ProloAndEpilo:: DealLoadInsts()
         }
     }
 
-    // auto LoadInsts = mfunc->getLoadInsts();
-    // auto record = mfunc->getLoadRecord();
-    // auto storeRecord = mfunc->getStoreRecord();
-    // for(auto Inst : LoadInsts)
-    // {
-    //     auto Alloc = record[Inst];
-    //     auto Store = storeRecord[Alloc];
-    //     if (Store != nullptr)
-    //         Inst->getOpsVec().push_back(Store->getOpreand(1));
-    // }
 
     return true;
 }
