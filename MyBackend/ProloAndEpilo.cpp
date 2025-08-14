@@ -17,6 +17,16 @@
 // I think the std::move is not the must, Compiler will do this
 // I hope to search it.
 
+// frame
+// ra,s0
+// local arrs
+// local int/float/ptr
+// spilled register
+// caller saved register
+// callee saved register
+// spill arguments
+//
+
 // array  stack 传参
 bool ProloAndEpilo:: DealStoreInsts()
 {

@@ -55,7 +55,10 @@ public:
     RISCVInst* CreateLInst(LoadInst* inst);
     RISCVInst* CreateSInst(StoreInst* inst);
     RISCVInst* CreateAInst(AllocaInst* inst);
+
+    RISCVInst* DealMemcpyFunc(CallInst *inst);
     RISCVInst* CreateCInst(CallInst* inst);
+
     RISCVInst* CreateRInst(RetInst* inst);
     RISCVInst* CreateCondInst(CondInst* inst);
     RISCVInst* CreateUCInst(UnCondInst* inst);

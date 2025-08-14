@@ -762,6 +762,58 @@ RISCVInst* RISCVContext::CreateI2Fnst(SI2FPInst *inst)
     return Inst;
 }
 
+RISCVInst *RISCVContext::DealMemcpyFunc(CallInst *inst)
+{
+    Value *tmpAlloc = inst->GetOperand(1);
+    Value *glVal = inst->GetOperand(2);
+    getCurFunction()->getGepGloblToLocal()[tmpAlloc] = glVal;
+
+    Value *val = inst->GetOperand(3);
+
+    RISCVInst *laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
+    laInst->SetVirRegister();
+    laInst->SetAddrOp(inst->GetOperand(2));
+
+    int size = std::stoi(val->GetName());
+    RISCVInst *saveS0Inst = nullptr;
+    if (size <= 2047)
+    {
+        saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+        saveS0Inst->SetVirRegister();
+        saveS0Inst->SetRealRegister("s0");
+    }
+    else
+    {
+        saveS0Inst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+        saveS0Inst->SetVirRegister();
+
+        RISCVInst *addInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+        addInst->push_back(saveS0Inst->getOpreand(0));
+        addInst->SetRealRegister("s0");
+        addInst->push_back(saveS0Inst->getOpreand(0));
+    }
+    // saveS0Inst->SetstackOffsetOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
+    getCurFunction()->getCurFuncArrStack(saveS0Inst, val, tmpAlloc);
+    // how to imm
+
+    RISCVInst *para0 = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+    para0->SetRealRegister("a0");
+    para0->getOpsVec().push_back(saveS0Inst->getOpreand(0));
+
+    RISCVInst *para1 = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+    para1->SetRealRegister("a1");
+    para1->getOpsVec().push_back(laInst->getOpreand(0));
+
+    RISCVInst *para2 = CreateInstAndBuildBind(RISCVInst::_li, inst);
+    para2->SetRealRegister("a2");
+    para2->SetImmOp(val);
+
+    RISCVInst* Inst = CreateInstAndBuildBind(RISCVInst::_call, inst);
+    Inst->push_back(std::make_shared<RISCVOp>("memcpy@plt"));
+
+    return nullptr;
+}
+
 RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
 {
     RISCVInst* Inst = nullptr;
@@ -770,54 +822,10 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     auto name = inst->GetOperand(0)->GetName();
     if (name == "llvm.memcpy.p0.p0.i32")  // 特殊函数从处理
     {
-        Value* tmpAlloc = inst->GetOperand(1);
-        Value* glVal = inst->GetOperand(2);
-        getCurFunction()->getGepGloblToLocal()[tmpAlloc] = glVal;
-
-        Value* val = inst->GetOperand(3);
-
-        RISCVInst *laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
-        laInst->SetVirRegister();
-        laInst->SetAddrOp(inst->GetOperand(2));
-
-        int size = std::stoi(val->GetName());
-        RISCVInst* saveS0Inst = nullptr;
-        if ( size <= 2047) {
-            saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi,inst);
-            saveS0Inst->SetVirRegister();
-            saveS0Inst->SetRealRegister("s0");
-        } else {
-            saveS0Inst = CreateInstAndBuildBind(RISCVInst::_li,inst);
-            saveS0Inst->SetVirRegister();
-
-            RISCVInst* addInst = CreateInstAndBuildBind(RISCVInst::_add,inst);
-            addInst->push_back(saveS0Inst->getOpreand(0));
-            addInst->SetRealRegister("s0");
-            addInst->push_back(saveS0Inst->getOpreand(0));
-        }
-        // saveS0Inst->SetstackOffsetOp("-"+std::to_string(std::stoi(val->GetName())+ 16));
-        getCurFunction()->getCurFuncArrStack(saveS0Inst,val,tmpAlloc);
-        // how to imm
-
-        RISCVInst* para0 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
-        para0->SetRealRegister("a0");
-        para0->getOpsVec().push_back(saveS0Inst->getOpreand(0));
-        
-        RISCVInst* para1 = CreateInstAndBuildBind(RISCVInst::_mv,inst);
-        para1->SetRealRegister("a1");
-        para1->getOpsVec().push_back(laInst->getOpreand(0));
-
-        RISCVInst* para2 = CreateInstAndBuildBind(RISCVInst::_li,inst);
-        para2->SetRealRegister("a2");
-        para2->SetImmOp(val);
-
-        Inst = CreateInstAndBuildBind(RISCVInst::_call, inst);
-        Inst->push_back(std::make_shared<RISCVOp>("memcpy@plt"));
-
-        return ret;
+        return DealMemcpyFunc(inst);
     }
-
-    // param
+    
+    // param  callee_saved  caller_saved  call  ret 
     for(int paramNum = 1; paramNum < inst->GetOperandNums() ; paramNum++)
     {
         if (paramNum == 8)

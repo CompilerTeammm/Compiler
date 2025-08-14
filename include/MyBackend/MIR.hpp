@@ -525,7 +525,6 @@ public:
 class RISCVPrologue:public RISCVOp
 {
     using Instptr = std::shared_ptr<RISCVInst>;
-    // std::vector<Instptr> proloInsts;
     typedef std::vector<Instptr> ProloInsts;
     ProloInsts proloInsts;
 public:
@@ -537,7 +536,6 @@ public:
 class RISCVEpilogue:public RISCVOp
 {
     using Instptr = std::shared_ptr<RISCVInst>;
-    // std::vector<Instptr> proloInsts;
     typedef std::vector<Instptr> EpilogueInsts;
     EpilogueInsts epiloInsts;
 public:
@@ -548,6 +546,7 @@ public:
 };
 
 // Function include BBs Name 
+// And func produce the frame 
 class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
 {
     Function* func;
@@ -566,23 +565,24 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::map<RISCVInst*,AllocaInst*> StoreInsts;
     std::vector<RISCVInst*> LoadInsts;
     std::vector<AllocaInst*> AllocaInsts;
-    
-    std::list<RISCVBlock*> recordBBs;  // 记录顺序
-    std::map<size_t,size_t> oldBBindexTonew;
-public:
-    offset arroffset = 16;
-    offset defaultSize = 16;
-private:
+
     // 处理数组，局部与全局的处理
     std::map<Instruction*,offset> recordGepOffset;
     std::map<Value*,Value*> GepGloblToLocal;
+
+    std::map<Value*,offset> LocalArrToOffset;
     // 全局变量，除了数组
     std::vector<Instruction*> globlValRecord; 
 
+    
+    std::list<RISCVBlock*> recordBBs;  // 记录顺序
+    std::map<size_t,size_t> oldBBindexTonew;
+    
     std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>> recordBrInstSuccBBs;
     std::vector<RISCVInst*> LabelInsts;
-
-    std::map<Value*,offset> LocalArrToOffset;
+public:
+    offset arroffset = 16;
+    offset defaultSize = 16;
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
