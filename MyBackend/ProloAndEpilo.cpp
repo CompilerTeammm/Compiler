@@ -14,9 +14,7 @@
 // ld s0,offset2
 // addi   sp,sp,Malloc
 
-// I think the std::move is not the must, Compiler will do this
-// I hope to search it.
-
+//
 // frame
 // ra,s0
 // local arrs
@@ -27,42 +25,82 @@
 // spill arguments
 //
 
+// deal the fame and caculate the size  
+size_t ProloAndEpilo::caculate()
+{
+    int N = INITSIZE;
+    int sumMallocSize = 0;
+
+    // deal local arr
+    if (mfunc->arroffset != mfunc->defaultSize)
+        sumMallocSize += mfunc->arroffset - mfunc->defaultSize;
+
+    // local int/float/ptr
+    for (auto allocInst : mfunc->getAllocas())
+    {
+        if(allocInst->GetTypeEnum() == IR_PTR) 
+        {
+            auto PType = dynamic_cast<PointerType*> (allocInst->GetType());
+            if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
+            {
+
+            }
+            else if (PType->GetSubType()->GetTypeEnum() == IR_PTR)
+            {
+                size_t ptrSize = PType->GetSubType()->GetSize();
+                sumMallocSize += ptrSize;
+                if (sumMallocSize % 8 != 0)
+                    sumMallocSize += 4;
+            }
+            else if(PType->GetSubType()->GetTypeEnum() == IR_Value_Float ||
+                  PType->GetSubType()->GetTypeEnum() == IR_Value_INT ) {
+                sumMallocSize += sizeof(int32_t);
+            }
+        }
+    }
+
+    // deal spilled register
+
+    // caller saved register
+
+    // callee saved register
+
+    // deal spill arguments  small -> big
+
+
+    while (N * ALIGN < sumMallocSize)  N++;
+
+    size_t size = (N +1)* ALIGN;  // 1 is for sp/ra
+    return size; 
+}
+
 // array  stack 传参
 bool ProloAndEpilo:: DealStoreInsts()
 {
     auto MallocVec = mfunc->getStoreInsts();
     // auto StoreRecord = mfunc->getStoreRecord();
     auto& AOffsetRecord = mfunc->getAOffsetRecord();
-    size_t offset = TheSizeofStack;
+    size_t offset = mfunc->arroffset;
     std::set<AllocaInst*> tmp;
     for (auto& alloc:mfunc->getAllocas())
     {
-        AOffsetRecord[alloc] = offset;
-        auto it = alloc->GetType()->GetLayer();
-        auto it2 =  dynamic_cast<PointerType*> (alloc->GetType())->GetSubType()->GetTypeEnum();
         if(alloc->GetType()->GetLayer() > 1)
             if (dynamic_cast<PointerType*>(alloc->GetType())->GetSubType()->GetTypeEnum() == IR_ARRAY)
-                offset += 0;
-            else 
-                offset -= 8;
+                offset -= 0;
+            else  {  // ptr 8 字节对齐
+                offset += 8;
+                if (offset % 8 != 0)
+                    offset += 4;
+            }
         else 
-            offset -= 4;
+            offset += 4;
+        AOffsetRecord[alloc] = offset;
     }
 
     for(auto[StackInst,alloc] : MallocVec)
     {
         if(AOffsetRecord[alloc] <= 2047)
             StackInst->setStoreStackOp(AOffsetRecord[alloc]);
-        // if (tmp.find(alloc) == tmp.end())
-        // {
-        //     tmp.emplace(alloc);
-        //     offset += 4;
-        //     StackInst->setStoreStackOp(offset);
-        //     AOffsetRecord.emplace(alloc,offset);
-        // }
-        // else {
-        //     StackInst->setStoreStackOp(AOffsetRecord[alloc]);
-        // }
     }
 
     return true;
@@ -104,8 +142,8 @@ bool ProloAndEpilo::run()
 
     TheSizeofStack = StackMallocSize;
 
+    // 前言与后续的处理需要考虑callee_saved and  caller_saved
     if(TheSizeofStack <= 2047) { 
-    // 生成函数的前言和后序,并且set了
         CreateProlo(StackMallocSize);
         CreateEpilo(StackMallocSize);
     } else {
@@ -118,40 +156,7 @@ bool ProloAndEpilo::run()
     return ret;
 }
 
-size_t ProloAndEpilo::caculate()
-{
-    int N = INITSIZE;
-    int sumMallocSize = 0;
-
-    for(auto allocInst : mfunc->getAllocas())
-    {
-        if(allocInst->GetTypeEnum() == IR_PTR) 
-        {
-            auto PType = dynamic_cast<PointerType*> (allocInst->GetType());
-            if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
-            {
-
-            }
-            else if (PType->GetSubType()->GetTypeEnum() == IR_PTR)
-            {
-                size_t ptrSize = PType->GetSubType()->GetSize();
-                sumMallocSize += ptrSize;
-            }
-            else if(PType->GetSubType()->GetTypeEnum() == IR_Value_Float ||
-                  PType->GetSubType()->GetTypeEnum() == IR_Value_INT ) {
-                sumMallocSize += sizeof(int32_t);
-            }
-        }
-    }
-    if (mfunc->arroffset != mfunc->defaultSize)  // 未开辟数组
-        sumMallocSize += mfunc->arroffset;
-    while (N * ALIGN < sumMallocSize)   N++;
-
-    size_t size = (N + INITSIZE) * ALIGN;
-    return size; 
-}
-
-
+// TODO: reWrite the CreateEpilo And CreateEpilo
 void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool flag)
 {
     inst->SetRealRegister(std::move("sp"));
@@ -218,6 +223,7 @@ void ProloAndEpilo::CreateProlo(size_t size)
 
     mfunc->setPrologue(it);
 }
+
 void ProloAndEpilo::CreateEpilo(size_t size)
 {
     auto it = std::make_shared<RISCVEpilogue> ();

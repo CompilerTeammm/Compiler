@@ -555,10 +555,10 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::shared_ptr<RISCVEpilogue> epilogue;
 
     //由所有函数记录该函数内的所有 storeInsts 语句 
-    using lastStoreInstPtr = RISCVInst*;
-    std::map<AllocaInst*,lastStoreInstPtr> StackStoreRecord;
-    using matchLoadInstPtr = RISCVInst*;
-    std::map<matchLoadInstPtr,AllocaInst*> StackLoadRecord;
+    using lastStoreRInst = RISCVInst*;
+    std::map<AllocaInst*,lastStoreRInst> StackStoreRecord;
+    using matchLoadRInst = RISCVInst*;
+    std::map<matchLoadRInst,AllocaInst*> StackLoadRecord;
     using offset = size_t;
     std::map<AllocaInst*,offset> AllocaOffsetRecord;
 
@@ -581,35 +581,42 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>> recordBrInstSuccBBs;
     std::vector<RISCVInst*> LabelInsts;
 public:
-    offset arroffset = 16;
-    offset defaultSize = 16;
+    offset arroffset = 16;    // arr space =  arroffset - defaulSize
+    offset defaultSize = 16;  // 存储 ra,sp 的栈帧space
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
+    
+    // adjust bbs 
     std::vector<RISCVInst*>&  getLabelInsts() { return LabelInsts; }
     std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>>& getBrInstSuccBBs() { return recordBrInstSuccBBs; }
     std::list<RISCVBlock*>& getRecordBBs()  { return recordBBs; }
     std::map<size_t,size_t>& OldToNewIndex() { return oldBBindexTonew;}
-    std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
+    
+
+    // local Int float deal
+    std::map<AllocaInst*,lastStoreRInst>& getStoreRecord() {   return StackStoreRecord;   }
+    std::map<matchLoadRInst,AllocaInst*>& getLoadRecord() {   return StackLoadRecord;   }
+    std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }   
+    std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    } 
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
-    std::map<Value*,Value*>&getGepGloblToLocal()  { return GepGloblToLocal;}
-    std::vector<Instruction*>& getGloblValRecord() { return globlValRecord; }
-    std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    }
-    std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
-    std::map<AllocaInst*,lastStoreInstPtr>& getStoreRecord() {   return StackStoreRecord;   }
-    std::map<matchLoadInstPtr,AllocaInst*>& getLoadRecord() {   return StackLoadRecord;   }
-    std::map<AllocaInst*,size_t>& getAOffsetRecord() { return AllocaOffsetRecord; }
-    std::map<Value*,offset>& getLocalArrToOffset() { return LocalArrToOffset;}
-    void RecordStackMalloc(RISCVInst* inst,AllocaInst* alloca)
-    {
-        StoreInsts.emplace( std::make_pair(inst,alloca) );
+    void RecordStackMalloc(RISCVInst* inst,AllocaInst* alloca) {
+       StoreInsts.emplace( std::make_pair(inst,alloca) );
     }
 
+    // 处理arr stack offset     
+    // gloabl val
+    std::map<AllocaInst*,size_t>& getAOffsetRecord() { return AllocaOffsetRecord; }
+    std::map<Value*,offset>& getLocalArrToOffset() { return LocalArrToOffset;}
     void getCurFuncArrStack(RISCVInst*& ,Value* val,Value* alloc);
+    std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
+    std::map<Value*,Value*>&getGepGloblToLocal()  { return GepGloblToLocal;}
+    std::vector<Instruction*>& getGloblValRecord() { return globlValRecord; }
 
+
+    // prologue and epilogue
     void setPrologue(std::shared_ptr<RISCVPrologue>& it ) { prologue = it;}
     void setEpilogue(std::shared_ptr<RISCVEpilogue>& it ) { epilogue = it;}
-
     std::shared_ptr<RISCVPrologue>& getPrologue() { return prologue;}
     std::shared_ptr<RISCVEpilogue>& getEpilogue() { return epilogue;}
             
