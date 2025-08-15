@@ -111,7 +111,7 @@ public:
       : m_func(func), m_dom(dom), _DeleteLoop(DeleteLoop) {
     setBBs();
     setDest();
-    GetResult(m_func);//xxxxxx
+    //GetResult(m_func);//xxxxxx
   }
   void Analysis();
   bool IsLoopIncludeBB(LoopInfo *loop, int index);

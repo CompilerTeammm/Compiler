@@ -7,6 +7,13 @@
 #include <typeindex>
 #include <any>
 
+// 检测 Pass 是否有 GetResult() 成员函数
+template<typename T, typename = void>
+struct has_GetResult : std::false_type {};
+
+template<typename T>
+struct has_GetResult<T, std::void_t<decltype(std::declval<T*>()->GetResult())>> : std::true_type {};
+
 class LoopInfo;
 // class AnalysisManager : public _AnalysisBase<AnalysisManager, Function>
 // {
@@ -72,27 +79,31 @@ public:
 
     // 获取或创建分析Pass（函数分析）
     template <typename Pass, typename... Args>
-    Pass *get(Function *func, Args &&...args)
+    Pass* get(Function* func, Args&&... args)
     {
         std::type_index ti(typeid(Pass));
+        Pass* pass = nullptr; // 先统一声明
+
         auto it = passes.find(ti);
         if (it != passes.end())
         {
-            // Pass已存在，直接返回缓存对象
-            return static_cast<Pass *>(it->second.get());
+            pass = static_cast<Pass*>(it->second.get());
         }
-        // 新建Pass，缓存并返回
-        Pass *pass = new Pass(func, std::forward<Args>(args)...);
-        passes[ti] = std::unique_ptr<void, PassDeleter>(pass, PassDeleter());
-        
-        // if constexpr (requires(Pass *p) { p->GetResult(); })
-        // {
-        //     return pass->GetResult();
-        // }
-        // else
-        // {
+        else
+        {
+            pass = new Pass(func, std::forward<Args>(args)...);
+            passes[ti] = std::unique_ptr<void, PassDeleter>(pass, PassDeleter());
+        }
+
+        // 统一返回
+        if constexpr (has_GetResult<Pass>::value)
+        {
+         return pass->GetResult();
+        }
+        else
+        {
             return pass;
-        // }
+        }
     }
 
     // 查询已存在的Pass，找不到返回nullptr
