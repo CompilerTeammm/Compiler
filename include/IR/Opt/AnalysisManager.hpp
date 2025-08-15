@@ -3,10 +3,11 @@
 #include "../../lib/Singleton.hpp"
 #include "../../lib/CFG.hpp"
 #include "../Analysis/Dominant.hpp"
-#include "../Analysis/LoopInfo.hpp"
+//#include "../Analysis/LoopInfo.hpp"
 #include <typeindex>
 #include <any>
 
+class LoopInfo;
 // class AnalysisManager : public _AnalysisBase<AnalysisManager, Function>
 // {
 
