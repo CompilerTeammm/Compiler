@@ -1,392 +1,191 @@
 #include "../../include/IR/Analysis/LoopInfo.hpp"
+#include "../../include/lib/CFG.hpp"
 
-bool Loop::ContainBB(BasicBlock *bb)
+void LoopAnalysis::Analysis()
 {
-  std::unordered_set<BasicBlock *> assist{this->BBs.begin(), this->BBs.end()};
-  assist.insert(Header);
-  if (assist.find(bb) != assist.end())
-    return true;
-  return false;
-}
-
-bool Loop::ContainLoop(Loop *loop)
-{
-  if (loop == this)
-    return true;
-  if (!loop)
-    return false;
-
-  return ContainLoop(loop->GetParent());
-}
-
-void LoopInfoAnalysis::runAnalysis()
-{
-  // 通过后续遍历CFG，来获取每个基本块的后序遍历
-  // 然后通过支配树来查找每个基本块的前驱，通过for循环查找，来判断前驱中哪些是支配这个基本块
-  // 如果找到前驱，那就将curbb存储在latch中，也就是目前正在遍历的基本块
-  // 通过这种方法，构建不同的latch前驱序列
-  //
   for (auto curbb : PostOrder)
   {
     std::vector<BasicBlock *> latch;
-    auto node = _dom->getNode(curbb);     // 回边列表
-    for (auto succNode : node->predNodes) // 查找每个基本块的前驱
+    auto node = m_dom->getNode(curbb);
+
+    // 找到循环的latch节点
+    for (auto predNode : node->predNodes)
     {
-      BasicBlock *succbb = succNode->curBlock;
-      if (_dom->dominates_(curbb, succbb))
-      {
-        latch.push_back(succbb); // 如果是回边，加入列表
-      }
+      BasicBlock *predBB = predNode->curBlock;
+      if (m_dom->dominates(curbb, predBB))
+        latch.push_back(predBB);
     }
 
     if (!latch.empty())
     {
-      Loop *loop = new Loop(curbb);
-      std::vector<BasicBlock *> WorkList = {latch.begin(), latch.end()};
+      LoopInfo *loop = new LoopInfo(curbb);
+      std::vector<BasicBlock *> WorkLists(latch.begin(), latch.end());
 
-      while (!WorkList.empty())
+      while (!WorkLists.empty())
       {
-        auto bb = WorkList.back();
-        WorkList.pop_back();
-        auto n = _dom->getNode(bb);
+        BasicBlock *bb = WorkLists.back();
+        WorkLists.pop_back();
+        auto n = m_dom->getNode(bb);
 
-        Loop *tmp = LookUp(bb);
+        LoopInfo *tmp = LookUp(bb);
         if (tmp == nullptr)
         {
           setLoop(bb, loop);
           if (bb == curbb)
             continue;
           loop->InsertLoopBody(bb);
-          for (auto bbbb : n->predNodes)
-            WorkList.push_back(bbbb->curBlock);
+
+          for (auto predNode : n->predNodes)
+          {
+            WorkLists.push_back(predNode->curBlock);
+          }
         }
         else
         {
           while (tmp->GetParent() != nullptr)
-          {
             tmp = tmp->GetParent();
-          }
           if (tmp == loop)
             continue;
-          tmp->setLoopsHeader(loop);
+          tmp->setParent(loop);
           loop->setSubLoop(tmp);
 
-          BasicBlock *header = tmp->getHeader();
-          n = _dom->getNode(header);
-          for (auto rev : n->predNodes)
+          BasicBlock *header = tmp->GetHeader();
+          auto headerNode = m_dom->getNode(header);
+          for (auto predNode : headerNode->predNodes)
           {
-            if (LookUp(rev->curBlock) != tmp)
-              WorkList.push_back(rev->curBlock);
+            if (LookUp(predNode->curBlock) != tmp)
+              WorkLists.push_back(predNode->curBlock);
           }
         }
       }
       LoopRecord.push_back(std::move(loop));
-
-      /*  // 查找这个基本块，是否还有别的循环
-       if (auto iter = Loops.find(bb); iter != Loops.end())
-       {
-         // 找到嵌套循环的最外层
-         auto tmp = iter->second;
-         while (tmp->GetLoopsHeader() != nullptr)
-         {
-           tmp = tmp->GetLoopsHeader();
-         }
-         if (tmp == loop)
-           continue;
-         tmp->setLoopsHeader(loop);
-         loop->addLoopsBody(tmp);
-
-         BasicBlock *header = tmp->getHeader();
-         for (auto n : _dom->getPredBBs(header))
-         {
-           if (auto iter_ = Loops.find(header); iter != Loops.end())
-             WorkList.push_back(header);
-         }
-       }
-       else
-       {
-         Loops.emplace(bb, loop);
-         if (bb != curbb)
-         {
-           loop->addLoopBody(bb);
-           for (auto pred : _dom->getPredBBs(bb))
-           {
-             if (Loops.find(pred) == Loops.end())
-             {
-               WorkList.push_back(pred);
-             }
-           }
-         }
-       }
-     }
-     loops.push_back(std::move(loop)); */
     }
   }
 }
 
-void LoopInfoAnalysis::PostOrderDT(BasicBlock *bb)
+void LoopAnalysis::ExpandSubLoops()
 {
-  auto b = _dom->getNode(bb);
-  for (auto block : b->idomChild)
-  {
-    if (!block->curBlock->visited)
-    {
-      block->curBlock->visited = true;
-      PostOrderDT(block->curBlock);
-    }
-  }
-  PostOrder.push_back(bb);
-  /*  for (auto dst : _dom->getIdomVec(bb))
-   {
-     if (!dst->visited)
-     {
-       dst->visited = true;
-       PostOrderDT(dst);
-     }
-   }
-   PostOrder.push_back(bb); */
+  for (auto loop : LoopRecord)
+    for (auto subloop : loop->GetSubLoop())
+      for (auto bb : subloop->ContainBlocks)
+        PushVecSingleVal(loop->ContainBlocks, bb);
 }
 
-bool LoopInfoAnalysis::ContainsBlock(Loop *loop, BasicBlock *bb)
+bool LoopAnalysis::IsLoopIncludeBB(LoopInfo *loop, int index)
 {
-  /*   // 1. 获取循环的所有基本块（包括 header）
-    std::set<BasicBlock *> loopBlocks{loop->getLoopBody().begin(), loop->getLoopBody().end()};
-    loopBlocks.insert(loop->getHeader());
-    // 2. 检查目标块是否在循环内
-    return loopBlocks.find(bb) != loopBlocks.end(); */
-  std::set<BasicBlock *> contain{loop->getLoopBody().begin(), loop->getLoopBody().end()};
-  contain.insert(loop->getHeader());
-  auto iter = std::find(contain.begin(), contain.end(), bb);
+  std::set<BasicBlock *> contain{loop->ContainBlocks.begin(),
+                                 loop->ContainBlocks.end()};
+  contain.insert(loop->GetHeader());
+  auto iter =
+      std::find(contain.begin(), contain.end(), GetCorrespondBlock(index));
   if (iter == contain.end())
     return false;
   return true;
 }
 
-bool LoopInfoAnalysis::isLoopExiting(Loop *loop, BasicBlock *bb)
+bool LoopAnalysis::IsLoopIncludeBB(LoopInfo *loop, BasicBlock *bb)
 {
-  auto exiting = getExitingBlocks(loop);
+  auto iter =
+      std::find(loop->ContainBlocks.begin(), loop->ContainBlocks.end(), bb);
+  if (iter == loop->ContainBlocks.end())
+    return false;
+  return true;
+}
+
+bool LoopAnalysis::IsLoopExiting(LoopInfo *loop, BasicBlock *bb)
+{
+  auto exiting = GetExitingBlock(loop);
   auto it = std::find(exiting.begin(), exiting.end(), bb);
   if (it != exiting.end())
     return true;
   return false;
 }
 
-void LoopInfoAnalysis::getLoopDepth(Loop *loop, int depth)
+bool LoopInfo::Contain(BasicBlock *bb)
 {
-  if (!loop->IsVisited())
-  {
-    loop->addLoopsDepth(depth);
-    loop->setVisited(true);
-    for (auto sub : loop->GetSubLoop())
-      CalculateLoopDepth(sub, depth + 1);
-  }
-  return;
+  std::unordered_set<BasicBlock *> assist{this->ContainBlocks.begin(),
+                                          this->ContainBlocks.end()};
+  assist.insert(Header);
+  if (assist.find(bb) != assist.end())
+    return true;
+  return false;
 }
 
-BasicBlock *LoopInfoAnalysis::getPreHeader(Loop *loop, Flag flag)
+bool LoopInfo::Contain(LoopInfo *loop)
 {
-  BasicBlock *preheader = nullptr;
-  if (loop->getPreHeader() != nullptr)
-    return loop->getPreHeader();
-
-  BasicBlock *header = loop->getHeader();
-  for (auto pred : _dom->getNode(header)->predNodes)
-  {
-    // 出现前驱不属于这个循环的情况
-    if (!ContainsBlock(loop, pred->curBlock))
-    {
-      if (preheader == nullptr)
-      {
-        preheader = pred->curBlock;
-        continue;
-      }
-      if (preheader != pred->curBlock)
-      {
-        preheader = nullptr;
-        return preheader;
-      }
-    }
-  }
-  if (preheader && flag == Strict)
-  {
-    for (auto des : _dom->getNode(preheader)->succNodes)
-      if (des->curBlock != header)
-      {
-        preheader = nullptr;
-        return preheader;
-      }
-  }
-  if (preheader != nullptr)
-    loop->setPreHeader(preheader);
-  return preheader;
+  if (loop == this)
+    return true;
+  if (!loop)
+    return false;
+  return Contain(loop->GetParent());
 }
 
-BasicBlock *LoopInfoAnalysis::getLoopHeader(BasicBlock *bb)
-{
-  auto iter = Loops.find(bb);
-  if (iter == Loops.end())
-    return nullptr;
-  return iter->second->getHeader();
-}
-
-std::vector<BasicBlock *> LoopInfoAnalysis::GetExit(Loop *loop)
-{
-  std::vector<BasicBlock *> workList;
-  for (auto bb : loop->getLoopBody())
-  {
-    for (auto des : _dom->getSuccBBs(bb))
-    {
-      BasicBlock *B = _dom->getNode(des)->curBlock;
-      if (!IsLoopIncludeBB(loop, B))
-        workList.push_back(B);
-    }
-  }
-  return workList;
-}
-
-std::vector<BasicBlock *> LoopInfoAnalysis::getExitingBlocks(Loop *loop)
-{
-  std::vector<BasicBlock *> exit = GetExit(loop);
-  std::vector<BasicBlock *> exiting;
-  for (auto bb : exit)
-  {
-    for (auto rev : _dom->getPredBBs(bb))
-    {
-      if (ContainsBlock(loop, rev))
-      {
-        exiting.push_back(_dom->getNode(rev)->curBlock);
-      }
-      // PushVecSingleVal(exiting, rev);
-    }
-  }
-  return exiting;
-}
-BasicBlock *LoopInfoAnalysis::getLatch(Loop *loop, DominantTree *_dom)
-{
-  auto header = loop->getHeader();
-  auto preheader = getPreHeader(loop);
-  BasicBlock *latch = nullptr;
-  for (auto rev : _dom->getNode(header)->predNodes)
-  {
-    auto B = _dom->getNode(rev->curBlock)->curBlock;
-    if (B != preheader && loop->ContainBB(B))
-    {
-      if (B == nullptr)
-      {
-        int a = 1;
-      }
-      if (!latch)
-        latch = B;
-      else
-        break;
-    }
-  }
-  return latch;
-}
-
-Loop *LoopInfoAnalysis::LookUp(BasicBlock *bb)
+LoopInfo *LoopAnalysis::LookUp(BasicBlock *bb)
 {
   auto iter = Loops.find(bb);
   if (iter != Loops.end())
     return iter->second;
   return nullptr;
 }
-void LoopInfoAnalysis::deleteBB(BasicBlock *bb)
-{
-  auto loop = LookUp(bb);
-  if (!loop)
-    return;
-  while (loop)
-  {
-    loop->deleteBB(bb);
-    loop = loop->GetParent();
-  }
-}
 
-void LoopInfoAnalysis::newBB(BasicBlock *Old, BasicBlock *New)
-{
-  auto loop = LookUp(Old);
-  if (!loop)
-    return;
-  while (loop)
-  {
-    loop->deleteBB(Old);
-    loop->InsertLoopBody(New);
-    loop = loop->GetParent();
-  }
-}
-
-void LoopInfoAnalysis::setLoop(BasicBlock *bb, Loop *loop)
+void LoopAnalysis::setLoop(BasicBlock *bb, LoopInfo *loop)
 {
   if (Loops.find(bb) != Loops.end())
     return;
   Loops.emplace(bb, loop);
 }
 
-void LoopInfoAnalysis::deleteLoop(Loop *loop)
+void LoopAnalysis::PostOrderDT(BasicBlock *entry)
 {
-  auto parent = loop->GetParent();
-  if (parent)
+  auto node = m_dom->getNode(entry);
+  for (auto childNode : node->idomChild)
   {
-    auto it1 = std::find(LoopRecord.begin(), LoopRecord.end(), loop);
-    assert(it1 != LoopRecord.end()); // 确保存在
-    parent->getLoops().erase(std::remove(parent->getLoops().begin(), parent->getLoops().end(), loop), parent->getLoops().end());
-  }
-  while (parent)
-  {
-    for (auto loopbody : loop->getLoopBody())
+    BasicBlock *childBB = childNode->curBlock;
+    if (!childBB->visited)
     {
-      // 从父循环的 LoopBody 中移除当前循环的 LoopBody 成员
-      auto iter = std::find(parent->getLoopBody().begin(), parent->getLoopBody().end(), loopbody);
-      if (iter != parent->getLoopBody().end())
-      {
-        parent->getLoopBody().erase(iter);
-      }
+      childBB->visited = true;
+      PostOrderDT(childBB);
     }
-    parent = parent->GetParent(); // 向上遍历所有祖先循环
   }
-  auto it1 = std::find(LoopRecord.begin(), LoopRecord.end(), loop);
-  assert(it1 != LoopRecord.end()); // 确保存在
-  LoopRecord.erase(it1);
+  PostOrder.push_back(entry);
 }
 
-void LoopInfoAnalysis::ExpandSubLoops()
+BasicBlock *LoopAnalysis::FindLoopHeader(BasicBlock *bb)
 {
-  for (auto loop : LoopRecord)
-    for (auto subloop : loop->GetSubLoop())
-      for (auto bb : subloop->getLoopBody())
-      {
-        loop->getLoopBody().push_back(bb);
-      }
+  auto iter = Loops.find(bb);
+  if (iter == Loops.end())
+    return nullptr;
+  return iter->second->GetHeader();
 }
 
-void LoopInfoAnalysis::LoopAnaly()
+void LoopAnalysis::LoopAnaly()
 {
   for (auto lps : LoopRecord)
   {
-    Loop *root = lps;
+    LoopInfo *root = lps;
     while (root->GetParent() != nullptr)
       root = root->GetParent();
     CalculateLoopDepth(root, 1);
   }
 }
-void LoopInfoAnalysis::CloneToBB()
+
+void LoopAnalysis::CloneToBB()
 {
   for (auto loops : LoopRecord)
   {
-    _deleteloop.push_back(loops);
+    _DeleteLoop.push_back(loops);
     int loopdepth = loops->GetLoopDepth();
-    loops->getHeader()->LoopDepth = loopdepth;
-    for (auto contain : loops->getLoopBody())
+    loops->GetHeader()->LoopDepth = loopdepth;
+    for (auto contain : loops->GetLoopBody())
       contain->LoopDepth = loopdepth;
   }
 }
 
-void LoopInfoAnalysis::CalculateLoopDepth(Loop *loop, int depth)
+void LoopAnalysis::CalculateLoopDepth(LoopInfo *loop, int depth)
 {
   if (!loop->IsVisited())
   {
-    loop->addLoopsDepth(depth);
+    loop->AddLoopDepth(depth);
     loop->setVisited(true);
     for (auto sub : loop->GetSubLoop())
       CalculateLoopDepth(sub, depth + 1);
@@ -394,29 +193,177 @@ void LoopInfoAnalysis::CalculateLoopDepth(Loop *loop, int depth)
   return;
 }
 
-bool LoopInfoAnalysis::IsLoopIncludeBB(Loop *loop, BasicBlock *bb)
+BasicBlock *LoopAnalysis::GetPreHeader(LoopInfo *loopinfo, Flag f)
 {
-  auto iter =
-      std::find(loop->getLoopBody().begin(), loop->getLoopBody().end(), bb);
-  if (iter == loop->getLoopBody().end())
-    return false;
-  return true;
+  BasicBlock *preheader = nullptr;
+  if (loopinfo->Pre_Header != nullptr)
+    return loopinfo->Pre_Header;
+
+  BasicBlock *header = loopinfo->GetHeader();
+  auto headerNode = m_dom->getNode(header);
+
+  // 遍历前驱节点
+  for (auto predNode : headerNode->predNodes)
+  {
+    BasicBlock *predBB = predNode->curBlock;
+
+    // 出现前驱不属于这个循环的情况
+    if (!IsLoopIncludeBB(loopinfo, predBB))
+    {
+      if (preheader == nullptr)
+      {
+        preheader = predBB;
+        continue;
+      }
+      if (preheader != predBB)
+      {
+        preheader = nullptr;
+        return preheader;
+      }
+    }
+  }
+
+  // 严格模式下检查 preheader 是否唯一跳转到 header
+  if (preheader && f == Strict)
+  {
+    auto preheaderNode = m_dom->getNode(preheader);
+    for (auto succNode : preheaderNode->succNodes)
+    {
+      if (succNode->curBlock != header)
+      {
+        preheader = nullptr;
+        return preheader;
+      }
+    }
+  }
+
+  if (preheader != nullptr)
+    loopinfo->setPreHeader(preheader);
+
+  return preheader;
 }
 
-void LoopInfoAnalysis::ReplBlock(BasicBlock *Old, BasicBlock *New)
+BasicBlock *LoopAnalysis::GetLatch(LoopInfo *loop)
+{
+  auto header = loop->GetHeader();
+  auto preheader = GetPreHeader(loop);
+  BasicBlock *latch = nullptr;
+
+  auto headerNode = m_dom->getNode(header);
+
+  // 遍历前驱节点寻找 latch
+  for (auto predNode : headerNode->predNodes)
+  {
+    BasicBlock *B = predNode->curBlock;
+    if (B != preheader && loop->Contain(B))
+    {
+      if (!latch)
+        latch = B;
+      else
+        break; // 已经找到多个 latch，退出
+    }
+  }
+
+  return latch;
+}
+
+std::vector<BasicBlock *> LoopAnalysis::GetExitingBlock(LoopInfo *loopinfo)
+{
+  std::vector<BasicBlock *> exit = GetExit(loopinfo);
+  std::vector<BasicBlock *> exiting;
+
+  for (auto bb : exit)
+  {
+    auto node = m_dom->getNode(bb);
+
+    // 遍历前驱节点
+    for (auto predNode : node->predNodes)
+    {
+      BasicBlock *predBB = predNode->curBlock;
+      if (IsLoopIncludeBB(loopinfo, predBB))
+        PushVecSingleVal(exiting, predBB);
+    }
+  }
+
+  return exiting;
+}
+
+std::vector<BasicBlock *> LoopAnalysis::GetExit(LoopInfo *loopinfo)
+{
+  std::vector<BasicBlock *> workList;
+
+  for (auto bb : loopinfo->ContainBlocks)
+  {
+    auto node = m_dom->getNode(bb);
+
+    // 遍历后继节点
+    for (auto succNode : node->succNodes)
+    {
+      BasicBlock *B = succNode->curBlock;
+      if (!IsLoopIncludeBB(loopinfo, B))
+        PushVecSingleVal(workList, B);
+    }
+  }
+
+  return workList;
+}
+
+void LoopAnalysis::DeleteLoop(LoopInfo *loop)
+{
+  auto parent = loop->GetParent();
+  if (parent)
+  {
+    auto it = std::find(parent->GetSubLoop().begin(),
+                        parent->GetSubLoop().end(), loop);
+    assert(it != parent->GetSubLoop().end());
+    parent->GetSubLoop().erase(it);
+    while (parent)
+    {
+      for (auto loopbody : loop->GetLoopBody())
+      {
+        auto iter = std::find(parent->GetLoopBody().begin(),
+                              parent->GetLoopBody().end(), loopbody);
+        if (iter != parent->GetLoopBody().end())
+        {
+          parent->GetLoopBody().erase(iter);
+        }
+      }
+      parent = parent->GetParent();
+    }
+  }
+  auto it1 = std::find(LoopRecord.begin(), LoopRecord.end(), loop);
+  assert(it1 != LoopRecord.end());
+  LoopRecord.erase(it1);
+  return;
+}
+
+void LoopAnalysis::DeleteBlock(BasicBlock *bb)
+{
+  auto loop = LookUp(bb);
+  if (!loop)
+    return;
+  while (loop)
+  {
+    loop->DeleteBlock(bb);
+    loop = loop->GetParent();
+  }
+}
+
+void LoopAnalysis::ReplBlock(BasicBlock *Old, BasicBlock *New)
 {
   auto loop = LookUp(Old);
   if (!loop)
     return;
   while (loop)
   {
-    loop->deleteBB(Old);
+    loop->DeleteBlock(Old);
     loop->InsertLoopBody(New);
     loop = loop->GetParent();
   }
 }
 
-bool LoopInfoAnalysis::IsLoopInvariant(const std::set<BasicBlock *> &contain, User *I, Loop *curloop)
+bool LoopAnalysis::IsLoopInvariant(const std::set<BasicBlock *> &contain,
+                                   User *I, LoopInfo *curloop)
 {
   bool res =
       std::all_of(I->GetUserUseList().begin(), I->GetUserUseList().end(),
@@ -427,8 +374,7 @@ bool LoopInfoAnalysis::IsLoopInvariant(const std::set<BasicBlock *> &contain, Us
                     {
                       if (user->isParam())
                         return true;
-                      auto user1 = dynamic_cast<Instruction *>(user);
-                      if (contain.find(user1->GetParent()) != contain.end())
+                      if (contain.find(user->GetParent()) != contain.end())
                         return false;
                     }
                     return true;
