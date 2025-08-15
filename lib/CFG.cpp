@@ -1363,7 +1363,23 @@ void BasicBlock::GenerateStoreInst(Operand src, Operand des)
     // 要同时开启才开
     //  instructions.emplace_back(std::move(storeinst));
 }
+void BasicBlock::hu1_GenerateStoreInst(Operand src, Operand des,AllocaInst* alloca){
+    if (des->GetType()->GetTypeEnum() != IR_PTR)
+    {
+        std::cerr << "Error: des is not IR_PTR, actual type: "
+                  << des->GetType()->GetTypeEnum() << std::endl;
+    }
+    assert(des->GetType()->GetTypeEnum() == IR_PTR);
+    auto tmp = dynamic_cast<PointerType *>(des->GetType());
 
+    if (tmp->GetSubType()->GetTypeEnum() != src->GetTypeEnum())
+    {
+        src = (tmp->GetSubType()->GetTypeEnum() == IR_Value_INT) ? this->GenerateFP2SIInst(src) : this->GenerateSI2FPInst(src);
+    }
+
+    auto storeinst = new StoreInst(src, des);
+    this->push_after(alloca,storeinst);
+}
 AllocaInst *BasicBlock::GenerateAlloca(Type *_tp, std::string name)
 {
     auto tp = PointerType::NewPointerTypeGet(_tp);

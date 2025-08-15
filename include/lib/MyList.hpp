@@ -245,6 +245,29 @@ public:
     }
     size++;
   }
+  //hu1 add it
+  // 在指定节点 _prev_node 之后插入新节点 _node
+  void push_after(Staff* _prev_node, Staff* _node)
+  {
+      if (!_prev_node || !_node) return;
+
+      _node->SetManager(static_cast<Manager *>(this));
+
+      // 新节点指向 _prev_node 的下一个节点
+      _node->next = _prev_node->next;
+      _node->prev = _prev_node;
+
+      // 如果 _prev_node 不是尾节点，则更新下一个节点的 prev 指针
+      if (_prev_node->next)
+          _prev_node->next->prev = _node;
+      else
+          back = _node;  // _prev_node 是尾节点，更新 back
+
+      // 更新 _prev_node 的 next 指针
+      _prev_node->next = _node;
+
+      size++;
+  }
 
   void push_front(Staff *_node)
   {

@@ -1,383 +1,392 @@
 #include "../../include/IR/Opt/Global2Local.hpp"
 
-bool Global2Local::run()
-{
-    init(module);
-    RunPass(module);
-    return false;
-}
+// bool Global2Local::run() {
+//     createSuccFuncs();
+//     createCallNum();
+//     detectRecursive();
+    
 
-void Global2Local::init(Module* module)
-{
-    createSuccFuncs(module);
-    CreateCallNum(module);
-    DetectRecursive(module);
-    CalGlobal2Funcs(module);
-}  
+//     bool modified = false;
 
-void Global2Local::createSuccFuncs(Module* module)
-{
-    for(auto& func_ : module->GetFuncTion())
-    {
-        Function* func = func_.get();
-        for (Use* user : func->GetValUseList())
-        {
-            if(auto inst = dynamic_cast<CallInst*>(user->GetUser()))
-                SuccFuncs[func].insert(inst->GetParent()->GetParent());
-        }
-    }
-}
+//     for (auto &gvPtr : module->GetGlobalVariable()) {
+//         Var* GV = gvPtr.get();
+//         if (!GV || GV->usage != Var::GlobalVar) continue;
 
-void Global2Local::DetectRecursive(Module* module)
-{
-    std::unordered_map<Function*, std::unordered_set<Function*>> CG;
-    CG.reserve(module->GetFuncTion().size());
+//         if (!addressEscapes(GV)) {
+//             safeGlobals.insert(GV);
 
-    for (auto& f_ : module->GetFuncTion()) CG[f_.get()];
+//             // 遍历模块函数，找使用 GV 的函数
+//             for (auto &funcPtr : module->GetFuncTion()) {
+//                 Function* F = funcPtr.get();
+//                 if (!F || F->GetBBs().empty()) continue;
 
-    for (auto& f_ : module->GetFuncTion()) {
-        Function* callee = f_.get();
-        for (Use* useSite : callee->GetValUseList()) {
-            auto call = dynamic_cast<CallInst*>(useSite->GetUser());
-            if (!call) continue;
-            BasicBlock* bb = call->GetParent();
-            if (!bb) continue;
-            Function* caller = bb->GetParent();
-            if (!caller) continue;
-            CG[caller].insert(callee);
-        }
-    }
+//                 bool usesGV = false;
+//                 for (auto &bb_sp : F->GetBBs()) {
+//                     BasicBlock* bb = bb_sp.get();
+//                     if (!bb) continue;
 
-    std::unordered_set<Function*> visited;
-    std::unordered_set<Function*> onstack;
-    std::vector<Function*> stack; stack.reserve(128);
+//                     for (auto* inst : *bb) {
+//                         auto &uList = inst->GetUserUseList();
+//                         for (auto& u_sp : uList) {
+//                             Use* u = u_sp.get();
+//                             if (!u) continue;
+//                             if (u->GetValue() == GV) {
+//                                 usesGV = true;
+//                                 break;
+//                             }
+//                         }
+//                         if (usesGV) break;
+//                     }
+//                     if (usesGV) break;
+//                 }
 
-    std::function<void(Function*)> dfs = [&](Function* f) {
-        visited.insert(f);
-        onstack.insert(f);
-        stack.push_back(f);
+//                 if (usesGV) {
+//                     modified |= promoteGlobal(GV, F);
+//                 }
+//             }
+//         }
+//     }
 
-        for (Function* g : CG[f]) {
-            if (!visited.count(g)) dfs(g);
-            else if (onstack.count(g)) {
-                for (int i = (int)stack.size()-1; i >= 0; --i) {
-                    RecursiveFunctions.insert(stack[i]);
-                    if (stack[i] == g) break;
-                }
-            }
-        }
+//     return modified;
+// }
+bool Global2Local::run() {
+    createSuccFuncs();
+    createCallNum();
+    detectRecursive();
 
-        stack.pop_back();
-        onstack.erase(f);
-    };
+    bool modified = false;
 
-    for (auto& kv : CG) if (!visited.count(kv.first)) dfs(kv.first);
-}
+    for (auto &gvPtr : module->GetGlobalVariable()) {
+        Var* GV = gvPtr.get();
+        if (!GV || GV->usage != Var::GlobalVar) continue;
 
-void Global2Local::CalGlobal2Funcs(Module* module)
-{
-    for(auto & global_ptr : module->GetGlobalVariable())
-    {
-        Var* global = global_ptr.get();
-        for(Use* user_ : global->GetValUseList())
-        {
-            if(User* inst = dynamic_cast<User*>(user_->GetUser())){
-                auto inst_=dynamic_cast<Instruction*>(inst);
-                Global2Funcs[global].insert(inst_->GetParent()->GetParent());
-            }
-        }
-    }
-}
+        if (addressEscapes(GV))
+            continue; // 地址逃逸的不做优化
 
-void Global2Local::RunPass(Module* module)
-{
-    auto& globalvals = module->GetGlobalVariable();
-    bool Repeat = false;
+        // 遍历所有函数，记录使用GV的函数
+        std::set<Function*> usingFuncs;
+        bool inLoop = false;
 
-    for(auto iter = globalvals.begin(); iter != globalvals.end(); )
-    {
-        Var* global = iter->get();
-        if(!Repeat && global)
-        {
-            auto Tp = dynamic_cast<HasSubType*>(global->GetType());
-            if(Tp->GetSubType()->GetTypeEnum() == IR_DataType::IR_ARRAY)
-            {
-                ++iter;
-            }
-            else
-            {
-                if(Global2Funcs[global].size() == 0)
-                {
-                    iter = globalvals.erase(iter); // 删除未使用全局变量
-                }
-                else if(global->usage == Var::Constant || global->ForParallel)
-                {
-                    iter++;
-                }
-                else if(Global2Funcs[global].size() == 1)
-                {
-                    Function* func = *Global2Funcs[global].begin();
-                    if(CanLocal(global, func))
-                    {
-                        LocalGlobalVariable(global, func); //这里一定要调用
-                        iter = globalvals.erase(iter);
+        for (auto &funcPtr : module->GetFuncTion()) {
+            Function* F = funcPtr.get();
+            if (!F || F->GetBBs().empty()) continue;
+
+            bool usesGV = false;
+
+            for (auto &bb_sp : F->GetBBs()) {
+                BasicBlock* bb = bb_sp.get();
+                if (!bb) continue;
+
+                if (bb->LoopDepth > 0) {
+                    // 该BB在循环中，涉及循环的全局变量直接不优化
+                    for (auto* inst : *bb) {
+                        auto &uList = inst->GetUserUseList();
+                        for (auto &u_sp : uList) {
+                            Use* u = u_sp.get();
+                            if (u && u->GetValue() == GV) {
+                                inLoop = true;
+                                break;
+                            }
+                        }
+                        if (inLoop) break;
                     }
-                    else
-                        iter++;
                 }
-                else
-                    iter++;
-            }
+                if (inLoop) break;
 
-            if(iter == globalvals.end())
-            {
-                Repeat = true;
-                iter = globalvals.begin();
-            }
-        }
-        else if(iter == globalvals.end())
-            return;
-        else if(Repeat && global)
-        {
-            if(global->usage == Var::Constant || global->ForParallel)
-                iter++;
-            else if(Global2Funcs[global].size() == 1)
-            {
-                Function* func = *Global2Funcs[global].begin();
-                if(CanLocal(global, func))
-                {
-                    LocalGlobalVariable(global, func); //这里也必须调用
-                    iter = globalvals.erase(iter);
-                }
-                else
-                    iter++;
-            }
-            else
-                iter++;
-        }
-    }
-}
-
-
-void Global2Local::LocalGlobalVariable(Var* val, Function* func)
-{
-    auto tp = dynamic_cast<HasSubType*>(val->GetType());
-    AllocaInst* alloca_ = new AllocaInst(tp->GetSubType());
-    BasicBlock* begin = func->front;
-    auto alloca=dynamic_cast<Instruction*>(alloca_);
-    alloca->SetManager(begin);
-    begin->push_front(alloca);
-
-    if(!val->GetInitializer())
-    {
-        if(tp->GetSubType()->GetTypeEnum() != IR_DataType::IR_ARRAY)
-        {
-            auto iter = begin->begin();
-            for (; iter != begin->end(); ++iter) 
-            {
-                if (!dynamic_cast<AllocaInst*>(*iter))
-                    break;
-            }
-            StoreInst* store = new StoreInst(ConstIRInt::GetNewConstant(0), alloca_);
-            iter.InsertBefore(store);
-            val->ReplaceAllUseWith(alloca_);
-        }
-        else
-        {
-            val->ReplaceAllUseWith(alloca_);
-            LocalArray(val, alloca_, begin);
-        }
-    }
-    else
-    {
-        if(tp->GetSubType()->GetTypeEnum() == IR_DataType::IR_ARRAY)
-        {
-            val->ReplaceAllUseWith(alloca_);
-            LocalArray(val, alloca_, begin);
-        }
-        else
-        {
-            auto iter = begin->begin();
-            for (; iter != begin->end(); ++iter) 
-            {
-                if (!dynamic_cast<AllocaInst*>(*iter))
-                    break;
-            }
-            Operand init = val->GetInitializer();
-            StoreInst* store = new StoreInst(init, alloca_);
-            iter.InsertBefore(store);
-            val->ReplaceAllUseWith(alloca_);
-        }
-    }
-}
-
-void Global2Local::LocalArray(Var* arr, AllocaInst* alloca, BasicBlock* block)
-{
-    Operand initializer = arr->GetInitializer();
-    Type* tp = arr->GetType();
-    std::vector<Operand> args;
-    arr->usage = Var::Constant;
-    args.push_back(alloca);
-    args.push_back(arr);
-    if(auto subtp = dynamic_cast<HasSubType*>(tp)->GetSubType())
-        args.push_back(ConstIRInt::GetNewConstant(subtp->GetSize()));
-    else
-        args.push_back(ConstIRInt::GetNewConstant(tp->GetSize()));
-    args.push_back(ConstIRBoolean::GetNewConstant(false));
-    User* inst = Trival::GenerateCallInst("llvm.memcpy.p0.p0.i32",args);
-    auto iter = block->begin();
-    for (; iter != block->end(); ++iter) 
-    {
-        if (!dynamic_cast<AllocaInst*>(*iter))
-            break;
-    }
-    auto inst_=dynamic_cast<Instruction*>(inst);
-    iter.InsertBefore(inst_);
-}
-
-bool Global2Local::CanLocal(Var* val, Function* func)
-{
-    auto Sub_Tp = dynamic_cast<HasSubType*>(val->GetType());
-    if(Sub_Tp->GetSubType()->GetTypeEnum() == IR_DataType::IR_ARRAY)
-    {
-        size_t size = Sub_Tp->GetSubType()->GetSize();
-        CurrSize += size;
-        if(CurrSize > MaxSize)
-            return false;
-    }
-
-    if(RecursiveFunctions.find(func) != RecursiveFunctions.end())
-        return false;
-
-    if(Sub_Tp->GetSubType()->GetTypeEnum() != IR_DataType::IR_ARRAY)
-    {
-        bool changed = false;
-        for(Use* use_ : val->GetValUseList())
-        {
-            if(StoreInst* inst = dynamic_cast<StoreInst*>(use_->GetUser()))
-            {
-                changed = true;
-                break;
-            }
-            else if(GepInst* inst = dynamic_cast<GepInst*>(use_->GetUser()))
-            {
-                for(Use* use__ : inst->GetValUseList())
-                    if(dynamic_cast<StoreInst*>(use__->GetUser()))
-                    {
-                        changed = true;
-                        break;
-                    }
-                if(changed) break;
-            }
-        }
-
-        if(changed)
-        {
-            if(CallTimes[func] > 1)
-                return false;
-            return true;
-        }
-        else
-            return true;
-    }
-    else
-    {
-        if(!val->GetInitializer())
-        {
-            if(auto gep = val->GetValUseList().back())
-            {
-                if(auto inst = dynamic_cast<GepInst*>(gep->GetUser()))
-                {
-                    if(auto call = dynamic_cast<CallInst*>(inst->GetValUseList().back()->GetUser()))
-                    {
-                        if(!(call->GetUserUseList()[0]->usee->GetName() == "getfarray" ||
-                             call->GetUserUseList()[0]->usee->GetName() == "getarray"))
-                            return false;
-                    }
-                    else if(!dynamic_cast<StoreInst*>(inst->GetValUseList().back()->GetUser()))
-                        return false;
-                }
-            }
-        }
-
-        for(Use* use_ : val->GetValUseList())
-        {
-            if(GepInst* inst = dynamic_cast<GepInst*>(use_->GetUser()))
-            {
-                for(Use* use__ : inst->GetValUseList())
-                    if(CallInst* call = dynamic_cast<CallInst*>(use__->GetUser()))
-                    {
-                        int index = call->GetUseIndex(use__);
-                        Function* calleefunc = dynamic_cast<Function*>(call->GetUserUseList()[0]->usee);
-                        if(calleefunc)
-                        {
-                            if(hasChanged(index - 1, calleefunc))
-                                return false;
-                            else
-                                return true;
+                // 普通使用检查
+                for (auto* inst : *bb) {
+                    auto &uList = inst->GetUserUseList();
+                    for (auto &u_sp : uList) {
+                        Use* u = u_sp.get();
+                        if (u && u->GetValue() == GV) {
+                            usesGV = true;
+                            break;
                         }
                     }
+                    if (usesGV) break;
+                }
+                if (usesGV) break;
             }
+            if (usesGV)
+                usingFuncs.insert(F);
+            if (inLoop)
+                break;
         }
+
+        // 如果全局变量在循环中使用或者被多个函数共享，则不优化
+        if (inLoop || usingFuncs.size() != 1)
+            continue;
+
+        // 此时安全提升
+        Function* targetFunc = *usingFuncs.begin();
+        modified |= promoteGlobal(GV, targetFunc);
     }
 
-    return true;
+    return modified;
 }
 
-bool Global2Local::hasChanged(int index, Function* func)
-{
-    Value* val = func->GetParams()[index].get();
-    for(Use* use_ : val->GetValUseList())
-    {
-        if(StoreInst* inst = dynamic_cast<StoreInst*>(use_->GetUser()))
-            return true;
-        else if(GepInst* inst = dynamic_cast<GepInst*>(use_->GetUser()))
-        {
-            for(Use* use__ : inst->GetValUseList())
-            {
-                if(StoreInst* inst_ = dynamic_cast<StoreInst*>(use__->GetUser()))
-                    return true;
-                else if(CallInst* call = dynamic_cast<CallInst*>(use__->GetUser()))
-                {
-                    int index_ = call->GetUseIndex(use__);
-                    Function* calleefunc = dynamic_cast<Function*>(call->GetUserUseList()[0]->usee);
-                    if(calleefunc)
-                        return hasChanged(index_ - 1, calleefunc);
+
+void Global2Local::createSuccFuncs() {
+    for (auto &funcPtr : module->GetFuncTion()) {
+        Function *F = funcPtr.get();
+
+        for (auto &BBptr : F->GetBBs()) {        // BBptr 是 shared_ptr<BasicBlock>
+            BasicBlock *BB = BBptr.get();        // 获取裸指针
+            for (auto *inst : *BB) {             // 利用 List 提供的迭代器
+                if (auto *call = dynamic_cast<CallInst *>(inst)) {
+                    Value *calledVal = call->GetCalledFunction();
+                    for (auto &calleePtr : module->GetFuncTion()) {
+                        if (calleePtr.get() == calledVal) {
+                            FuncSucc[F].insert(calleePtr.get());
+                        }
+                    }
                 }
             }
         }
-        else if(CallInst* inst = dynamic_cast<CallInst*>(use_->GetUser()))
-        {
-            int index_ = inst->GetUseIndex(use_);
-            Function* calleefunc = dynamic_cast<Function*>(inst->GetUserUseList()[0]->usee);
-            if(calleefunc)
-                return hasChanged(index_ - 1, calleefunc);
+    }
+}
+
+
+void Global2Local::createCallNum() {
+    // 先把所有函数调用次数初始化为 0
+    for (auto &funcPtr : module->GetFuncTion()) {
+        CallNum[funcPtr.get()] = 0;
+    }
+
+    // 遍历每个函数的基本块和指令，统计调用次数
+    for (auto &funcPtr : module->GetFuncTion()) {
+        Function *F = funcPtr.get();
+
+        for (auto &BBptr : F->GetBBs()) {
+            BasicBlock *BB = BBptr.get();
+            for (auto *inst : *BB) {  // 利用 List 提供的迭代器
+                if (auto *call = dynamic_cast<CallInst *>(inst)) {
+                    Value *calledVal = call->GetCalledFunction();
+                    for (auto &calleePtr : module->GetFuncTion()) {
+                        if (calleePtr.get() == calledVal) {
+                            CallNum[calleePtr.get()]++;
+                        }
+                    }
+                }
+            }
         }
-        else
-            return false;
+    }
+}
+
+void Global2Local::detectRecursive() {
+    // 用于 DFS 访问状态：0 = 未访问, 1 = 访问中, 2 = 已完成
+    std::unordered_map<Function*, int> visitStatus;
+
+    // 初始化
+    for (auto &funcPtr : module->GetFuncTion()) {
+        visitStatus[funcPtr.get()] = 0;
+    }
+
+    // 定义 DFS lambda
+    std::function<void(Function*)> dfs = [&](Function* F) {
+        if (visitStatus[F] == 1) {
+            // 正在访问中，又遇到自己 -> 递归
+            RecursiveFuncs.insert(F);
+            return;
+        }
+        if (visitStatus[F] == 2)
+            return; // 已经处理过
+
+        visitStatus[F] = 1; // 标记为访问中
+
+        // 遍历 F 的后继函数
+        for (auto *succ : FuncSucc[F]) {
+            dfs(succ);
+            // 如果后继是递归函数，也把 F 标记为递归
+            if (RecursiveFuncs.count(succ))
+                RecursiveFuncs.insert(F);
+        }
+
+        visitStatus[F] = 2; // 标记为完成
+    };
+
+    // 对每个函数执行 DFS
+    for (auto &funcPtr : module->GetFuncTion()) {
+        dfs(funcPtr.get());
+    }
+}
+
+bool Global2Local::addressEscapes(Value *V) {
+    for (auto use : V->GetValUseList()) {
+        User *user = use->GetUser();
+        if (!user) continue;
+
+        if (auto *call = dynamic_cast<CallInst *>(user)) {
+            // 被函数调用使用 -> 地址逃逸
+            return true;
+        } else if (auto *store = dynamic_cast<StoreInst *>(user)) {
+            int idx = user->GetUseIndex(use); // 0=val, 1=ptr
+            if (idx == 1) {
+                // ptr 是 GV 自己或者经过简单转换才安全
+                Value* ptrVal = use->GetValue();
+                if (ptrVal != user) {
+                    // 进一步判断是否是简单 bitcast 或 GEP 指向自己
+                    if (!isSimplePtrToSelf(ptrVal, V)) {
+                        return true; // 真正逃逸
+                    }
+                }
+            }
+        } else if (dynamic_cast<PhiInst *>(user)) {
+            return true;
+        } else if (auto *gep = dynamic_cast<GepInst *>(user)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 辅助函数：判断 ptr 是否是“简单转换指向自己”，安全不算逃逸
+bool Global2Local::isSimplePtrToSelf(Value *ptr, Value *V) {
+    if (ptr == V) return true;
+    if (auto *gep = dynamic_cast<GepInst *>(ptr)) {
+        return gep->GetOperand(0) == V;
     }
     return false;
 }
 
 
-void Global2Local::CreateCallNum(Module* module)
-{
-    CallTimes.clear();
 
-    for (auto& func_ : module->GetFuncTion())
-    {
-        Function* callee = func_.get();
-        // 遍历所有使用 callee 的地方
-        for (Use* useSite : callee->GetValUseList())
-        {
-            User* u = useSite->GetUser();
-            auto call = dynamic_cast<CallInst*>(u);
-            if (!call) continue;
+// bool Global2Local::promoteGlobal(Var* GV, Function* F) {
+//     if (!GV || GV->usage != Var::GlobalVar) return false;
+//     if (!F || F->GetBBs().empty()) return false;
 
-            auto callInst = dynamic_cast<Instruction*>(u);
-            if (!callInst) continue;
+//     BasicBlock* entryBB = F->GetBBs().front().get();
+//     if (!entryBB) return false;
 
-            CallTimes[callee]++; // 只统计调用次数，不再判断循环
+//     // 创建局部 alloca，带名字，插在入口开头
+//     AllocaInst* localAlloca = new AllocaInst(GV->GetType());
+//     entryBB->push_front(localAlloca);
+
+//     if (GV->GetInitializer()) {
+//         Operand initVal = GV->GetInitializer();
+//         entryBB->hu1_GenerateStoreInst(initVal, localAlloca,localAlloca);
+//     }
+
+//     bool modified = false;
+
+//     for (auto &bb_sp : F->GetBBs()) {
+//         BasicBlock* bb = bb_sp.get();
+//         if (!bb) continue;
+
+//         for (auto* inst : *bb) {
+//             auto &uList = inst->GetUserUseList();
+//             for (auto& u_sp : uList) {
+//                 Use* u = u_sp.get();
+//                 if (!u) continue;
+//                 if (u->GetValue() != GV) continue;
+
+//                 inst->ReplaceSomeUseWith(u, localAlloca);
+//                 modified = true;
+//             }
+//         }
+//     }
+//     auto &globalVars = module->GetGlobalVariable();
+//     for (auto iter = globalVars.begin(); iter != globalVars.end(); ) {
+//         if (iter->get() && iter->get() == GV) {
+//             iter = globalVars.erase(iter);  // 删除GV并安全更新迭代器
+//         } else {
+//             ++iter;
+//         }
+//     }
+//     return modified;
+// }
+bool Global2Local::promoteGlobal(Var* GV, Function* F) {
+    if (!GV || GV->usage != Var::GlobalVar) return false;
+    if (!F || F->GetBBs().empty()) return false;
+
+    // 检查全局变量是否在循环中被使用
+    for (auto &bb_sp : F->GetBBs()) {
+        BasicBlock* bb = bb_sp.get();
+        if (!bb) continue;
+
+        if (bb->LoopDepth > 0) {
+            for (auto* inst : *bb) {
+                auto &uList = inst->GetUserUseList();
+                for (auto& u_sp : uList) {
+                    Use* u = u_sp.get();
+                    if (u && u->GetValue() == GV) {
+                        return false; // 循环中使用，不优化
+                    }
+                }
+            }
         }
     }
+
+    // 检查全局变量是否被多个函数使用
+    int useFuncCount = 0;
+    for (auto &funcPtr : module->GetFuncTion()) {
+        Function* checkF = funcPtr.get();
+        if (!checkF || checkF->GetBBs().empty()) continue;
+
+        bool usesGV = false;
+        for (auto &bb_sp : checkF->GetBBs()) {
+            BasicBlock* bb = bb_sp.get();
+            if (!bb) continue;
+
+            for (auto* inst : *bb) {
+                auto &uList = inst->GetUserUseList();
+                for (auto &u_sp : uList) {
+                    Use* u = u_sp.get();
+                    if (u && u->GetValue() == GV) {
+                        usesGV = true;
+                        break;
+                    }
+                }
+                if (usesGV) break;
+            }
+            if (usesGV) break;
+        }
+        if (usesGV) {
+            useFuncCount++;
+            if (useFuncCount > 1) return false; // 多函数使用，不优化
+        }
+    }
+
+    // 创建局部 alloca，插在函数入口
+    BasicBlock* entryBB = F->GetBBs().front().get();
+    if (!entryBB) return false;
+
+    AllocaInst* localAlloca = new AllocaInst(GV->GetType());
+    entryBB->push_front(localAlloca);
+
+    if (GV->GetInitializer()) {
+        Operand initVal = GV->GetInitializer();
+        entryBB->hu1_GenerateStoreInst(initVal, localAlloca, localAlloca);
+    }
+
+    bool modified = false;
+
+    for (auto &bb_sp : F->GetBBs()) {
+        BasicBlock* bb = bb_sp.get();
+        if (!bb) continue;
+
+        for (auto* inst : *bb) {
+            auto &uList = inst->GetUserUseList();
+            for (auto &u_sp : uList) {
+                Use* u = u_sp.get();
+                if (!u) continue;
+                if (u->GetValue() != GV) continue;
+
+                inst->ReplaceSomeUseWith(u, localAlloca);
+                modified = true;
+            }
+        }
+    }
+
+    // 删除模块全局变量
+    auto &globalVars = module->GetGlobalVariable();
+    for (auto iter = globalVars.begin(); iter != globalVars.end(); ) {
+        if (iter->get() && iter->get() == GV) {
+            iter = globalVars.erase(iter);
+        } else {
+            ++iter;
+        }
+    }
+
+    return modified;
 }
