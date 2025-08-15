@@ -4,16 +4,14 @@
 #include "Mem2reg.hpp"
 #include "MemoryToRegister.hpp"
 #include <queue>
-#include "../../lib/CoreClass.hpp"
+// #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
 #include <memory>
-#include "../../lib/Singleton.hpp"
+// #include "../../lib/Singleton.hpp"
 #include "DCE.hpp"
 #include "AnalysisManager.hpp"
 #include "ConstantProp.hpp"
 #include "GVN.hpp"
-#include "LoopUnrolling.hpp"
-#include "../../lib/Singleton.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
 #include "CondMerge.hpp"
@@ -21,7 +19,7 @@
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
 #include "DAE.hpp"
-#include "Global2Local.hpp"
+//#include "Global2Local.hpp"
 #include "SelfStoreElimination.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
@@ -29,9 +27,17 @@
 #include "ECE.hpp"
 #include "GepCombine.hpp"
 #include "GepEval.hpp"
-#include "LoopRotaing.hpp"
-#include "LoopSimping.hpp"
+#include "GepFlatten.hpp"
 #include "ExprReorder.hpp"
+
+#include "../Analysis/LoopInfo.hpp"
+#include "LoopSimplify.hpp"
+#include "LoopRotate.hpp"
+#include "LoopUnroll.hpp"
+#include "LoopDel.hpp"
+#include "Lcssa.hpp"
+#include "Licm.hpp"
+#include "SSR.hpp"
 
 enum OptLevel
 {
@@ -61,36 +67,42 @@ public:
         {
             // 启用全部中端优化
             enabledPasses = {
-                "SSE",
+                //"SSE",
                 // 前期规范化
                 "mem2reg",
-                "sccp",
-                "SCFG",
+                //"sccp",
+                //"SCFG",
 
                 // "ECE",
                 // 过程间优化
-                "inline",
+                //"inline",
 
-                "SOGE",
+                //"SOGE",
                 // "G2L",
                 // 局部清理
-                "DAE",
-                "TRE",
+                //"DAE",
+                //"TRE",
                 // "CondMerge",
 
                 // 循环优化
-                "Loop_Simplifying",
-                // "Loop_Rotaing",
-                //"Loop_Unrolling",
+                "LoopSimplify",
+                // "LoopRotate",
+                //"LoopUnroll",
+                //"LoopDel",
+                //"Lcssa",
+                //"Licm",
+                //"SSR",
 
                 // 数据流优化
                 // "SSAPRE",
                 //"GVN",
-                "DCE",
-                "ExprReorder",
+                //"DCE",
+                //"ExprReorder",
 
-                // 数组重写
-                //  "gepcombine",
+                // 数组
+                // "gepevalute",
+                //"gepcombine",
+                //"gepflatten",
 
                 // 后端准备
 
@@ -217,10 +229,12 @@ public:
             SOGE sogePass(&Singleton<Module>());
             sogePass.run();
         }
+        /*
         if (IsEnabled("G2L"))
         {
             Global2Local(&Singleton<Module>(), AM).run();
         }
+        */
         // 数据流整理
         if (IsEnabled("ECE"))
         {
@@ -276,46 +290,65 @@ public:
             }
         }
 
-        // 循环优化
-        if (IsEnabled("Loop_Simplifying"))
+       if (IsEnabled("LoopSimplify"))
         {
             for (auto &function : funcVec)
             {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-
-                AM.add<DominantTree>(fun, &tree);
-                LoopSimping LoopSimping(fun, AM);
-                LoopSimping.run();
+                auto func = function.get();
+                LoopSimplify(func, AM).run();
+            }
+        }
+        if (IsEnabled("LCSSA"))
+        {
+            for (auto &function : funcVec)
+            {
+                 auto func = function.get();
+                 LcSSA(func, AM).run();
             }
         }
 
-        if (IsEnabled("Loop_Rotaing"))
+        if (IsEnabled("LICM"))
         {
             for (auto &function : funcVec)
             {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-
-                AM.add<DominantTree>(fun, &tree);
-                LoopRotaing Loop_Rotaing(fun, AM);
-                Loop_Rotaing.run();
+                 auto func = function.get();
+                 LICMPass(func, AM).run();
             }
         }
 
-        if (IsEnabled("Loop_Unrolling"))
+        if (IsEnabled("SSR"))
         {
             for (auto &function : funcVec)
             {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
+                 auto func = function.get();
+                 ScalarStrengthReduce(func, AM).run();
+            }
+        }
 
-                AM.add<DominantTree>(fun, &tree);
-                LoopUnrolling Loop_Unrolling(fun, AM);
-                Loop_Unrolling.run();
+        if (IsEnabled("LoopRotate"))
+        {
+            for (auto &function : funcVec)
+            {
+                 auto func = function.get();
+                 LoopRotate(func, AM).run();
+            }
+        }
+
+        if (IsEnabled("LoopUnroll"))
+        {
+            for (auto &function : funcVec)
+            {
+                 auto func = function.get();
+                 LoopUnroll(func, AM).run();
+            }
+        }
+
+        if (IsEnabled("LoopDeletion"))
+        {
+            for (auto &function : funcVec)
+            {
+                 auto func = function.get();
+                 LoopDeletion(func, AM).run();
             }
         }
 

@@ -7,40 +7,6 @@
 #include <utility>
 #include <vector>
 
-template <typename T>
-T PopBack(std::vector<T> &vec)
-{
-  T tmp = vec.back();
-  vec.pop_back();
-  return tmp;
-}
-
-template <typename T>
-void PushVecSingleVal(std::vector<T> &vec, T v)
-{
-  auto iter = std::find(vec.begin(), vec.end(), v);
-  if (iter != vec.end())
-    return;
-  vec.push_back(v);
-}
-
-template <typename T>
-Value *GetOperand(T inst, int i)
-{
-  User *user = dynamic_cast<User *>(inst);
-  assert(user);
-  return user->GetUserUseList()[i]->GetValue();
-}
-
-template <typename T>
-void vec_pop(std::vector<T> &vec, int &index)
-{
-  assert(index < vec.size() && "index can not bigger than size");
-  vec[index] = vec[vec.size() - 1];
-  vec.pop_back();
-  index--;
-}
-
 bool ExprReorder::run()
 {
   bool changed = false;
@@ -264,7 +230,7 @@ bool ExprReorder::RewriteExpression(
       continue;
     }
 
-    // ´ÓÕ»ÖÐµ¯³öÐèÒªÖØÐ´µÄ½Úµã
+    // ï¿½ï¿½Õ»ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½Ð´ï¿½Ä½Úµï¿½
     Value *newVal = nullptr;
     if (!rewriteStack.empty())
     {
@@ -383,7 +349,7 @@ bool ExprReorder::IsOperandAssociative(Value *val, BinaryInst::Operation opcode)
   if (!userVal)
     return false;
 
-  // ¸¡µãÀàÐÍ²»´¦ÀíÒÔ±ÜÃâ¾«¶È¶ªÊ§
+  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô±ï¿½ï¿½â¾«ï¿½È¶ï¿½Ê§
   if (userVal->GetTypeEnum() == IR_Value_Float)
     return false;
 
@@ -497,7 +463,7 @@ bool ExprReorder::ShouldIgnoreConstant(BinaryInst::Operation op,
   if (!constData)
     return false;
 
-  // ³¢ÊÔ»ñÈ¡ÕûÊý»ò¸¡µãÖµ
+  // ï¿½ï¿½ï¿½Ô»ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ò¸¡µï¿½Öµ
   if (auto intConst = dynamic_cast<ConstIRInt *>(constData))
   {
     switch (op)

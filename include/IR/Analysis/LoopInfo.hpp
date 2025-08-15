@@ -3,20 +3,14 @@
 #include <cassert>
 #include <set>
 #include <vector>
-
-#include "Dominant.hpp"
+//#include "../Opt/AnalysisManager.hpp"
 #include "../Opt/Passbase.hpp"
+#include "Dominant.hpp"
 #include "../../lib/CFG.hpp"
-template <typename T>
-void PushVecSingleVal(std::vector<T> &vec, const T &v)
-{
-  if (std::find(vec.begin(), vec.end(), v) == vec.end())
-  {
-    vec.push_back(v);
-  }
-}
-struct LoopTrait
-{
+
+class AnalysisManager; 
+
+struct LoopTrait {
   BasicBlock *head = nullptr;
   Value *boundary = nullptr;
   Value *initial = nullptr;
@@ -27,8 +21,7 @@ struct LoopTrait
   CallInst *call = nullptr; // result
   BinaryInst *cmp = nullptr;
   bool CmpEqual = false;
-  void Init()
-  {
+  void Init() {
     head = nullptr;
     boundary = nullptr;
     initial = nullptr;
@@ -41,33 +34,28 @@ struct LoopTrait
   }
 };
 
-class LoopInfo
-{
+class LoopInfo {
 public:
   friend class LoopAnalysis;
   using iterator = std::vector<LoopInfo *>::const_iterator;
   using reverse_iterator = std::vector<LoopInfo *>::const_reverse_iterator;
   LoopInfo() = default;
-  LoopInfo(BasicBlock *_Header) : Header(_Header)
-  {
+  LoopInfo(BasicBlock *_Header) : Header(_Header) {
     ContainBlocks.push_back(_Header);
   }
   void setHeader(BasicBlock *bb) { Header = bb; }
   void setParent(LoopInfo *loop) { Parent = loop; }
   void setSubLoop(LoopInfo *sub) { SubLoops.push_back(sub); }
   void setPreHeader(BasicBlock *bb) { Pre_Header = bb; }
-  void setLatch(BasicBlock *bb)
-  {
+  void setLatch(BasicBlock *bb) {
     Latch = bb;
     InsertLoopBody(bb);
   }
-  bool CantCalcTrait()
-  {
+  bool CantCalcTrait() {
     return (!trait.boundary) || (!trait.initial) || (!trait.indvar) ||
            (!trait.change);
   }
-  void DeleteBlock(BasicBlock *bb)
-  {
+  void DeleteBlock(BasicBlock *bb) {
     auto iter = std::find(ContainBlocks.begin(), ContainBlocks.end(), bb);
     assert(iter != ContainBlocks.end());
     ContainBlocks.erase(iter);
@@ -88,8 +76,7 @@ public:
   iterator end() { return SubLoops.end(); }
   reverse_iterator rbegin() { return SubLoops.rbegin(); }
   reverse_iterator rend() { return SubLoops.rend(); }
-  void clear()
-  {
+  void clear() {
     Latch = nullptr;
     Pre_Header = nullptr;
     Existing_Block = nullptr;
@@ -107,15 +94,13 @@ private:
   BasicBlock *Existing_Block = nullptr;
   std::vector<BasicBlock *> ContainBlocks;
   std::vector<LoopInfo *> SubLoops;
-  int LoopDepth = 0;    // 嵌套深度
-  bool visited = false; // 辅助
+  int LoopDepth = 0;    //嵌套深度
+  bool visited = false; //辅助
 };
 
-class LoopAnalysis : public _AnalysisBase<LoopAnalysis, Function>
-{
+class LoopAnalysis : public _AnalysisBase<LoopAnalysis, Function> {
 public:
-  enum Flag
-  {
+  enum Flag {
     Strict,
     Loose,
   };
@@ -123,10 +108,10 @@ public:
   using reverse_iterator = std::vector<LoopInfo *>::const_reverse_iterator;
   LoopAnalysis(Function *func, DominantTree *dom,
                std::vector<LoopInfo *> &DeleteLoop)
-      : m_func(func), m_dom(dom), _DeleteLoop(DeleteLoop)
-  {
+      : m_func(func), m_dom(dom), _DeleteLoop(DeleteLoop) {
     setBBs();
     setDest();
+    GetResult(m_func);//xxxxxx
   }
   void Analysis();
   bool IsLoopIncludeBB(LoopInfo *loop, int index);
@@ -151,11 +136,10 @@ public:
   void ReplBlock(BasicBlock *Old, BasicBlock *New);
   std::vector<LoopInfo *> GetLoops() { return LoopRecord; }
   bool CanBeOpt() { return LoopRecord.size() != 0; }
-  static bool IsLoopInvariant(const std::set<BasicBlock *> &contain, User *I,
+  static bool IsLoopInvariant(const std::set<BasicBlock *> &contain, Instruction *I,
                               LoopInfo *curloop);
 
-  void *GetResult(Function *func)
-  {
+  void *GetResult(Function *func) {
     m_func->init_visited_block();
     BasicBlock *entry = m_func->GetFront();
     PostOrderDT(entry);
@@ -164,8 +148,7 @@ public:
     LoopAnaly();
     CloneToBB();
     std::sort(LoopRecord.begin(), LoopRecord.end(),
-              [](const auto &a1, const auto &a2)
-              {
+              [](const auto &a1, const auto &a2) {
                 return a1->LoopDepth > a2->LoopDepth;
               });
     AlreadyGetInfo = true;
@@ -183,10 +166,10 @@ public:
 private:
   Function *m_func;
   DominantTree *m_dom;
-  std::vector<std::shared_ptr<BasicBlock>> *bbs; // 取裸指针用.get()
-  std::vector<std::vector<int>> *Dest;           // CFG中的后继
+  std::vector<std::shared_ptr<BasicBlock>> *bbs;     //取裸指针用.get()
+  std::vector<std::vector<int>> *Dest; // CFG中的后继
   std::vector<BasicBlock *> PostOrder;
-  std::vector<LoopInfo *> LoopRecord; // 保证了嵌套层数越高，越靠前
+  std::vector<LoopInfo *> LoopRecord; //保证了嵌套层数越高，越靠前
   std::map<BasicBlock *, LoopInfo *> Loops;
   bool AlreadyGetInfo = false;
   int index = 0;

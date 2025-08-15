@@ -1,3 +1,4 @@
+/*
 #pragma once
 #include "Passbase.hpp"
 #include "../Analysis/Dominant.hpp"
@@ -47,3 +48,4 @@ public:
           delete l;
         }
 };
+*/

@@ -83,7 +83,15 @@ public:
         // 新建Pass，缓存并返回
         Pass *pass = new Pass(func, std::forward<Args>(args)...);
         passes[ti] = std::unique_ptr<void, PassDeleter>(pass, PassDeleter());
-        return pass;
+        
+        // if constexpr (requires(Pass *p) { p->GetResult(); })
+        // {
+        //     return pass->GetResult();
+        // }
+        // else
+        // {
+            return pass;
+        // }
     }
 
     // 查询已存在的Pass，找不到返回nullptr
@@ -161,7 +169,7 @@ enum LoopAttr
     Normal,
     Simplified,
     Lcssa,
-    Rotate,
+    Rotate
 };
 // 综合分析管理器
 class AnalysisManager
@@ -172,7 +180,7 @@ private:
 
 private:
     std::vector<std::any> Contain;
-    std::vector<Loop *> loops;
+    std::vector<LoopInfo *> loops;
     std::unordered_map<BasicBlock *, std::set<LoopAttr>> LoopForm;
     std::unordered_set<BasicBlock *> UnrollRecord;
 

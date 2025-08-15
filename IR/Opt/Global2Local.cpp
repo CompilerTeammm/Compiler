@@ -1,3 +1,4 @@
+/*
 #include "../../include/IR/Opt/Global2Local.hpp"
 
 bool Global2Local::run()
@@ -381,3 +382,4 @@ void Global2Local::CreateCallNum(Module* module)
         }
     }
 }
+*/

@@ -235,7 +235,6 @@ public:
 
   bool is_empty() const;
   size_t GetUserUseListSize() const;
-  User *CloneInst();
   void Use2Value(Use *u, Operand val)
   {
     u->RemoveFromValUseList(this);
@@ -303,7 +302,7 @@ public:
     Trunc, // 截断指令
     FP2SI, // 浮点到有符号整数， fptosi
     SI2FP, // 有符号整数到浮点  sitofp
-
+    BITCAST,
     BinaryUnknown,
     Max,
     Min,
@@ -345,8 +344,8 @@ public:
   void InstReplace(Instruction *inst);
   // 将指令类型转换为字符串,便于调试
   static const char *OpToString(Op op);
-  Instruction *CloneInst_();
   virtual ~Instruction() = default;
+  Instruction *CloneInst();
 };
 
 // 示例子类指令，继承自Instruction,放到CFG实现
