@@ -114,34 +114,48 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
 // Todo 溢出未考虑到， LiveReg 需要进行处理
 // activeRegs;     map<vir,real> --> 虚拟寄存器分配的实际寄存器
 // 如果发生溢出的话，应该有变量被搞出来，需要记录变量在那条语句被溢出了
-int RegAllocation::allocateStackLocation() 
+int RegAllocation::allocateStackLocation(Register* v) 
 {
-    return 0;
+    // 需要判断类型去确定要开辟的栈帧大小
+    return 4;
 }
-
+bool RegAllocation::hasStackSlot(Register* v)
+{
+    return stackLocation.find(v) != stackLocation.end();
+}
+void RegAllocation::assignSpill(Register* v)
+{
+    if (!hasStackSlot(v)) {
+        int off = allocateStackLocation(v);
+        stackLocation[v] = off;
+    }
+    spilledRegs.insert(v);
+}
+// 寄存器的溢出
 void RegAllocation::spillInterval(std::pair<Register*,rangeInfoptr> interval)
 {
-    if(active_list.empty()) {
-        assert("needn't to spill");
-    }
+    // 选择溢出 end 最大的, 作为溢出的牺牲者
+    auto victimIt = std::max_element(active_list.begin(),active_list.end(),
+            [](const auto& x,const auto& y) {
+                return x.second->end < y.second->end;
+            });
+    
+    if (victimIt != active_list.end() && victimIt->second->end > interval.second->end) {
+        // 新来的interval 可以不溢出，将 victimIt 筛选出来的进行溢出
+        auto victimVReg = victimIt->first;
+        auto realReg = activeRegs[victimVReg];
 
-    auto spill = active_list.back();  // the last is the biggest;
-    if(spill.second->end > interval.second->end) {
+        assignSpill(victimVReg);
+        activeRegs.erase(victimVReg);
+        victimIt = active_list.erase(victimIt);
 
-        activeRegs[interval.first] = activeRegs[spill.first];
-        activeRegs.erase(spill.first);
+        activeRegs[interval.first] = realReg;
+        active_list.push_back(interval);
 
-        stackLocation[spill.first] = allocateStackLocation();
-
-        active_list.remove(spill);
-        active_list.emplace_back(interval);
-
-        active_list.sort([](const auto &v1, const auto &v2){ 
-                            return v1.second->end < v2.second->end; 
-                         });
-    }
-    else {
-        stackLocation[interval.first] = allocateStackLocation();
+        // new Interval 的加入，可以使这个重排
+        active_list.sort([](const auto& a, const auto& b){ return a.second->end < b.second->end; });
+    } else {
+        assignSpill(interval.first);
     }
 }
 
@@ -186,7 +200,6 @@ void RegAllocation::ScanLiveinterval()
 
     for(auto& e : LinerScaner) 
     {   
-        // int regNum = getAvailableRegNum(e.first);
         // clear already exit's active
         expireOldIntervals(e);
 
@@ -222,6 +235,23 @@ void RegAllocation::ReWriteRegs()
     // {
     //     virReg->as<VirRegister>()->reWriteRegWithReal(realReg);
     // }
+
+    for (auto& kv : interval.getIntervals()) {
+        Register* virReg = kv.first;
+        auto itReg = activeRegs.find(virReg);
+        auto itSlot = stackLocation.find(virReg);
+
+        if (itReg != activeRegs.end()) {
+            virReg->as<VirRegister>()->reWriteRegWithReal(activeRegs[virReg]);
+        } else if (itSlot != stackLocation.end()) {
+            // 溢出的情况应该有其他的语句去加成
+        }
+    }
+
+    // callee_saved  caller_saved 重写
+    for (auto& kv : CallAndPosRecord) {
+
+    }
 }
 
 bool RegAllocation::run()

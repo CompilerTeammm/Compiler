@@ -42,11 +42,17 @@ public:
     void fillLinerScaner();
     void ScanLiveinterval();
     void expireOldIntervals(std::pair<Register*,rangeInfoptr> newInterval);
+
+    // spill funcs
+    bool hasStackSlot(Register* v);
+    void assignSpill(Register* v);
+    int allocateStackLocation(Register* v);
     void spillInterval(std::pair<Register*,rangeInfoptr> );
+
+
     void distributeRegs(std::pair<Register*,rangeInfoptr>& interval,bool useCalleeSaved);
     bool isFloatReg(Register* reg);
     //int getAvailableRegNum(Register* reg);
-    int allocateStackLocation();
     void initializeRegisterPool();
     void ReWriteRegs();
 
