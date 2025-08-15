@@ -155,10 +155,22 @@ public:
     };
 
     bool isCallerSaved() {
-
+        if (realRegop >= t2 && realRegop <= a7) {
+            return true;
+        }
+        if ( realRegop >= fa0 && realRegop <= fa7) {
+            return true;
+        }
+        return false;
     } 
     bool isCalleeSaved() {
-        
+        if (realRegop >= s1 && realRegop <= s11) {
+            return true;
+        }
+        if ( realRegop >= fs1 && realRegop <= fs7) {
+            return true;
+        }
+        return false;
     }
     realReg realRegop;
     static std::string realRegToString(realReg reg);

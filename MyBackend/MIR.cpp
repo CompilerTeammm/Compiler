@@ -89,18 +89,18 @@ std::string RealRegister::realRegToString(realReg reg)
         case realReg::t6:   return "t6";
 
         // 浮点寄存器
-        case realReg::ft0:  return "ft0";
-        case realReg::ft1:  return "ft1";
-        case realReg::ft2:  return "ft2";
-        case realReg::ft3:  return "ft3";
-        case realReg::ft4:  return "ft4";
-        case realReg::ft5:  return "ft5";
-        case realReg::ft6:  return "ft6";
-        case realReg::ft7:  return "ft7";
-        case realReg::ft8:  return "ft8";
-        case realReg::ft9:  return "ft9";
-        case realReg::ft10: return "ft10";
-        case realReg::ft11: return "ft11";
+        // case realReg::ft0:  return "ft0";
+        // case realReg::ft1:  return "ft1";
+        // case realReg::ft2:  return "ft2";
+        // case realReg::ft3:  return "ft3";
+        // case realReg::ft4:  return "ft4";
+        // case realReg::ft5:  return "ft5";
+        // case realReg::ft6:  return "ft6";
+        // case realReg::ft7:  return "ft7";
+        // case realReg::ft8:  return "ft8";
+        // case realReg::ft9:  return "ft9";
+        // case realReg::ft10: return "ft10";
+        // case realReg::ft11: return "ft11";
         case realReg::fs0:  return "fs0";
         case realReg::fs1:  return "fs1";
         case realReg::fs2:  return "fs2";

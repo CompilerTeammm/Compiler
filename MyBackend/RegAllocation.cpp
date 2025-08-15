@@ -24,11 +24,11 @@ bool RegAllocation::isCrossCall(rangeInfoptr rangeInfo)
 }
 bool RegAllocation::isCallerSavedRR(RealRegister* rr)
 {
-    rr->isCallerSaved();
+    return rr->isCallerSaved();
 }
 bool RegAllocation::isCalleeSavedRR(RealRegister* rr)
 {   
-    rr->isCalleeSaved();
+    return rr->isCalleeSaved();
 }
 void RegAllocation::releaseRealReg(RealRegister* rr,bool isFP)
 {
@@ -218,10 +218,10 @@ void RegAllocation::ScanLiveinterval()
 // 溢出尚且未考虑到
 void RegAllocation::ReWriteRegs()
 {
-    for(auto [virReg,realReg] : activeRegs)
-    {
-        virReg->as<VirRegister>()->reWriteRegWithReal(realReg);
-    }
+    // for(auto [virReg,realReg] : activeRegs)
+    // {
+    //     virReg->as<VirRegister>()->reWriteRegWithReal(realReg);
+    // }
 }
 
 bool RegAllocation::run()
