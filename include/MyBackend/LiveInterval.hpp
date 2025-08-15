@@ -40,13 +40,15 @@ public:
     using rangeInfoptr = std::shared_ptr<range>;
 private:
     std::unordered_map<RISCVBlock*,rangeInfoptr> bbInfos;
-
     std::map<Register*,std::vector<rangeInfoptr>> regLiveIntervals;
+    using position = int;
+    std::map<RISCVInst*,position> CallAndPosRecord;
 public:
     void CalcuLiveIntervals();
     LiveInterval(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext>& _ctx)
                 :liveInfo(_curfunc,_ctx),bbInfos{},curfunc(_curfunc),ctx(_ctx)  {  }
 
+    std::map<RISCVInst*,position>& getCallAndPosRecord()  { return CallAndPosRecord; }
     void run();
     std::map<Register*,std::vector<rangeInfoptr>>& getIntervals() {
         return regLiveIntervals;

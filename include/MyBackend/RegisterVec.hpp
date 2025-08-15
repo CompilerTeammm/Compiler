@@ -3,9 +3,10 @@
 
 class RegisterVec 
 {
-    std::vector<RealRegister*> intRegVec;
-    std::vector<RealRegister*> floatRegVec;
-    std::vector<RealRegister*> callerRegVec;
+    std::vector<RealRegister*> intCallerRegVec;
+    std::vector<RealRegister*> intCalleeRegVec;
+    std::vector<RealRegister*> floatCallerRegVec;
+    std::vector<RealRegister*> floatCalleeRegVec;
 
     RegisterVec();
     RegisterVec(const RegisterVec&) = delete;
@@ -13,6 +14,9 @@ class RegisterVec
 
 public:
     static RegisterVec& GetRegVecs();
-    std::vector<RealRegister*>& GetintRegVec() { return intRegVec; }
-    std::vector<RealRegister*>& GetfloatRegVec() { return floatRegVec; }
+    
+    std::vector<RealRegister*>& getIntCaller() { return intCallerRegVec;}
+    std::vector<RealRegister*>& getIntCallee() { return intCalleeRegVec; }
+    std::vector<RealRegister*>& getFloatCaller() { return floatCallerRegVec;}
+    std::vector<RealRegister*>& getFloatCallee() { return floatCalleeRegVec; }
 };

@@ -14,13 +14,27 @@ class RegAllocation :public BackendPassBase
     std::shared_ptr<RISCVContext> ctx;
     RISCVFunction* mfunc;
     LiveInterval interval;
-    std::vector<std::pair<Register*,LiveInterval::rangeInfoptr>> LinerScaner;
-    std::list<std::pair<Register*,LiveInterval::rangeInfoptr>> active_list;
-    std::vector<RealRegister*> RegisterIntpool;                    // realReg  
-    std::vector<RealRegister*> RegisterFloatpool;                  // realReg  
+
+    std::vector<std::pair<Register*,LiveInterval::rangeInfoptr>> LinerScaner; // 线性输入，升序
+    std::list<std::pair<Register*,LiveInterval::rangeInfoptr>> active_list;   // 活跃集合
+
+    // int/float   caller/callee
+    std::vector<RealRegister*> callerSavedIntPool;                   // realReg  
+    std::vector<RealRegister*> calleeSavedIntPool;                     
+    std::vector<RealRegister*> callerSavedFloatPool;
+    std::vector<RealRegister*> calleeSavedFloatPool;
+
+    // prepare for scanLine
     std::map<Register*,RealRegister*> activeRegs;           // map<vir,real> --> 虚拟寄存器分配的实际寄存器
     std::unordered_map<Register*,int> stackLocation;    // map<vir, offset>
+    std::unordered_set<Register*> spilledRegs;   // 记录溢出寄存器
 
+    using position = int;
+    std::map<RISCVInst*,position> CallAndPosRecord;
+
+    // 记录已使用的 callee_saved 寄存器，用于 pro epi 保存/恢复
+    std::unordered_set<RealRegister*> usedCalleeSavedInt;
+    std::unordered_set<RealRegister*> usedCalleeSavedFP;
 public:
     RegAllocation(RISCVFunction* _mfunc,std::shared_ptr<RISCVContext>& _ctx)
                 :mfunc(_mfunc),ctx(_ctx),interval(_mfunc,_ctx) { }
@@ -29,11 +43,17 @@ public:
     void ScanLiveinterval();
     void expireOldIntervals(std::pair<Register*,rangeInfoptr> newInterval);
     void spillInterval(std::pair<Register*,rangeInfoptr> );
-    void distributeRegs(std::pair<Register*,rangeInfoptr>);
+    void distributeRegs(std::pair<Register*,rangeInfoptr>& interval,bool useCalleeSaved);
     bool isFloatReg(Register* reg);
-    int getAvailableRegNum(Register* reg);
+    //int getAvailableRegNum(Register* reg);
     int allocateStackLocation();
     void initializeRegisterPool();
     void ReWriteRegs();
+
+    // deal Call
+    bool isCrossCall(rangeInfoptr rangeInfo);
+    bool isCallerSavedRR(RealRegister* rr);
+    bool isCalleeSavedRR(RealRegister* rr);
+    void releaseRealReg(RealRegister* rr,bool isFP);
 };
 

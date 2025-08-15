@@ -3,55 +3,31 @@
 using realReg=RealRegister::realReg;
 RegisterVec::RegisterVec()
 {
-    realReg regOp = realReg::a0;
+    realReg regOp = realReg::t2;
     auto appendReg = [&](std::vector<RealRegister*>& vec) {
         vec.push_back(RealRegister::GetRealReg(regOp));
         regOp = realReg(regOp + 1);
     };
     // int      t2   a0-a7 t3-t6  s1-s11       24
     // t0 & t1 will not be regalloced, and it is real temp register
-    while(regOp<=realReg::a7) {
-      appendReg(intRegVec);
+    while ( regOp != realReg::s1)
+    {
+        appendReg(intCallerRegVec);
     }
-
-    intRegVec.push_back(RealRegister::GetRealReg(realReg::s1));
-    regOp = realReg::s2;
-    while(regOp<=realReg::s11) {
-      appendReg(intRegVec);
-    }
-    
-    intRegVec.push_back(RealRegister::GetRealReg(realReg::t2));
-    regOp = realReg::t3;
-    while(regOp<=realReg::t6) {
-      appendReg(intRegVec);
-    }
-    // float  ft0-ft11  fa0-fa7  fs0-fs11      32
-    regOp = realReg::ft0;
-    while(regOp<=realReg::ft11) {
-      appendReg(floatRegVec);
+    regOp = realReg::s1;
+    while ( regOp != realReg::fa0)
+    {
+        appendReg(intCalleeRegVec);
     }
     regOp = realReg::fa0;
-    while(regOp<=realReg::fa7) {
-      appendReg(floatRegVec);
+    while ( regOp != realReg::fs0)
+    {
+        appendReg(floatCallerRegVec);
     }
     regOp = realReg::fs0;
-    while(regOp<=realReg::fs11) {
-      appendReg(floatRegVec);
-    }
-
-    // caller
-    callerRegVec.push_back(RealRegister::GetRealReg(realReg::t2));
-    regOp = realReg::a0;
-    while(regOp<=realReg::a7) {
-      appendReg(callerRegVec);
-    }
-    regOp = realReg::t3;
-    while(regOp<=realReg::t6) {
-      appendReg(callerRegVec);
-    }
-    regOp = realReg::ft0;
-    while(regOp <= realReg::ft11) {
-      appendReg(callerRegVec);
+    while ( regOp != realReg::_NULL)
+    {
+        appendReg(floatCallerRegVec);
     }
 }
 
