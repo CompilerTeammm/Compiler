@@ -127,13 +127,14 @@ void TransFunction::reWritestackOffse(RISCVFunction*& mfunc)
     }
 }
 
-
 void TransFunction::changeTheOrders(RISCVFunction*& mfunc)
 {
     auto BrVec = mfunc->getBrInstSuccBBs();
+    auto& bbList = mfunc->getRecordBBs();
     std::map<BasicBlock*,BasicBlock*> curToSuccMap; 
     std::map<Instruction*,BasicBlock*> curToLabelMap; 
     std::map<Instruction*,int> recordOneOrTwo;
+    
     for(auto [inst,pair1] :BrVec) 
     {
         auto curbb = inst->GetParent();
@@ -159,7 +160,6 @@ void TransFunction::changeTheOrders(RISCVFunction*& mfunc)
         }
     }
 
-    auto& bbList = mfunc->getRecordBBs();
     std::list<RISCVBlock*> newList;
     RISCVBlock* succBB = nullptr;
     auto it = bbList.begin();

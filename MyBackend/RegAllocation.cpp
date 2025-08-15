@@ -103,7 +103,7 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
             auto virReg = it->first;
             auto realReg = activeRegs[virReg];
             releaseRealReg(realReg,isFloatReg(virReg));
-            activeRegs.erase(virReg);
+            // activeRegs.erase(virReg);
             it = active_list.erase(it);
         } else {
             break;  // in order

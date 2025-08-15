@@ -570,7 +570,6 @@ public:
 // And func produce the frame 
 class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
 {
-    Function* func;
     RISCVBlock* exit;   
     std::shared_ptr<RISCVPrologue> prologue;
     std::shared_ptr<RISCVEpilogue> epilogue;
@@ -600,6 +599,7 @@ class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
     std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>> recordBrInstSuccBBs;
     std::vector<RISCVInst*> LabelInsts;
 public:
+    Function* func;
     offset arroffset = 16;    // arr space =  arroffset - defaulSize
     offset defaultSize = 16;  // 存储 ra,sp 的栈帧space
 public:
