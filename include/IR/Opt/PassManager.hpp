@@ -31,6 +31,7 @@
 #include "GepEval.hpp"
 #include "LoopRotaing.hpp"
 #include "LoopSimping.hpp"
+#include "ExprReorder.hpp"
 
 enum OptLevel
 {
@@ -86,6 +87,7 @@ public:
                 // "SSAPRE",
                 //"GVN",
                 "DCE",
+                "ExprReorder",
 
                 // 数组重写
                 //  "gepcombine",
@@ -94,9 +96,10 @@ public:
 
             };
         }
-        else if(lvl=hu1_test){
-            enabledPasses={
-                //第一波
+        else if (lvl = hu1_test)
+        {
+            enabledPasses = {
+                // 第一波
                 "DAE",
                 "SSE",
                 "SOGE",
@@ -109,8 +112,7 @@ public:
                 "sccp",
                 "SCFG",
 
-
-                //第一次内联,循环清理两次
+                // 第一次内联,循环清理两次
                 "inline",
                 "sccp",
                 "SCFG",
@@ -126,11 +128,11 @@ public:
                 "DCE",
                 "TRE",
                 "ECE",
-                //loop基础优化
+                // loop基础优化
                 // "Loop_Simplifying",
-                //loop展开+常规优化
-                
-                //再来波常规清理
+                // loop展开+常规优化
+
+                // 再来波常规清理
                 "sccp",
                 "SCFG",
                 "SOGE",
@@ -215,9 +217,9 @@ public:
             SOGE sogePass(&Singleton<Module>());
             sogePass.run();
         }
-        if(IsEnabled("G2L"))
+        if (IsEnabled("G2L"))
         {
-            Global2Local(&Singleton<Module>(),AM).run();
+            Global2Local(&Singleton<Module>(), AM).run();
         }
         // 数据流整理
         if (IsEnabled("ECE"))
@@ -260,8 +262,9 @@ public:
                 CondMerge(fun, AM).run();
             }
         }
-        if(IsEnabled("DAE")){
-            DAE(&Singleton<Module>(),AM).run();
+        if (IsEnabled("DAE"))
+        {
+            DAE(&Singleton<Module>(), AM).run();
         }
         if (IsEnabled("TRE"))
         {
@@ -349,6 +352,18 @@ public:
                 auto fun = function.get();
                 AnalysisManager *AM;
                 DCE(fun, AM).run();
+            }
+        }
+
+        if (IsEnabled("ExprReorder"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+                AM.add<DominantTree>(fun, &tree);
+                ExprReorder(fun).run();
             }
         }
 
