@@ -793,9 +793,9 @@ RISCVInst *RISCVContext::DealMemcpyFunc(CallInst *inst)
     laInst->SetVirRegister();
     laInst->SetAddrOp(inst->GetOperand(2));
 
-    int size = std::stoi(val->GetName());
+    int size = std::stoi(val->GetName()) + curMfunc->arroffset;
     RISCVInst *saveS0Inst = nullptr;
-    if (size <= 2047)
+    if (size <= 2047 && size >= -2048)
     {
         saveS0Inst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
         saveS0Inst->SetVirRegister();
@@ -872,9 +872,11 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
                     auto lwInst = mapTrans(val)->as<RISCVInst>();
                     if (lwInst == nullptr) // need to deal
                         continue;
-                    param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
-                    param->SetRealRegister("a" + std::to_string(paramNum - 1));
-                    param->push_back(lwInst->getOpreand(0));
+                    
+                    RISCVInst *sdInst = CreateInstAndBuildBind(RISCVInst::_sd, inst);
+                    sdInst->push_back(lwInst->getOpreand(0));
+                    size_t num = (paramNum - 9) * 8;
+                    sdInst->SetstackOffsetOp(std::to_string(num) + "(sp)");
                 }
             }
         }
@@ -988,7 +990,7 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
             sum *= 4;
             if (sum != 0)
             {
-                if ( sum <= 2047) {
+                if ( sum <= 2047 && sum >= -2048) {
                     RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
                     RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
                     RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
@@ -1084,7 +1086,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             if (flag == 0)
             {
                 int sum = getSumOffset(globlVal, inst);
-                if (sum <= 2047) {
+                if (sum <= 2047 && sum >= -2048) {
                     RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
                     RInst->SetVirRegister();
                     RInst->push_back(RInst->getOpreand(0));
@@ -1112,7 +1114,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
         // 找出 栈帧开辟此数组的首地址
         size_t arroffset = getCurFunction()->getLocalArrToOffset()[globlVal];
         RISCVInst *addiInst = nullptr;
-        if (arroffset <= 2047)
+        if (arroffset <= 2047 )
         {
             addiInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
             addiInst->SetVirRegister();
@@ -1140,7 +1142,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
         }
         if (flag == 0) {   // addi 了 之后 0(t0) 这样的形式
             int size = getSumOffset(globlVal, inst);
-            if (size <= 2047)
+            if (size <= 2047 && size >= -2048)
             {
                 RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
                 RInst->SetVirRegister();
@@ -1240,7 +1242,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             if (flag == 0)
             { 
                 int size = getSumOffset(globlVal, inst);
-                if (size <= 2047) {
+                if (size <= 2047 && size >= -2048) {
                     RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
                     RInst->SetVirRegister();
                     RInst->push_back(addInst->getOpreand(0));
