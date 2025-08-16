@@ -1151,24 +1151,24 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             {
                 int sum = getSumOffset(globlVal, inst);
                 if (sum <= 2047 && sum >= -2048) {
-                    RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-                    RInst->SetVirRegister();
-                    RInst->push_back(RInst->getOpreand(0));
-                    RInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
-                    // gepRecord[nextInst] = getSumOffset(globlVal, inst, addInst);
+                    RISCVInst* addiInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                    addiInst->SetVirRegister();
+                    addiInst->push_back(RInst->getOpreand(0));
+                    addiInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
                 } else {
 
                     RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
                     liInst->SetVirRegister();
                     liInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
 
-                    RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
-                    RInst->SetVirRegister();
-                    RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
-                    RInst->push_back(liInst->getOpreand(0));
+                    RISCVInst* addiInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    addiInst->SetVirRegister();
+                    addiInst->push_back(RInst->getOpreand(0));
+                    addiInst->push_back(liInst->getOpreand(0));
                 }
             }
-            else{
+            else
+            {
                 getDynmicSumOffset(globlVal, inst, RInst, RInst);
             }
         }
@@ -1246,15 +1246,6 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
                 val *= numsRecord[i];
             }
             val = 4 * val;
-
-            // RISCVInst* addiInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-            // addiInst->SetVirRegister();
-            // addiInst->SetRealRegister("s0");
-            // if(!getCurFunction()->getLocalArrToOffset()[globlVal])
-            //     getCurFunction()->getCurFuncArrStack(addiInst, ConstIRInt::GetNewConstant(val), allocInst);
-            // else
-            //     addiInst->SetstackOffsetOp("-" + std::to_string(getCurFunction()->getLocalArrToOffset()[globlVal]));
-
             RISCVInst* addInst = nullptr;
             if (!getCurFunction()->getLocalArrToOffset()[globlVal]) {
                 int size = std::stoi(ConstIRInt::GetNewConstant(val)->GetName());
