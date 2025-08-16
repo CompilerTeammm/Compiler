@@ -36,6 +36,10 @@ void VirRegister::reWriteRegWithReal(RealRegister* _real)
     auto op = _real->getRegop();
     setName(_real->getName());
 }
+void VirRegister::reWriteRegWithReal(std::string name)
+{
+    setName(name);
+}
 
 RealRegister::realReg RealRegister::getRegop()  
 { 

@@ -129,6 +129,7 @@ public:
                   {   VirtualRegNum++;   }
     void setFloatflag() { Floatflag = 1; }
     void reWriteRegWithReal(RealRegister* );
+    void reWriteRegWithReal(std::string name);
 };
 
 class RealRegister:public Register
@@ -415,6 +416,7 @@ public:
 
     void deleteOp(int index)  { opsVec.erase(opsVec.begin() + index); }
 
+    void replacedIndexWithVal(int index,op val) {  opsVec[index] = val; } 
     void push_back(op Op) { opsVec.push_back(Op); }
     std::vector<op> &getOpsVec() { return opsVec; }
     std::vector<Instsptr> &getInsts() { return Insts; }
