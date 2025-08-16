@@ -101,7 +101,7 @@ public:
     void extraDealFlCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op,
                                             op op1,op op2);
 
-    size_t getSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addInst);
+    size_t getSumOffset(Value* globlVal,GepInst *inst);
     void getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addiInst,RISCVInst*& RInst);
 
     template<typename T>

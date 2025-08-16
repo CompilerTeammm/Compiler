@@ -200,6 +200,7 @@ std::vector<BasicBlock*> RISCVBlock::getSuccBlocks()
 void RISCVFunction::getCurFuncArrStack(RISCVInst*& RInst,Value* val,Value* alloca)
 {
     arroffset += std::stoi(val->GetName());
-    RInst->SetstackOffsetOp("-"+std::to_string(arroffset));
     LocalArrToOffset[alloca] = arroffset;
+    if (RInst != nullptr)
+        RInst->SetstackOffsetOp("-"+std::to_string(arroffset));
 }

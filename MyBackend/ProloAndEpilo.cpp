@@ -115,6 +115,9 @@ bool ProloAndEpilo:: DealStoreInsts()
     {
         if(AOffsetRecord[alloc] <= 2047)
             StackInst->setStoreStackS0Op(AOffsetRecord[alloc]);
+        else {
+
+        }
     }
 
     return true;
@@ -132,7 +135,7 @@ bool ProloAndEpilo:: DealLoadInsts()
         if (off <= 2047)
             Inst->setStoreStackS0Op(off);  
         else  {
-           
+            
         }
     }
 
