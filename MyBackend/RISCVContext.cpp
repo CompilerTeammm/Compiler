@@ -1404,21 +1404,58 @@ RISCVOp* RISCVContext::mapTrans(Value* val)
     return valToRiscvOp[val];
 };
 
+// void RISCVContext::DealFunctionParam(Function *func)
+// {
+//     RealRegister::realReg counter = RealRegister::a0;
+//     getCurFunction()->getparamNum() = func->GetParams().size();
+//     for (auto &parm : func->GetParams())
+//     {
+//         if (counter > RealRegister::a7) // 通过栈帧传递
+//         {
+//             getCurFunction()->getSpilledParamType().push_back( parm->GetTypeEnum());
+//         }
+//         else {
+//             // 前 7 个参数通过 a0 - a7 传递
+//             auto op = RealRegister::GetRealReg(counter);
+//             valToRiscvOp[parm.get()] = op;
+//             counter = RealRegister::realReg(counter + 1);
+//         }
+//     }
+// }
+
 void RISCVContext::DealFunctionParam(Function *func)
 {
-    RealRegister::realReg counter = RealRegister::a0;
+    RealRegister::realReg Intcounter = RealRegister::a0;
+    RealRegister::realReg Floatcounter = RealRegister::fa0;
     getCurFunction()->getparamNum() = func->GetParams().size();
     for (auto &parm : func->GetParams())
     {
-        if (counter > RealRegister::a7) // 通过栈帧传递
+        if(parm->GetType() == FloatType::NewFloatTypeGet()) 
         {
-            getCurFunction()->getSpilledParamType().push_back( parm->GetTypeEnum());
+
+            if (Floatcounter > RealRegister::fa7) // 通过栈帧传递
+            {
+                getCurFunction()->getSpilledParamType().push_back(parm->GetTypeEnum());
+            }
+            else  {
+                // 前 7 个参数通过 fa0 - fa7 传递
+                auto op = RealRegister::GetRealReg(Floatcounter);
+                valToRiscvOp[parm.get()] = op;
+                Floatcounter = RealRegister::realReg(Floatcounter + 1);
+            }
         }
-        else {
-            // 前 7 个参数通过 a0 - a7 传递
-            auto op = RealRegister::GetRealReg(counter);
-            valToRiscvOp[parm.get()] = op;
-            counter = RealRegister::realReg(counter + 1);
+        else {  // 数组没有处理，全都是按照 a0-7 处理d
+            if (Intcounter > RealRegister::a7) // 通过栈帧传递
+            {
+                getCurFunction()->getSpilledParamType().push_back(parm->GetTypeEnum());
+            }
+            else
+            {
+                // 前 7 个参数通过 a0 - a7 传递
+                auto op = RealRegister::GetRealReg(Intcounter);
+                valToRiscvOp[parm.get()] = op;
+                Intcounter = RealRegister::realReg(Intcounter + 1);
+            }
         }
     }
 }

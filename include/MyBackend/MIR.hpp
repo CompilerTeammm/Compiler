@@ -500,6 +500,13 @@ public:
         opsVec.push_back(reg);
     }
 
+    void setFloatMVOp(RISCVInst* Inst)
+    {
+        SetVirFloatRegister();
+        auto reg = Inst->getOpreand(0);
+        opsVec.push_back(reg);
+    }
+
     void setOpWInstFOpread(RISCVInst* Inst) 
     {
         auto reg = Inst->getOpreand(0);
