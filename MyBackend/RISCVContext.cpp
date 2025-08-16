@@ -463,6 +463,14 @@ void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instructi
         auto ptr = std::make_shared<RISCVOp>(bb->getName());
         RInst->push_back(ptr);
 
+        auto JumpLabel = inst->GetOperand(1);
+        auto Jumpbb = mapTrans(JumpLabel);
+        auto bbptr = std::make_shared<RISCVOp>(Jumpbb->getName());
+        auto JumpInst = CreateInstAndBuildBind(RISCVInst::_j,inst);
+        JumpInst->push_back(bbptr);
+
+
+        // chageOrder 函数
         getCurFunction()->getLabelInsts().push_back(RInst);
         BasicBlock* succbbI = inst->GetOperand(1)->as<BasicBlock>();
         BasicBlock* succbbII = inst->GetOperand(2)->as<BasicBlock>();

@@ -77,7 +77,7 @@ bool TransFunction::run(Function* func)
         select.MatchAllInsts(BB);
     }
 
-    changeTheOrders(mfunc);
+    // changeTheOrders(mfunc);
 
     // 后端优化 phi 函数的消除
     PhiEliminate phi(func);

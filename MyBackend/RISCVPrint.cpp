@@ -336,7 +336,8 @@ void RISCVPrint::printAsm()
         std::cout << "    .type  "<< func->getName() << ", @function" << std::endl;
         std::cout  << func->getName() << ": " <<std::endl;
         printFuncPro(func.get());
-        for(auto bb : func->getRecordBBs())
+        // for(auto bb : func->getRecordBBs())
+        for(auto bb : *func)
         {
             std::cout << bb -> getName() <<": " << std::endl;
             // 这个仅仅只要被执行一次即可

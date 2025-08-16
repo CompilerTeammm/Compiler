@@ -74,10 +74,10 @@ void LiveInfo::CalcuLiveInAndOut()
 {   
     BlockLiveIn.clear();
     BlockLiveOut.clear();
-    for(auto bb = curfunc->rbegin(); bb != curfunc->rend(); --bb)
+    for (auto bb = curfunc->rbegin(); bb != curfunc->rend(); ++bb)
     {
-        BlockLiveIn[*bb] = std::set<Register*>();
-        BlockLiveOut[*bb] = std::set<Register*>();
+        BlockLiveIn[*bb] = std::set<Register *>();
+        BlockLiveOut[*bb] = std::set<Register *>();
     }
 
     bool changed;
@@ -85,7 +85,7 @@ void LiveInfo::CalcuLiveInAndOut()
         changed = false;
 
         // 从后到前的遍历顺序
-        for (auto bb = curfunc->rbegin(); bb != curfunc->rend(); --bb)
+        for (auto bb = curfunc->rbegin(); bb != curfunc->rend(); ++bb)
         {
             std::set<Register*> newLiveOut;
             for (auto succbb : (*bb)->getSuccBlocks())
