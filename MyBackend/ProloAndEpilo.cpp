@@ -116,7 +116,10 @@ bool ProloAndEpilo:: DealStoreInsts()
         if(AOffsetRecord[alloc] <= 2047)
             StackInst->setStoreStackS0Op(AOffsetRecord[alloc]);
         else {
-
+            int size = mfunc->arroffset;
+            int offset = AOffsetRecord[alloc];
+            int subOffset = offset - size;
+            StackInst->SetstackOffsetOp(std::to_string(subOffset) +"(sp)");
         }
     }
 
@@ -135,7 +138,9 @@ bool ProloAndEpilo:: DealLoadInsts()
         if (off <= 2047)
             Inst->setStoreStackS0Op(off);  
         else  {
-            
+            int size = mfunc->arroffset;
+            int subOffset = off - size;
+            Inst->SetstackOffsetOp(std::to_string(subOffset) +"(sp)");
         }
     }
 
