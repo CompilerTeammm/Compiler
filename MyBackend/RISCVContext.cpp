@@ -1128,9 +1128,9 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
     RISCVInst* RInst = nullptr;
 
     if (globlVal != nullptr && globlVal->isGlobal()) {  // 全局数组的处理
-        RInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
-        RInst->SetVirRegister();
-        RInst->SetAddrOp(globlVal);
+        RISCVInst* laInst = CreateInstAndBuildBind(RISCVInst::_la, inst);
+        laInst->SetVirRegister();
+        laInst->SetAddrOp(globlVal);
 
         Instruction *nextInst = inst->GetNextNode();
         if (dynamic_cast<LoadInst *>(nextInst) || dynamic_cast<StoreInst *>(nextInst)
@@ -1151,27 +1151,29 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             {
                 int sum = getSumOffset(globlVal, inst);
                 if (sum <= 2047 && sum >= -2048) {
-                    RISCVInst* addiInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
-                    addiInst->SetVirRegister();
-                    addiInst->push_back(RInst->getOpreand(0));
-                    addiInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+                    RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                    RInst->SetVirRegister();
+                    RInst->push_back(laInst->getOpreand(0));
+                    RInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
                 } else {
 
                     RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
                     liInst->SetVirRegister();
                     liInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
 
-                    RISCVInst* addiInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
-                    addiInst->SetVirRegister();
-                    addiInst->push_back(RInst->getOpreand(0));
-                    addiInst->push_back(liInst->getOpreand(0));
+                    RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    RInst->SetVirRegister();
+                    RInst->push_back(laInst->getOpreand(0));
+                    RInst->push_back(liInst->getOpreand(0));
                 }
             }
             else
             {
-                getDynmicSumOffset(globlVal, inst, RInst, RInst);
+                getDynmicSumOffset(globlVal, inst, laInst, laInst);
             }
         }
+        if (RInst == nullptr)
+            RInst = laInst;
     } 
     else if((getCurFunction()->getGepGloblToLocal()[globlVal]) != nullptr)
     {
