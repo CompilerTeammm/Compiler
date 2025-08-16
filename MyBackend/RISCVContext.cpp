@@ -125,10 +125,17 @@ RISCVInst* RISCVContext::CreateLInst(LoadInst *inst)
     if (dynamic_cast<GepInst *>(inst->GetOperand(0)) )
     {
         // global 的lw 应该不需要记录，因为这个全局加载
-        Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
-        Inst->SetVirRegister();
-        Inst->getOpsVec().push_back(Inst->GetPrevNode()->getOpreand(0));
-        getCurFunction()->getRecordGepOffset().emplace(inst,0);
+        if (inst->GetType() == IntType::NewIntTypeGet()) {
+            Inst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
+            Inst->SetVirRegister();
+            Inst->getOpsVec().push_back(Inst->GetPrevNode()->getOpreand(0));
+            getCurFunction()->getRecordGepOffset().emplace(inst,0);
+        } else {
+            Inst = CreateInstAndBuildBind(RISCVInst::_flw, inst);
+            Inst->SetVirFloatRegister();
+            Inst->getOpsVec().push_back(Inst->GetPrevNode()->getOpreand(0));
+            getCurFunction()->getRecordGepOffset().emplace(inst,0);
+        }
     }
     else if (inst->GetOperand(0)->isGlobal())
     {
@@ -188,11 +195,27 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
                 Inst->push_back(liInst->GetPrevNode()->getOpreand(0));
             getCurFunction()->getGloblValRecord().push_back(inst);
         } else {
-            Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
-            auto it = mapTrans(inst->GetOperand(0))->as<RISCVInst>();
-            Inst->push_back(it->getOpreand(0));
-            Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
-            getCurFunction()->getGloblValRecord().push_back(inst);
+            if (inst->GetOperand(0)->GetType() == IntType::NewIntTypeGet()) 
+            {
+                Inst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+                auto it = mapTrans(inst->GetOperand(0))->as<RISCVInst>();
+                Inst->push_back(it->getOpreand(0));
+                Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
+                getCurFunction()->getGloblValRecord().push_back(inst);
+            } else {
+                auto val = inst->GetOperand(1);
+                auto riscvInst = mapTrans(val)->as<RISCVInst>();
+                Inst = CreateInstAndBuildBind(RISCVInst::_fsw, inst);
+                auto it = mapTrans(inst->GetOperand(0))->as<RISCVInst>();
+                Inst->push_back(it->getOpreand(0));
+                if (riscvInst == nullptr)
+                    Inst->push_back(Inst->GetPrevNode()->getOpreand(0));
+                else {
+                    Inst->push_back(riscvInst->getOpreand(0));
+                }
+                getCurFunction()->getGloblValRecord().push_back(inst);
+            }
+
             // extraDealStoreInst(Inst, inst);
         }
         return Inst;
@@ -270,21 +293,45 @@ RISCVInst* RISCVContext::CreateSInst(StoreInst *inst)
             }
             else {
                 auto it = mapTrans(inst->GetOperand(0))->as<RealRegister>();
-                if (it != nullptr) {     //  a0-a7 的参数 
-                    SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
-                    auto Rop = std::make_shared<RealRegister>(it->getName());
-                    SwInst->push_back(Rop);
-                    extraDealStoreInst(SwInst, inst);
-                }
-                else {   //  栈帧中的  这里绝对需要再处理 ld 的逻辑，切记
-                    // I think the order is right, don't need me to change
-                    RISCVInst* lwInst = CreateInstAndBuildBind(RISCVInst::_lw,inst);
-                    lwInst->SetVirRegister();
-                    // 栈帧部分进行遍历就可以赋值了
-                    getCurFunction()->getSpilledParamLoadInst().push_back(lwInst);
-                    SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
-                    SwInst->push_back(lwInst->getOpreand(0));
-                    extraDealStoreInst(SwInst, inst);
+                if (inst->GetOperand(0)->GetType() == FloatType::NewFloatTypeGet())
+                {
+                    if (it != nullptr)
+                    { //  fa0-fa7 的参数
+                        SwInst = CreateInstAndBuildBind(RISCVInst::_fsw, inst);
+                        auto Rop = std::make_shared<RealRegister>(it->getName());
+                        SwInst->push_back(Rop);
+                        extraDealStoreInst(SwInst, inst);
+                    }
+                    else
+                    { //  栈帧中的  这里绝对需要再处理 ld 的逻辑，切记
+                        // I think the order is right, don't need me to change
+                        RISCVInst *lwInst = CreateInstAndBuildBind(RISCVInst::_flw, inst);
+                        lwInst->SetVirRegister();
+                        // 栈帧部分进行遍历就可以赋值了
+                        getCurFunction()->getSpilledParamLoadInst().push_back(lwInst);
+                        SwInst = CreateInstAndBuildBind(RISCVInst::_fsw, inst);
+                        SwInst->push_back(lwInst->getOpreand(0));
+                        extraDealStoreInst(SwInst, inst);
+                    }
+                } else {
+                    if (it != nullptr)
+                    { //  a0-a7 的参数
+                        SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+                        auto Rop = std::make_shared<RealRegister>(it->getName());
+                        SwInst->push_back(Rop);
+                        extraDealStoreInst(SwInst, inst);
+                    }
+                    else
+                    { //  栈帧中的  这里绝对需要再处理 ld 的逻辑，切记
+                        // I think the order is right, don't need me to change
+                        RISCVInst *lwInst = CreateInstAndBuildBind(RISCVInst::_lw, inst);
+                        lwInst->SetVirRegister();
+                        // 栈帧部分进行遍历就可以赋值了
+                        getCurFunction()->getSpilledParamLoadInst().push_back(lwInst);
+                        SwInst = CreateInstAndBuildBind(RISCVInst::_sw, inst);
+                        SwInst->push_back(lwInst->getOpreand(0));
+                        extraDealStoreInst(SwInst, inst);
+                    }
                 }
             }
             return SwInst;
@@ -775,7 +822,13 @@ RISCVInst* RISCVContext::CreateI2Fnst(SI2FPInst *inst)
     } else {
         Inst = CreateInstAndBuildBind(RISCVInst::_fcvt_s_w, inst);
         Inst->SetVirFloatRegister();
-        Inst->setStoreOp(Inst->GetPrevNode());
+        auto val = inst->GetOperand(0);
+        auto RISCVinst = mapTrans(val)->as<RISCVInst>();
+        if (RISCVinst == nullptr)
+            Inst->setStoreOp(Inst->GetPrevNode());
+        else {
+            Inst->setStoreOp(RISCVinst);
+        }
     }
 
     return Inst;
@@ -1164,7 +1217,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             getDynmicSumOffset(globlVal, inst,addiInst, RInst);
         }
     }  
-    else  {  
+    else  {    // 指针和特殊的数组
         if (auto allocInst = dynamic_cast<AllocaInst*>(globlVal))
         {
             PointerType *Pointer = dynamic_cast<PointerType *>(allocInst->GetType());
