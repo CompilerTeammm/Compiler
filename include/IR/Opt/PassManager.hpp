@@ -73,7 +73,7 @@ public:
                 "mem2reg",
                 //"sccp",
                 //"SCFG",
-
+                "ConstHoist",
                 // "ECE",
                 // 过程间优化
                 //"inline",
@@ -116,8 +116,9 @@ public:
                 "DAE",
                 "SSE",
                 "SOGE",
-                // "CondMerge"//为什么学长会放在这里
+            
                 "mem2reg",
+                "G2L",
                 "sccp",
                 "SCFG",
                 "DCE",
@@ -140,12 +141,13 @@ public:
                 "SOGE",
                 "DCE",
                 "TRE",
-                "ECE",
+                // "ECE",
                 // loop基础优化
                 // "Loop_Simplifying",
                 // loop展开+常规优化
 
                 // 再来波常规清理
+                // "ExprReorder",
                 "sccp",
                 "SCFG",
                 "SOGE",
@@ -245,12 +247,12 @@ public:
             SOGE sogePass(&Singleton<Module>());
             sogePass.run();
         }
-        /*
+
         if (IsEnabled("G2L"))
         {
             Global2Local(&Singleton<Module>(), AM).run();
         }
-        */
+        
         // 数据流整理
         if (IsEnabled("ECE"))
         {
