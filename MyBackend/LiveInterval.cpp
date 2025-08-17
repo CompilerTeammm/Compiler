@@ -42,6 +42,11 @@ void LiveInfo::GetLiveUseAndDef()
                     {
                         LiveUse.emplace(reg);
                     }
+                } 
+                else if (auto reg = dynamic_cast<RealRegister*> (op.get())) 
+                {   
+                    if (mInst->getOpcode() != RISCVInst::_sw)
+                        RealRegAndInsts.emplace(reg,mInst);
                 }
             }
         }
@@ -146,6 +151,13 @@ void LiveInfo::CalcuLiveInAndOut()
 
 void LiveInterval::orderInsts()
 {
+    std::unordered_map<RISCVInst*,RealRegister*> riscvInstVec;
+    for(auto& [key,val] : liveInfo.RealRegAndInsts)
+    {
+        realRegWithitRangeInfo[key] = std::make_shared<range> (0,0);
+        riscvInstVec.emplace(val,key);
+    }
+
     int order = 0;
     for(RISCVBlock* mbb :*curfunc)
     {
@@ -153,6 +165,25 @@ void LiveInterval::orderInsts()
         for(RISCVInst* mInst : *mbb)
         {
             RecordInstAndOrder[mInst] = order;
+            if (riscvInstVec.find(mInst) != riscvInstVec.end())
+            {
+                RISCVInst* tmp = mInst;
+                int tmpOrder = order;
+                auto Reg = riscvInstVec[mInst];
+                realRegWithitRangeInfo[Reg]->start = order;
+                realRegWithitRangeInfo[Reg]->end = order;
+                while (1) {
+                    tmp = tmp->GetNextNode();
+                    if (tmp == nullptr)
+                        break;
+                    tmpOrder++;
+                    if (tmp->getOpcode() == RISCVInst::_ret || tmp->getOpcode() == RISCVInst::_call)
+                    {
+                        realRegWithitRangeInfo[Reg]->end = tmpOrder;
+                        break;
+                    }
+                }
+            }
             if (mInst->getOpcode() == RISCVInst::_call)  // 记录一下call 语句
                 CallAndPosRecord[mInst] = order;
             order++;

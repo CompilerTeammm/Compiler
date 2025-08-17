@@ -10,6 +10,7 @@ public:
     std::unordered_map<RISCVBlock*,std::set<Register*>> BlockLiveIn;
     std::unordered_map<RISCVBlock*,std::set<Register*>> BlockLiveOut;
     std::unordered_map<Register*,RISCVBlock*> DefValsInBlock;
+    std::unordered_map<RealRegister*,RISCVInst*> RealRegAndInsts;
     
     RISCVFunction* curfunc;
     std::shared_ptr<RISCVContext> ctx;
@@ -43,6 +44,8 @@ private:
     std::map<Register*,std::vector<rangeInfoptr>> regLiveIntervals;
     using position = int;
     std::map<RISCVInst*,position> CallAndPosRecord;
+    // 实际寄存器
+    std::unordered_map<RealRegister*,rangeInfoptr> realRegWithitRangeInfo; 
 public:
     void CalcuLiveIntervals();
     LiveInterval(RISCVFunction* _curfunc,std::shared_ptr<RISCVContext>& _ctx)
@@ -50,6 +53,7 @@ public:
 
     std::map<RISCVInst*,position>& getCallAndPosRecord()  { return CallAndPosRecord; }
     void run();
+    std::unordered_map<RealRegister*,rangeInfoptr>& getRealRegWithRange() { return realRegWithitRangeInfo; }
     std::map<Register*,std::vector<rangeInfoptr>>& getIntervals() {
         return regLiveIntervals;
     }

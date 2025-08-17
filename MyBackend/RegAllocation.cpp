@@ -85,6 +85,12 @@ void RegAllocation::fillLinerScaner()
         }
         LinerScaner.emplace_back(reg,std::make_shared<range>(final_start,final_end));
     }
+
+    for(auto [reg,val] : interval.getRealRegWithRange()) 
+    {
+        LinerScaner.emplace_back(reg,val);
+    }
+
     // 升序
     std::sort(LinerScaner.begin(), LinerScaner.end(),
               [](const auto &v1, const auto &v2)
@@ -162,35 +168,56 @@ void RegAllocation::spillInterval(std::pair<Register*,rangeInfoptr> interval)
 void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr>& interval,bool useCalleeSaved)
 {   
     RealRegister* reg = nullptr;
+    
+    if (auto real = dynamic_cast<RealRegister*> (interval.first)) {
+        if (isFloatReg(interval.first))
+        {
+            reg = real;
 
-    if(isFloatReg(interval.first)) {
-        if (useCalleeSaved) {
-            assert(!calleeSavedFloatPool.empty());
-            reg = calleeSavedFloatPool.back();
-            calleeSavedFloatPool.pop_back();
-            usedCalleeSavedFP.insert(reg);
-        } else {
-            assert(!callerSavedFloatPool.empty());
-            reg = callerSavedFloatPool.back();
-            callerSavedFloatPool.pop_back();
+            // 加入 active 集合，防止后面错误地复用
+            activeRegs[interval.first] = reg;
+            active_list.emplace_back(interval);
+            active_list.sort([](const auto &v1, const auto &v2)
+                             { return v1.second->end < v2.second->end; });
         }
-    } else {
-        if (useCalleeSaved) {
-            assert(!calleeSavedIntPool.empty());
-            reg = calleeSavedIntPool.back();
-            calleeSavedIntPool.pop_back();
-            usedCalleeSavedInt.insert(reg);
-        } else {
-            assert(!callerSavedIntPool.empty());
-            reg = callerSavedIntPool.back();
-            callerSavedIntPool.pop_back();
+    } else {   // 虚拟寄存器
+        if (isFloatReg(interval.first))
+        {
+            if (useCalleeSaved)
+            {
+                assert(!calleeSavedFloatPool.empty());
+                reg = calleeSavedFloatPool.back();
+                calleeSavedFloatPool.pop_back();
+                usedCalleeSavedFP.insert(reg);
+            }
+            else
+            {
+                assert(!callerSavedFloatPool.empty());
+                reg = callerSavedFloatPool.back();
+                callerSavedFloatPool.pop_back();
+            }
         }
+        else
+        {
+            if (useCalleeSaved)
+            {
+                assert(!calleeSavedIntPool.empty());
+                reg = calleeSavedIntPool.back();
+                calleeSavedIntPool.pop_back();
+                usedCalleeSavedInt.insert(reg);
+            }
+            else
+            {
+                assert(!callerSavedIntPool.empty());
+                reg = callerSavedIntPool.back();
+                callerSavedIntPool.pop_back();
+            }
+        }
+        activeRegs[interval.first] = reg;
+        active_list.emplace_back(interval);
+        active_list.sort([](const auto &v1, const auto &v2)
+                         { return v1.second->end < v2.second->end; });
     }
-    activeRegs[interval.first] = reg;
-    active_list.emplace_back(interval);
-    active_list.sort([](const auto &v1, const auto &v2){ 
-                        return v1.second->end < v2.second->end; 
-                    });
 }
 
 

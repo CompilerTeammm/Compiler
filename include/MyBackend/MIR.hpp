@@ -117,7 +117,7 @@ class Register:public RISCVOp
 {
 public:
     Register(std::string _name);
-    int Floatflag; 
+    int Floatflag = 0; 
     bool IsFloatFlag() { return Floatflag == 1; }   // FloatReg or  IntReg
 };
 
