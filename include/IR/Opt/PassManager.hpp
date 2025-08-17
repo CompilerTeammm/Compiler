@@ -21,6 +21,7 @@
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
 #include "DAE.hpp"
+#include "ConstantHoist.hpp"
 #include "Global2Local.hpp"
 #include "SelfStoreElimination.hpp"
 #include "Inliner.hpp"
@@ -65,13 +66,13 @@ public:
                 "mem2reg",
                 "sccp",
                 "SCFG",
-
+                "ConstantHoist",
                 // "ECE",
                 // 过程间优化
                 "inline",
 
                 "SOGE",
-                // "G2L",
+                "G2L",
                 // 局部清理
                 "DAE",
                 "TRE",
@@ -196,7 +197,22 @@ public:
                 ConstantProp(fun).run();
             }
         }
+        if (IsEnabled("ConstantHoist"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto fun = function.get();
 
+                // 构建支配树分析，ConstantHoist 可能依赖它
+                DominantTree tree(fun);
+                tree.BuildDominantTree();
+                AM.add<DominantTree>(fun, &tree);
+
+                // 创建 ConstantHoist pass 并运行
+                ConstantHoist CHPass(fun);
+                CHPass.run();
+            }
+        }
         if (IsEnabled("SCFG"))
         {
             for (auto &func : funcVec)

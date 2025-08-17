@@ -36,6 +36,7 @@ class Global2Local : public _PassBase<Global2Local, Module>
     bool promoteGlobal(Var *GV, Function *F);
 
     bool isSimplePtrToSelf(Value *ptr, Value *V);
+    bool usesValue(Value* val, Var* GV);
 
 public:
     Global2Local(Module *_m, AnalysisManager &_AM)

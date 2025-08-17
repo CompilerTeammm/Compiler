@@ -1,54 +1,5 @@
 #include "../../include/IR/Opt/Global2Local.hpp"
 
-// bool Global2Local::run() {
-//     createSuccFuncs();
-//     createCallNum();
-//     detectRecursive();
-    
-
-//     bool modified = false;
-
-//     for (auto &gvPtr : module->GetGlobalVariable()) {
-//         Var* GV = gvPtr.get();
-//         if (!GV || GV->usage != Var::GlobalVar) continue;
-
-//         if (!addressEscapes(GV)) {
-//             safeGlobals.insert(GV);
-
-//             // 遍历模块函数，找使用 GV 的函数
-//             for (auto &funcPtr : module->GetFuncTion()) {
-//                 Function* F = funcPtr.get();
-//                 if (!F || F->GetBBs().empty()) continue;
-
-//                 bool usesGV = false;
-//                 for (auto &bb_sp : F->GetBBs()) {
-//                     BasicBlock* bb = bb_sp.get();
-//                     if (!bb) continue;
-
-//                     for (auto* inst : *bb) {
-//                         auto &uList = inst->GetUserUseList();
-//                         for (auto& u_sp : uList) {
-//                             Use* u = u_sp.get();
-//                             if (!u) continue;
-//                             if (u->GetValue() == GV) {
-//                                 usesGV = true;
-//                                 break;
-//                             }
-//                         }
-//                         if (usesGV) break;
-//                     }
-//                     if (usesGV) break;
-//                 }
-
-//                 if (usesGV) {
-//                     modified |= promoteGlobal(GV, F);
-//                 }
-//             }
-//         }
-//     }
-
-//     return modified;
-// }
 bool Global2Local::run() {
     createSuccFuncs();
     createCallNum();
@@ -61,9 +12,8 @@ bool Global2Local::run() {
         if (!GV || GV->usage != Var::GlobalVar) continue;
 
         if (addressEscapes(GV))
-            continue; // 地址逃逸的不做优化
+            continue; // 地址逃逸的不优化
 
-        // 遍历所有函数，记录使用GV的函数
         std::set<Function*> usingFuncs;
         bool inLoop = false;
 
@@ -71,53 +21,45 @@ bool Global2Local::run() {
             Function* F = funcPtr.get();
             if (!F || F->GetBBs().empty()) continue;
 
+            if (RecursiveFuncs.count(F)) 
+                continue; // 递归函数跳过
+
             bool usesGV = false;
+            int storeCount = 0;
 
             for (auto &bb_sp : F->GetBBs()) {
                 BasicBlock* bb = bb_sp.get();
                 if (!bb) continue;
 
-                if (bb->LoopDepth > 0) {
-                    // 该BB在循环中，涉及循环的全局变量直接不优化
-                    for (auto* inst : *bb) {
-                        auto &uList = inst->GetUserUseList();
-                        for (auto &u_sp : uList) {
-                            Use* u = u_sp.get();
-                            if (u && u->GetValue() == GV) {
-                                inLoop = true;
-                                break;
-                            }
-                        }
-                        if (inLoop) break;
-                    }
-                }
-                if (inLoop) break;
+                if (bb->LoopDepth > 0)
+                    inLoop = true; // 循环中使用
 
-                // 普通使用检查
                 for (auto* inst : *bb) {
                     auto &uList = inst->GetUserUseList();
                     for (auto &u_sp : uList) {
                         Use* u = u_sp.get();
-                        if (u && u->GetValue() == GV) {
-                            usesGV = true;
-                            break;
-                        }
+                        if (!u) continue;
+                        if (u->GetValue() != GV) continue;
+
+                        usesGV = true;
+                        if (dynamic_cast<StoreInst*>(inst))
+                            storeCount++;
                     }
-                    if (usesGV) break;
                 }
-                if (usesGV) break;
             }
+
+            if (inLoop) break; // 循环中使用，不优化
             if (usesGV)
                 usingFuncs.insert(F);
-            if (inLoop)
-                break;
+            // 如果函数内有多次写入，不优化
+            if (storeCount > 1) 
+                usingFuncs.clear();
         }
 
-        // 如果全局变量在循环中使用或者被多个函数共享，则不优化
-        if (inLoop || usingFuncs.size() != 1)
-            continue;
+        // 多函数使用或循环中使用或多次写入的不优化
+        if (inLoop || usingFuncs.size() != 1) continue;
 
-        // 此时安全提升
+        // 安全提升
         Function* targetFunc = *usingFuncs.begin();
         modified |= promoteGlobal(GV, targetFunc);
     }
@@ -250,51 +192,6 @@ bool Global2Local::isSimplePtrToSelf(Value *ptr, Value *V) {
 }
 
 
-
-// bool Global2Local::promoteGlobal(Var* GV, Function* F) {
-//     if (!GV || GV->usage != Var::GlobalVar) return false;
-//     if (!F || F->GetBBs().empty()) return false;
-
-//     BasicBlock* entryBB = F->GetBBs().front().get();
-//     if (!entryBB) return false;
-
-//     // 创建局部 alloca，带名字，插在入口开头
-//     AllocaInst* localAlloca = new AllocaInst(GV->GetType());
-//     entryBB->push_front(localAlloca);
-
-//     if (GV->GetInitializer()) {
-//         Operand initVal = GV->GetInitializer();
-//         entryBB->hu1_GenerateStoreInst(initVal, localAlloca,localAlloca);
-//     }
-
-//     bool modified = false;
-
-//     for (auto &bb_sp : F->GetBBs()) {
-//         BasicBlock* bb = bb_sp.get();
-//         if (!bb) continue;
-
-//         for (auto* inst : *bb) {
-//             auto &uList = inst->GetUserUseList();
-//             for (auto& u_sp : uList) {
-//                 Use* u = u_sp.get();
-//                 if (!u) continue;
-//                 if (u->GetValue() != GV) continue;
-
-//                 inst->ReplaceSomeUseWith(u, localAlloca);
-//                 modified = true;
-//             }
-//         }
-//     }
-//     auto &globalVars = module->GetGlobalVariable();
-//     for (auto iter = globalVars.begin(); iter != globalVars.end(); ) {
-//         if (iter->get() && iter->get() == GV) {
-//             iter = globalVars.erase(iter);  // 删除GV并安全更新迭代器
-//         } else {
-//             ++iter;
-//         }
-//     }
-//     return modified;
-// }
 bool Global2Local::promoteGlobal(Var* GV, Function* F) {
     if (!GV || GV->usage != Var::GlobalVar) return false;
     if (!F || F->GetBBs().empty()) return false;
@@ -303,7 +200,6 @@ bool Global2Local::promoteGlobal(Var* GV, Function* F) {
     for (auto &bb_sp : F->GetBBs()) {
         BasicBlock* bb = bb_sp.get();
         if (!bb) continue;
-
         if (bb->LoopDepth > 0) {
             for (auto* inst : *bb) {
                 auto &uList = inst->GetUserUseList();
@@ -311,6 +207,25 @@ bool Global2Local::promoteGlobal(Var* GV, Function* F) {
                     Use* u = u_sp.get();
                     if (u && u->GetValue() == GV) {
                         return false; // 循环中使用，不优化
+                    }
+                }
+            }
+        }
+    }
+
+    // 检查是否有依赖前值的 store
+    for (auto &bb_sp : F->GetBBs()) {
+        BasicBlock* bb = bb_sp.get();
+        if (!bb) continue;
+
+        for (auto* inst : *bb) {
+            if (auto* store = dynamic_cast<StoreInst*>(inst)) {
+                Value* ptrOp = store->GetOperand(1); // ptr
+                Value* valOp = store->GetOperand(0); // value
+                if (ptrOp == GV) {
+                    // 如果 store 的值依赖原 GV 的值，则是累加型
+                    if (usesValue(valOp, GV)) {
+                        return false;
                     }
                 }
             }
@@ -389,4 +304,19 @@ bool Global2Local::promoteGlobal(Var* GV, Function* F) {
     }
 
     return modified;
+}
+
+// 辅助函数：判断某值是否直接或间接依赖 GV
+bool Global2Local::usesValue(Value* val, Var* GV) {
+    if (!val) return false;
+    if (val == GV) return true;
+
+    if (auto* inst = dynamic_cast<Instruction*>(val)) {
+        int n = inst->GetOperandNums();
+        for (int i = 0; i < n; ++i) {
+            Value* op = inst->GetOperand(i);
+            if (usesValue(op, GV)) return true;
+        }
+    }
+    return false;
 }
