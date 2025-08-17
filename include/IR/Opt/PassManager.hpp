@@ -116,9 +116,9 @@ public:
                 "DAE",
                 "SSE",
                 "SOGE",
-            
                 "mem2reg",
                 "G2L",
+                "mem2reg",
                 "sccp",
                 "SCFG",
                 "DCE",
@@ -147,7 +147,7 @@ public:
                 // loop展开+常规优化
 
                 // 再来波常规清理
-                // "ExprReorder",
+                "ExprReorder",
                 "sccp",
                 "SCFG",
                 "SOGE",
