@@ -11,32 +11,57 @@ bool Global2Local::run() {
         Var* GV = gvPtr.get();
         if (!GV || GV->usage != Var::GlobalVar) continue;
 
-        if (addressEscapes(GV)) continue; // 地址逃逸的不优化
-        if (!GV->GetInitializer()) continue; // 没有初始化的跳过
+        // *** 仅处理“标量”全局：跳过数组/结构体/指针等复杂类型
+        auto *Ty = GV->GetType();
+        if (!Ty) continue;
 
-        // 如果初始化值是常量 0 → 跳过
+        IR_DataType tyKind = Ty->GetTypeEnum();
+        if (tyKind == IR_ARRAY || tyKind == IR_PTR || tyKind == BACKEND_PTR){
+            continue;
+        } 
+        // 地址逃逸或没有初始化的不优化
+        if (addressEscapes(GV)) continue;
+        if (!GV->GetInitializer()) continue;
         if (auto *CI = dynamic_cast<ConstIRInt*>(GV->GetInitializer())) {
             if (CI->GetVal() == 0) continue;
+        } else {
+            // 不是整型常量初始化的不做
+            continue;
         }
-
         std::set<Function*> candidateFuncs;
 
         for (auto &funcPtr : module->GetFuncTion()) {
             Function* F = funcPtr.get();
             if (!F || F->GetBBs().empty()) continue;
-            if (RecursiveFuncs.count(F)) continue; // 递归函数跳过
+            if (RecursiveFuncs.count(F)) continue;
+
+            // 安全检查：函数内是否有同名局部变量或参数
+            //这个难道没作用?
+            if (HasLocalVarNamed(GV->GetName(), F)) continue;
 
             bool inLoop = false;
             bool usesGV = false;
             int storeCount = 0;
+            bool localDependsOnGV = false;
 
             for (auto &bb_sp : F->GetBBs()) {
                 BasicBlock* bb = bb_sp.get();
                 if (!bb) continue;
-
                 if (bb->LoopDepth > 0) inLoop = true;
 
                 for (auto* inst : *bb) {
+                    // 检查局部变量是否依赖 GV
+                    if (auto* allocaInst = dynamic_cast<AllocaInst*>(inst)) {
+                        for (int i = 0; i < allocaInst->GetOperandNums(); i++) {
+                            Value* op = allocaInst->GetOperand(i);
+                            if (usesValue(op, GV)) {
+                                localDependsOnGV = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 检查指令是否使用全局变量
                     auto &uList = inst->GetUserUseList();
                     for (auto &u_sp : uList) {
                         Use* u = u_sp.get();
@@ -49,11 +74,12 @@ bool Global2Local::run() {
                 }
             }
 
-            if (inLoop || storeCount > 1) continue; // 循环中使用或多次写入不优化
+            // 跳过不安全情况
+            if (inLoop || storeCount > 1 || localDependsOnGV) continue;
             if (usesGV) candidateFuncs.insert(F);
         }
 
-        // 多函数使用的不优化
+        // 只优化单函数候选
         if (candidateFuncs.size() != 1) continue;
 
         Function* targetFunc = *candidateFuncs.begin();
@@ -62,7 +88,6 @@ bool Global2Local::run() {
 
     return modified;
 }
-
 
 
 void Global2Local::createSuccFuncs() {
@@ -151,28 +176,38 @@ void Global2Local::detectRecursive() {
 }
 
 bool Global2Local::addressEscapes(Value *V) {
+    if (!V || !V->GetType()) return true;
+    auto *Ty = V->GetType();
+    if (!Ty) return true;  // 保守处理
+
+    IR_DataType TKind = Ty->GetTypeEnum();
+    if (TKind == IR_ARRAY) return true;
+
     for (auto use : V->GetValUseList()) {
         User *user = use->GetUser();
         if (!user) continue;
 
-        if (auto *call = dynamic_cast<CallInst *>(user)) {
-            // 被函数调用使用 -> 地址逃逸
-            return true;
-        } else if (auto *store = dynamic_cast<StoreInst *>(user)) {
-            int idx = user->GetUseIndex(use); // 0=val, 1=ptr
-            if (idx == 1) {
-                // ptr 是 GV 自己或者经过简单转换才安全
+        if (dynamic_cast<CallInst *>(user)) {
+            return true; // 传入调用
+        }
+
+        if (auto *store = dynamic_cast<StoreInst *>(user)) {
+            // store val, ptr
+            int idx = user->GetUseIndex(use);
+            if (idx == 0) {
+                // 把 GV 作为“被存的值” —— 基本不该出现，保守处理为逃逸
+                return true;
+            } else if (idx == 1) {
+                // 存到以 GV 为基的地址
                 Value* ptrVal = use->GetValue();
-                if (ptrVal != user) {
-                    // 进一步判断是否是简单 bitcast 或 GEP 指向自己
-                    if (!isSimplePtrToSelf(ptrVal, V)) {
-                        return true; // 真正逃逸
-                    }
-                }
+                if (!isSimplePtrToSelf(ptrVal, V)) return true;
             }
-        } else if (dynamic_cast<PhiInst *>(user)) {
-            return true;
-        } else if (auto *gep = dynamic_cast<GepInst *>(user)) {
+        }
+
+        if (dynamic_cast<PhiInst *>(user)) return true;
+
+        if (auto *gep = dynamic_cast<GepInst *>(user)) {
+            //任何出现 GEP 都认为会形成地址计算，保守视作逃逸
             return true;
         }
     }
@@ -183,7 +218,17 @@ bool Global2Local::addressEscapes(Value *V) {
 bool Global2Local::isSimplePtrToSelf(Value *ptr, Value *V) {
     if (ptr == V) return true;
     if (auto *gep = dynamic_cast<GepInst *>(ptr)) {
-        return gep->GetOperand(0) == V;
+        return gep->GetOperand(0) == V && !HasVariableIndex(gep);
+    }
+    return false;
+}
+
+bool Global2Local::HasVariableIndex(GepInst *gep) {
+    for (int i = 0; i < gep->GetOperandNums(); i++) {
+        Value *idx = gep->GetOperand(i);
+        if (!dynamic_cast<ConstIRInt*>(idx)) {
+            return true; // 遇到非常量，就是变量下标
+        }
     }
     return false;
 }
@@ -206,6 +251,16 @@ bool Global2Local::usesValue(Value* val, Var* GV) {
 bool Global2Local::promoteGlobal(Var* GV, Function* F) {
     if (!GV || GV->usage != Var::GlobalVar) return false;
     if (!F || F->GetBBs().empty()) return false;
+
+    auto *Ty = GV->GetType();
+    if (!Ty) 
+        return false;
+
+    IR_DataType TKind = Ty->GetTypeEnum();
+    if (TKind == IR_ARRAY || TKind == IR_PTR || TKind == BACKEND_PTR)
+        return false;
+    // 再次检查函数内是否有同名局部变量或参数
+    if (HasLocalVarNamed(GV->GetName(), F)) return false;
 
     // 在 entry block 插入局部 alloca
     BasicBlock* entryBB = F->GetBBs().front().get();
@@ -234,13 +289,25 @@ bool Global2Local::promoteGlobal(Var* GV, Function* F) {
                 if (!u) continue;
                 if (u->GetValue() != GV) continue;
 
-                inst->ReplaceSomeUseWith(u, localAlloca);
-                modified = true;
+                // 只替换真正使用全局变量的指针操作
+                if (auto *loadInst = dynamic_cast<LoadInst*>(inst)) {
+                    // Load 的第 0 个操作数是指针
+                    if (loadInst->GetOperand(0) == GV) {
+                        inst->ReplaceSomeUseWith(u, localAlloca);
+                        modified = true;
+                    }
+                } else if (auto *storeInst = dynamic_cast<StoreInst*>(inst)) {
+                    // Store 的第 1 个操作数是指针
+                    if (storeInst->GetOperand(1) == GV) {
+                        inst->ReplaceSomeUseWith(u, localAlloca);
+                        modified = true;
+                    }
+                }
             }
         }
     }
 
-    // 确保全局变量被替换后再删除
+    // 删除全局变量
     auto &globalVars = module->GetGlobalVariable();
     for (auto iter = globalVars.begin(); iter != globalVars.end(); ) {
         if (iter->get() == GV) {
@@ -251,4 +318,18 @@ bool Global2Local::promoteGlobal(Var* GV, Function* F) {
     }
 
     return modified;
+}
+
+bool Global2Local::HasLocalVarNamed(const std::string &name, Function* F) {
+    for (auto &bb_sp : F->GetBBs()) {
+        BasicBlock* bb = bb_sp.get();
+        if (!bb) continue;
+        for (auto* inst : *bb) {
+            if (auto* allocaInst = dynamic_cast<AllocaInst*>(inst)) {
+                if (allocaInst->GetName() == name)
+                    return true;
+            }
+        }
+    }
+    return false;
 }

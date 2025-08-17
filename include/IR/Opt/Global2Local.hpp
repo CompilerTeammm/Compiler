@@ -37,6 +37,9 @@ class Global2Local : public _PassBase<Global2Local, Module>
 
     bool isSimplePtrToSelf(Value *ptr, Value *V);
     bool usesValue(Value* val, Var* GV);
+    // 检查函数 F 是否含有指定名字的局部变量
+    bool HasLocalVarNamed(const std::string &name, Function* F);
+    bool HasVariableIndex(GepInst *gep); 
 
 public:
     Global2Local(Module *_m, AnalysisManager &_AM)

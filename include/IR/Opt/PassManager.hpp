@@ -114,7 +114,7 @@ public:
             enabledPasses = {
                 // 第一波
                 "DAE",
-                "SSE",
+                // "SSE",
                 "SOGE",
                 "mem2reg",
                 "G2L",
@@ -147,7 +147,7 @@ public:
                 // loop展开+常规优化
 
                 // 再来波常规清理
-                "ExprReorder",
+                // "ExprReorder",
                 "sccp",
                 "SCFG",
                 "SOGE",
