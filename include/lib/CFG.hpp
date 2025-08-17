@@ -11,7 +11,40 @@ class Function;
 
 class InitVal;
 class InitVals;
+bool IsTerminator(Instruction *inst);
+template <typename T>
+T PopBack(std::vector<T> &vec)
+{
+  T tmp = vec.back();
+  vec.pop_back();
+  return tmp;
+}
 
+template <typename T>
+void PushVecSingleVal(std::vector<T>& vec, const T& v) {
+    if (std::find(vec.begin(), vec.end(), v) == vec.end()) {
+        vec.push_back(v);
+    }
+}
+
+template <typename T>
+Value *GetOperand(T inst, int i)
+{
+    auto userInst = dynamic_cast<Instruction *>(inst);
+    assert(userInst && "GetOperand only works on Instruction");
+    auto &useList = userInst->GetUserUseList(); 
+    assert(i >= 0 && i < (int)useList.size());
+    return useList[i]->GetValue();
+}
+
+template <typename T>
+void vec_pop(std::vector<T> &vec, int &index)
+{
+  assert(index < vec.size() && "index can not bigger than size");
+  vec[index] = vec[vec.size() - 1];
+  vec.pop_back();
+  index--;
+}
 class Initializer : public Value, public std::vector<Operand>
 {
 public:
@@ -620,7 +653,7 @@ public:
   GepInst(Type *_tp);
   GepInst(Operand base);
   GepInst(Operand base, std::vector<Operand> &args);
-
+  GepInst(Value *base, const std::vector<Value *> &indices);
   void AddArg(Value *arg);
   Type *GetType();
   std::vector<Operand> GetIndexs();
@@ -700,6 +733,41 @@ public:
 Operand ToFloat(Operand op, BasicBlock *block);
 Operand ToInt(Operand op, BasicBlock *block);
 
+class BitCastInst : public Instruction {
+public:
+    BitCastInst(Type *_tp) : Instruction(_tp, Op::BITCAST) {}
+
+    // 常用构造：给出源操作数与目标类型
+    BitCastInst(Operand _A, Type *_tp) : Instruction(_tp, Op::BITCAST) {
+        add_use(_A);
+    }
+
+    BitCastInst *clone(std::unordered_map<Operand, Operand> &operandMap) override {
+        Operand src = nullptr;
+        if (!useruselist.empty() && useruselist[0]) {
+            Operand orig = useruselist[0]->GetValue();
+            auto it = operandMap.find(orig);
+            if (it != operandMap.end()) src = it->second;
+            else src = orig;
+        }
+        return new BitCastInst(src, type);
+    }
+
+    void print() final {
+        Value::print();
+        std::cout << " = bitcast ";
+        if (!useruselist.empty() && useruselist[0] && useruselist[0]->GetValue()) {
+            useruselist[0]->GetValue()->GetType()->print();
+            std::cout << " ";
+            useruselist[0]->GetValue()->print();
+            std::cout << " ";
+        }
+        std::cout << "to ";
+        type->print();
+        std::cout << "\n";
+    }
+};
+
 /// dh 来实现这个
 class PhiInst : public Instruction
 {
@@ -767,16 +835,11 @@ public:
   }
   Value *GetVal(int index)
   {
-    auto &[v, bb] = PhiRecord[index];
+    auto &[v, bb] = PhiRecord[index]; 
     return v;
   }
-  static PhiInst *NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, Type *ty, std::string Name);
-  /*   void RSUW(Use *u, Operand val)
-    {
-      u->RemoveFromValUseList(this);
-      u->usee = val;
-      val->add_use(u);
-    } */
+  static PhiInst *NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, std::string Name = "");
+  static PhiInst *NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, Type *ty, std::string Name = "");
   static PhiInst *NewPhiNode(Type *ty);
 };
 
@@ -880,6 +943,9 @@ public:
   friend bool operator==(BasicBlock *lhs, const std::shared_ptr<BasicBlock> &rhs)
   {
     return lhs == rhs.get();
+  }
+  bool HasSinglePredecessor() const {
+    return PredBlocks.size() == 1;
   }
 };
 

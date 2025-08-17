@@ -1,3 +1,4 @@
+/*
 #pragma once
 #include "Passbase.hpp"
 #include "../Analysis/Dominant.hpp"
@@ -39,10 +40,11 @@ class Global2Local : public _PassBase<Global2Local, Module>
     bool usesValue(Value* val, Var* GV);
 
 public:
-    Global2Local(Module *_m, AnalysisManager &_AM)
-        : module(_m), AM(_AM) {}
-
-    ~Global2Local() = default;
-
-    bool run() override;
+    bool run()override;
+    Global2Local(Module *m, AnalysisManager &AM) : module(m), AM(AM) {}
+    ~Global2Local() {
+        for (auto l : DeleteLoop)
+          delete l;
+        }
 };
+*/

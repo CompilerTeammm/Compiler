@@ -68,7 +68,6 @@ CallInst *Trival::BuildInTransform(CallInst *inst)
 {
   if (!check_builtin(inst->GetOperand(0)->GetName()))
   {
-    // std::cerr<<inst->GetOperand(0)->GetName()<<'\n';
     return inst;
   }
   if (inst->GetOperand(0)->GetName() == "llvm.memcpy.p0.p0.i32")
@@ -85,6 +84,5 @@ CallInst *Trival::BuildInTransform(CallInst *inst)
     delete inst;
     return tmp;
   }
-  // std::cerr<<inst->GetOperand(0)->GetName()<<'\n';
   return inst;
 }

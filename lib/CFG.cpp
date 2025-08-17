@@ -572,6 +572,34 @@ GepInst::GepInst(Operand base, std::vector<Operand> &args)
         add_use(i);
     id = Op::Gep;
 }
+//核查是否用过
+GepInst::GepInst(Value *base, const std::vector<Value *> &indices)
+{
+    // 计算类型逻辑
+    Type *t = base->GetType();
+    if (t->GetTypeEnum() == IR_DataType::IR_PTR) {
+        if (auto has = dynamic_cast<HasSubType *>(t)) {
+            t = has->GetSubType();
+        }
+    }
+    while (auto has = dynamic_cast<HasSubType *>(t)) {
+        if (t->GetTypeEnum() == IR_DataType::IR_ARRAY) {
+            t = has->GetSubType();
+        } else {
+            break;
+        }
+    }
+    Type *gepRetType = PointerType::NewPointerTypeGet(t);
+    SetType(gepRetType);
+
+    // 添加操作数
+    add_use((Operand)base);
+    for (auto *val : indices) {
+        add_use((Operand)val);
+    }
+
+    id = Op::Gep;
+}
 
 void GepInst::AddArg(Value *arg)
 {
@@ -883,6 +911,44 @@ PhiInst *PhiInst::clone(std::unordered_map<Operand, Operand> &mapping)
     return to;
 }
 
+PhiInst *PhiInst::NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, std::string Name)
+{
+    PhiInst *tmp = new PhiInst{BeforeInst};
+    for (auto iter = currentBB->begin(); iter != currentBB->end(); ++iter)
+    {
+        if (*iter == BeforeInst)
+            iter.InsertBefore(tmp);
+    }
+    if (!Name.empty())
+        tmp->SetName(Name);
+    tmp->id = Op::Phi;
+    return tmp;
+}
+
+PhiInst *PhiInst::NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, Type *ty, std::string Name)
+{
+    PhiInst *tmp = new PhiInst(BeforeInst, ty);
+    for (auto iter = currentBB->begin(); iter != currentBB->end(); ++iter)
+    {
+        if (*iter == BeforeInst)
+        {
+            iter.InsertBefore(tmp);
+            break;
+        }
+    }
+    if (!Name.empty())
+        tmp->SetName(Name);
+    tmp->id = Op::Phi;
+    return tmp;
+}
+
+PhiInst *PhiInst::NewPhiNode(Type *ty)
+{
+    assert(ty);
+    PhiInst *tmp = new PhiInst(ty);
+    tmp->id = Op::Phi;
+    return tmp;
+}
 //////// end
 
 ConstantData *ConstantData::clone(std::unordered_map<Operand, Operand> &mapping)
@@ -1071,74 +1137,75 @@ void BasicBlock::RemoveNextBlock(BasicBlock *next)
         NextBlocks.end());
 }
 
-// void BasicBlock::RemovePredBB(BasicBlock *pre)
-// {
-//     if (pre == this)
-//     {
-//         for (auto iter = pre->begin();
-//              iter != pre->end() && dynamic_cast<PhiInst *>(*iter);)
-//         {
-//             auto phi = dynamic_cast<PhiInst *>(*iter);
-//             ++iter;
-//             phi->EraseRecordByBlock(pre);
-//             if (phi->PhiRecord.size() == 1)
-//             {
-//                 BasicBlock *b = phi->PhiRecord.begin()->second.second;
-//                 if (b == this)
-//                 {
-//                     phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
-//                     delete phi;
-//                 }
-//                 else
-//                 {
-//                     Value *repl = (*(phi->PhiRecord.begin())).second.first;
-//                     if (repl == phi)
-//                         phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
-//                     phi->ReplaceAllUseWith(repl);
-//                     delete phi;
-//                 }
-//             }
-//         }
-//         return;
-//     }
-//     for (auto iter = this->begin(); iter != this->end(); ++iter)
-//     {
-//         auto inst = *iter;
-//         if (auto phi = dynamic_cast<PhiInst *>(this->front()))
-//         {
-//             auto tmp = std::find_if(
-//                 phi->PhiRecord.begin(), phi->PhiRecord.end(),
-//                 [pre](const std::pair<int, std::pair<Value *, BasicBlock *>> &ele)
-//                 {
-//                     return ele.second.second == pre;
-//                 });
-//             if (tmp != phi->PhiRecord.end())
-//             {
-//                 phi->Del_Incomes(tmp->first);
-//                 phi->FormatPhi();
-//             }
-//             if (phi->PhiRecord.size() == 1)
-//             {
-//                 BasicBlock *b = phi->PhiRecord.begin()->second.second;
-//                 if (b == this)
-//                 {
-//                     phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
-//                     delete phi;
-//                 }
-//                 else
-//                 {
-//                     Value *repl = (*(phi->PhiRecord.begin())).second.first;
-//                     if (repl == phi)
-//                         phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
-//                     phi->ReplaceAllUseWith(repl);
-//                     delete phi;
-//                 }
-//             }
-//         }
-//         else
-//             return;
-//     }
-// }
+//需要改一下
+void BasicBlock::RemovePredBB(BasicBlock *pre)
+{
+    if (pre == this)
+    {
+        for (auto iter = pre->begin();
+             iter != pre->end() && dynamic_cast<PhiInst *>(*iter);)
+        {
+            auto phi = dynamic_cast<PhiInst *>(*iter);
+            ++iter;
+            phi->removeIncomingFrom(pre);
+            if (phi->PhiRecord.size() == 1)
+            {
+                BasicBlock *b = phi->PhiRecord.begin()->second.second;
+                if (b == this)
+                {
+                    phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+                    delete phi;
+                }
+                else
+                {
+                    Value *repl = (*(phi->PhiRecord.begin())).second.first;
+                    if (repl == phi)
+                        phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+                    phi->ReplaceAllUseWith(repl);
+                    delete phi;
+                }
+            }
+        }
+        return;
+    }
+    for (auto iter = this->begin(); iter != this->end(); ++iter)
+    {
+        auto inst = *iter;
+        if (auto phi = dynamic_cast<PhiInst *>(this->GetFront()))
+        {
+            auto tmp = std::find_if(
+                phi->PhiRecord.begin(), phi->PhiRecord.end(),
+                [pre](const std::pair<int, std::pair<Value *, BasicBlock *>> &ele)
+                {
+                    return ele.second.second == pre;
+                });
+            if (tmp != phi->PhiRecord.end())
+            {
+                phi->Del_Incomes(tmp->first);
+                phi->FormatPhi();
+            }
+            if (phi->PhiRecord.size() == 1)
+            {
+                BasicBlock *b = phi->PhiRecord.begin()->second.second;
+                if (b == this)
+                {
+                    phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+                    delete phi;
+                }
+                else
+                {
+                    Value *repl = (*(phi->PhiRecord.begin())).second.first;
+                    if (repl == phi)
+                        phi->ReplaceAllUseWith(UndefValue::Get(phi->GetType()));
+                    phi->ReplaceAllUseWith(repl);
+                    delete phi;
+                }
+            }
+        }
+        else
+            return;
+    }
+}
 
 // bool BasicBlock::is_empty_Insts() const
 // {
@@ -2160,23 +2227,6 @@ void PhiInst::ReplaceVal(Use *use, Value *new_val)
     PhiRecord[index].first = new_val;
 }
 
-PhiInst *PhiInst::NewPhiNode(Instruction *BeforeInst, BasicBlock *currentBB, Type *ty, std::string Name)
-{
-    PhiInst *tmp = new PhiInst(BeforeInst, ty);
-    for (auto iter = currentBB->begin(); iter != currentBB->end(); ++iter)
-    {
-        if (*iter == BeforeInst)
-        {
-            iter.InsertBefore(tmp);
-            break;
-        }
-    }
-    if (!Name.empty())
-        tmp->SetName(Name);
-    tmp->id = Op::Phi;
-    return tmp;
-}
-
 bool Function::MemWrite()
 {
     for (auto bb : *this)
@@ -2230,12 +2280,4 @@ BinaryInst *BinaryInst::CreateInst(Operand _A, Operation __op, Operand _B, User 
             }
     }
     return bin;
-}
-
-PhiInst *PhiInst::NewPhiNode(Type *ty)
-{
-    assert(ty);
-    PhiInst *tmp = new PhiInst(ty);
-    tmp->id = Op::Phi;
-    return tmp;
 }

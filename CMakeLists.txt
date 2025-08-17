@@ -47,9 +47,12 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/SelfStoreElimination.cpp
   IR/Opt/CodeMerge.cpp
   IR/Opt/Global2Local.cpp
-  IR/Opt/LoopSimping.cpp
-  IR/Opt/LoopParing.cpp
-  IR/Opt/LoopUnrolling.cpp
+  IR/Opt/LoopSimplify.cpp
+  IR/Opt/LoopRotate.cpp
+  IR/Opt/LoopUnroll.cpp
+  IR/Opt/SSR.cpp
+  IR/Opt/Licm.cpp
+  IR/Opt/Lcssa.cpp
   IR/Analysis/LoopInfo.cpp
 
   IR/Opt/Inliner.cpp
@@ -58,7 +61,9 @@ file(GLOB_RECURSE SOURCES
   IR/Opt/ECE.cpp
   IR/Opt/GepCombine.cpp
   IR/Opt/GepEval.cpp
-
+  IR/Opt/ExprReorder.cpp
+  IR/Opt/ConstantHoist.cpp
+  
   MyBackend/*.cpp
   Log/log.cpp
 

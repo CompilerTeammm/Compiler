@@ -177,4 +177,8 @@ public:
     ~DominantTree() = default;
 
     std::vector<BasicBlock *> getIdomVec(BasicBlock *);
+    std::vector<std::vector<int>> &getDest()
+    {
+        return Dest;
+    }
 };
