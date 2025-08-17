@@ -4,10 +4,10 @@
 #include "Mem2reg.hpp"
 #include "MemoryToRegister.hpp"
 #include <queue>
-// #include "../../lib/CoreClass.hpp"
+#include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
 #include <memory>
-// #include "../../lib/Singleton.hpp"
+#include "../../lib/Singleton.hpp"
 #include "DCE.hpp"
 #include "AnalysisManager.hpp"
 #include "ConstantProp.hpp"
@@ -24,6 +24,7 @@
 #include "Inliner.hpp"
 #include "TRE.hpp"
 #include "SOGE.hpp"
+#include "ConstantHoist.hpp"
 #include "ECE.hpp"
 #include "GepCombine.hpp"
 #include "GepEval.hpp"

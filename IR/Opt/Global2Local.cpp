@@ -1,4 +1,3 @@
-/*
 #include "../../include/IR/Opt/Global2Local.hpp"
 
 bool Global2Local::run() {
@@ -213,5 +212,111 @@ bool Global2Local::promoteGlobal(Var* GV, Function* F) {
             }
         }
     }
+
+    // 检查是否有依赖前值的 store
+    for (auto &bb_sp : F->GetBBs()) {
+        BasicBlock* bb = bb_sp.get();
+        if (!bb) continue;
+
+        for (auto* inst : *bb) {
+            if (auto* store = dynamic_cast<StoreInst*>(inst)) {
+                Value* ptrOp = store->GetOperand(1); // ptr
+                Value* valOp = store->GetOperand(0); // value
+                if (ptrOp == GV) {
+                    // 如果 store 的值依赖原 GV 的值，则是累加型
+                    if (usesValue(valOp, GV)) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    // 检查全局变量是否被多个函数使用
+    int useFuncCount = 0;
+    for (auto &funcPtr : module->GetFuncTion()) {
+        Function* checkF = funcPtr.get();
+        if (!checkF || checkF->GetBBs().empty()) continue;
+
+        bool usesGV = false;
+        for (auto &bb_sp : checkF->GetBBs()) {
+            BasicBlock* bb = bb_sp.get();
+            if (!bb) continue;
+
+            for (auto* inst : *bb) {
+                auto &uList = inst->GetUserUseList();
+                for (auto &u_sp : uList) {
+                    Use* u = u_sp.get();
+                    if (u && u->GetValue() == GV) {
+                        usesGV = true;
+                        break;
+                    }
+                }
+                if (usesGV) break;
+            }
+            if (usesGV) break;
+        }
+        if (usesGV) {
+            useFuncCount++;
+            if (useFuncCount > 1) return false; // 多函数使用，不优化
+        }
+    }
+
+    // 创建局部 alloca，插在函数入口
+    BasicBlock* entryBB = F->GetBBs().front().get();
+    if (!entryBB) return false;
+
+    AllocaInst* localAlloca = new AllocaInst(GV->GetType());
+    entryBB->push_front(localAlloca);
+
+    if (GV->GetInitializer()) {
+        Operand initVal = GV->GetInitializer();
+        entryBB->hu1_GenerateStoreInst(initVal, localAlloca, localAlloca);
+    }
+
+    bool modified = false;
+
+    for (auto &bb_sp : F->GetBBs()) {
+        BasicBlock* bb = bb_sp.get();
+        if (!bb) continue;
+
+        for (auto* inst : *bb) {
+            auto &uList = inst->GetUserUseList();
+            for (auto &u_sp : uList) {
+                Use* u = u_sp.get();
+                if (!u) continue;
+                if (u->GetValue() != GV) continue;
+
+                inst->ReplaceSomeUseWith(u, localAlloca);
+                modified = true;
+            }
+        }
+    }
+
+    // 删除模块全局变量
+    auto &globalVars = module->GetGlobalVariable();
+    for (auto iter = globalVars.begin(); iter != globalVars.end(); ) {
+        if (iter->get() && iter->get() == GV) {
+            iter = globalVars.erase(iter);
+        } else {
+            ++iter;
+        }
+    }
+
+    return modified;
 }
-*/
+
+// 辅助函数：判断某值是否直接或间接依赖 GV
+bool Global2Local::usesValue(Value* val, Var* GV) {
+    if (!val) return false;
+    if (val == GV) return true;
+
+    if (auto* inst = dynamic_cast<Instruction*>(val)) {
+        int n = inst->GetOperandNums();
+        for (int i = 0; i < n; ++i) {
+            Value* op = inst->GetOperand(i);
+            if (usesValue(op, GV)) return true;
+        }
+    }
+    return false;
+}
