@@ -963,12 +963,12 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
                 auto lwInst = mapTrans(val)->as<RISCVInst>();
                 if (lwInst == nullptr) // need to deal
                     continue;
-                // auto op = std::make_shared<RealRegister> ("a" + std::to_string(paramNum - 1));
-                // lwInst->replacedIndexWithVal(0,op);
+                auto op = std::make_shared<RealRegister> ("a" + std::to_string(paramNum - 1));
+                lwInst->replacedIndexWithVal(0,op);
                 //lwInst->getOpreand(0)->as<VirRegister>()->reWriteRegWithReal("a" + std::to_string(paramNum - 1));
-                param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
-                param->SetRealRegister("a" + std::to_string(paramNum - 1));
-                param->push_back(lwInst->getOpreand(0));
+                // param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+                // param->SetRealRegister("a" + std::to_string(paramNum - 1));
+                // param->push_back(lwInst->getOpreand(0));
             }
         }
     }

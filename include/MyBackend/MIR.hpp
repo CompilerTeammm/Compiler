@@ -143,7 +143,7 @@ public:
         // INT  ABI name
         zero,ra,sp,gp,tp,t0,t1,s0,
         // caller_saved
-        t2,t3,t4,t5,t6,a0,a1,a2,a3,a4,a5,a6,a7,
+        a0,a1,a2,a3,a4,a5,a6,a7,t2,t3,t4,t5,t6,
         // callee_saved
         s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,
         
