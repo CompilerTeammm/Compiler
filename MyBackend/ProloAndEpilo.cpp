@@ -77,7 +77,7 @@ size_t ProloAndEpilo::caculate()
     }
 
     // caller 
-    auto& paraNum = mfunc->getNeadStackForparam();
+    auto& paraNum = mfunc->getNeedStackForparam();
     if ( paraNum  > 8) {
         sumMallocSize += (paraNum -8) * 8;
     }

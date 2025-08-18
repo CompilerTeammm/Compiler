@@ -659,7 +659,7 @@ private:
     std::vector<RISCVInst*> spilledParamLoadInst;
 
     // caller
-    int MallocStackForparam;
+    int MallocStackForparam = 0;
 public:
     size_t& getparamNum() { return paramNum; }
     std::vector<RISCVInst*>&  getSpilledParam()  { return spilledParam;}
@@ -668,5 +668,5 @@ public:
     std::vector<RISCVInst*>& getSpilledParamLoadInst() { return spilledParamLoadInst; }
     
     // caller 
-    int& getNeadStackForparam()  { return MallocStackForparam;} 
+    int& getNeedStackForparam()  { return MallocStackForparam;} 
 };

@@ -905,10 +905,10 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         return DealMemcpyFunc(inst);
     }
 
-    getCurFunction()->getNeadStackForparam() = inst->GetOperandNums() -1;
+    getCurFunction()->getNeedStackForparam() = inst->GetOperandNums() -1;
     // param  callee_saved  caller_saved  call  ret
     int Num = inst->GetOperandNums() - 1;
-    if (Num >= 8)
+    if (Num >= 8)  // 大于 8 个的参数的话通过栈帧进行传递 sp
     {
         for (int paramNum = 9; paramNum < inst->GetOperandNums(); paramNum++)
         {
@@ -951,7 +951,12 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
         else {
             Value *val = inst->GetOperand(paramNum);
             if (dynamic_cast<CallInst *>(val))
-                continue;
+            {
+                auto mvInst = mapTrans(val)->as<RISCVInst>();
+                param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+                param->SetRealRegister("a" + std::to_string(paramNum - 1));
+                param->push_back(mvInst->getOpreand(0));
+            }
             if (dynamic_cast<ConstantData *>(val))
             {
                 param = CreateInstAndBuildBind(RISCVInst::_li, inst);
@@ -963,12 +968,12 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
                 auto lwInst = mapTrans(val)->as<RISCVInst>();
                 if (lwInst == nullptr) // need to deal
                     continue;
-                auto op = std::make_shared<RealRegister> ("a" + std::to_string(paramNum - 1));
-                lwInst->replacedIndexWithVal(0,op);
+                //auto op = std::make_shared<RealRegister> ("a" + std::to_string(paramNum - 1));
+                //lwInst->replacedIndexWithVal(0,op);
                 //lwInst->getOpreand(0)->as<VirRegister>()->reWriteRegWithReal("a" + std::to_string(paramNum - 1));
-                // param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
-                // param->SetRealRegister("a" + std::to_string(paramNum - 1));
-                // param->push_back(lwInst->getOpreand(0));
+                param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+                param->SetRealRegister("a" + std::to_string(paramNum - 1));
+                param->push_back(lwInst->getOpreand(0));
             }
         }
     }
