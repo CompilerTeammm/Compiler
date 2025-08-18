@@ -80,7 +80,7 @@ bool TransFunction::run(Function* func)
     // changeTheOrders(mfunc);
 
     // 后端优化 phi 函数的消除
-    PhiEliminate phi(func);
+    PhiEliminate phi(func,ctx);
     ret = phi.run();
     if(!ret)   LOG(ERROR,"Phi failed");
 

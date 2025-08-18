@@ -3,7 +3,7 @@
 using realReg=RealRegister::realReg;
 RegisterVec::RegisterVec()
 {
-    realReg regOp = realReg::t2;
+    realReg regOp = realReg::a0;
     auto appendReg = [&](std::vector<RealRegister*>& vec) {
         vec.push_back(RealRegister::GetRealReg(regOp));
         regOp = realReg(regOp + 1);

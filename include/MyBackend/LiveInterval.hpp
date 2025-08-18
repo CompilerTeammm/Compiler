@@ -44,7 +44,7 @@ private:
     std::map<Register*,std::vector<rangeInfoptr>> regLiveIntervals;
     using position = int;
     std::map<RISCVInst*,position> CallAndPosRecord;
-    // 实际寄存器
+    // 实际寄存器 计算liveInterval 的时候必须把 realReg 寄存器也给计算上，否则是错误的
     std::unordered_map<RealRegister*,rangeInfoptr> realRegWithitRangeInfo; 
 public:
     void CalcuLiveIntervals();

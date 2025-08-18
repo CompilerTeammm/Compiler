@@ -66,6 +66,7 @@ void RegAllocation::initializeRegisterPool()
 #endif
 }
 
+// fillLinerScaner 填充了 vir 和 real Reg 的 liveInterval
 void RegAllocation::fillLinerScaner()
 {
     LinerScaner.clear();
@@ -258,11 +259,6 @@ void RegAllocation::ScanLiveinterval()
 // 溢出尚且未考虑到
 void RegAllocation::ReWriteRegs()
 {
-    // for(auto [virReg,realReg] : activeRegs)
-    // {
-    //     virReg->as<VirRegister>()->reWriteRegWithReal(realReg);
-    // }
-
     for (auto& kv : interval.getIntervals()) {
         Register* virReg = kv.first;
         auto itReg = activeRegs.find(virReg);
