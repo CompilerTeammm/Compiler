@@ -675,7 +675,7 @@ void RISCVContext::extraDealCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::
             Inst->setRealLIOp(valOp1);
             auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fmv_w_x, inst);
             Inst->DealMore(Inst2);
-            Inst2->setMVOp(Inst);
+            Inst2->setFloatMVOp(Inst);
             valToRiscvOp[valOp1] = Inst;
             tmp1 = Inst2;
         }
@@ -685,7 +685,7 @@ void RISCVContext::extraDealCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::
             Inst->setRealLIOp(valOp2);
             auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fmv_w_x, inst);
             Inst->DealMore(Inst2);
-            Inst2->setMVOp(Inst);
+            Inst2->setFloatMVOp(Inst);
             valToRiscvOp[valOp2] = Inst;
             tmp2 = Inst2;
         }
@@ -797,7 +797,7 @@ RISCVInst*RISCVContext::CreateF2IInst(FP2SIInst *inst)
 
         auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fmv_w_x, inst);
         Inst->DealMore(Inst2);
-        Inst2->setMVOp(Inst);
+        Inst2->setFloatMVOp(Inst);
 
         auto Inst3 = CreateInstAndBuildBind(RISCVInst::_fcvt_w_s, inst);
         Inst->DealMore(Inst3);
@@ -1124,6 +1124,101 @@ void RISCVContext::getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *a
     }
 }
 
+void RISCVContext::getDynmicPoint(Value* globlVal,GepInst *inst,RISCVInst *addiInst,RISCVInst*& RInst)
+{
+    std::vector<int> numsRecord;
+    PointerType *Pointer = dynamic_cast<PointerType *>(globlVal->GetType());
+    ArrayType *arry = dynamic_cast<ArrayType *>(Pointer->GetSubType());
+    int layer = arry->GetLayer();
+    // if (dynamic_cast<ConstIRInt*> (inst->GetOperand(counter)))
+    while (arry && arry->GetLayer() != 0)
+    {
+        numsRecord.emplace_back(arry->GetNum());
+        arry = dynamic_cast<ArrayType *>(arry->GetSubType());
+    }
+    for (int i = inst->GetOperandNums() - 1; i >= 1; i--)
+    {
+        int Rsubscript = i - 1;
+        if (auto val = dynamic_cast<ConstIRInt *>(inst->GetOperand(i)))
+        { // 取值确定
+            int sum = 1;
+            for (int j = Rsubscript; j < numsRecord.size() ; j++)
+            {
+                sum *= numsRecord[j];
+            }
+            if (i == numsRecord.size() +1 && val->GetVal() != 0) 
+                sum = val->GetVal();
+            else  
+                sum *= val->GetVal();
+            sum *= 4;
+            if (sum != 0)
+            {
+                if ( sum <= 2047 && sum >= -2048) {
+                    RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                    RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                    RInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+                } else {
+                    RISCVInst* liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+                    liInst->SetVirRegister();
+                    liInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+
+                    RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(liInst->getOpreand(0));
+                }
+            }
+        }
+        else
+        {
+            auto loadInst = dynamic_cast<Instruction *>(inst->GetOperand(i));
+            if (loadInst == nullptr)
+                LOG(ERROR,"what happened");
+            RISCVInst *RLInst = mapTrans(loadInst)->as<RISCVInst>();
+            int sum = 1;
+            for (int j = numsRecord.size() - 1; j > i-2; j--)
+            {
+                sum *= numsRecord[j];
+            }
+
+            if (sum != 1) {
+                RISCVInst *liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+                liInst->SetVirRegister();
+                liInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+
+
+                RISCVInst *mulInst = CreateInstAndBuildBind(RISCVInst::_mul,inst);
+                mulInst->push_back(RLInst->getOpreand(0));
+                mulInst->push_back(RLInst->getOpreand(0));
+                mulInst->push_back(liInst->getOpreand(0));
+
+                RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+                slliInst->push_back(RLInst->getOpreand(0));
+                slliInst->push_back(RLInst->getOpreand(0));
+                slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                RInst->push_back(slliInst->getOpreand(0));
+                RInst->push_back(liInst->GetPrevNode()->getOpreand(0));
+                RInst->push_back(slliInst->getOpreand(0));
+            }
+            else {
+                RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+                slliInst->push_back(RLInst->getOpreand(0));
+                slliInst->push_back(RLInst->getOpreand(0));
+                slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                RInst->push_back(slliInst->getOpreand(0));
+                RInst->push_back(addiInst->getOpreand(0));
+                RInst->push_back(slliInst->getOpreand(0));
+            }
+        }
+    }
+}
+
+
 // 处理数组  全局的数组应该 la 进行首地址的加载
 // 局部数组已经通过了 memcpy 拷贝到了栈本地，因此不需要再 la 
 // 而且局部数组的加载开销要小很多
@@ -1152,7 +1247,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
                     break;
                 }
             }
-            if (flag == 0)
+            if (flag == 0)   // flag == 0, 代表这个数就是全是不变的数 例如 [2][3] 这样定死的
             {
                 int sum = getSumOffset(globlVal, inst);
                 if (sum <= 2047 && sum >= -2048) {
@@ -1174,6 +1269,7 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             }
             else
             {
+                //  [i][3]  这样的
                 getDynmicSumOffset(globlVal, inst, laInst, laInst);
             }
         }
@@ -1326,39 +1422,123 @@ RISCVInst* RISCVContext::CreateGInst(GepInst *inst)
             }
         }
         else  {  // 函数参数指针的偏移到这里了
-            if (dynamic_cast<ConstIRInt *>(inst->GetOperand(inst->GetOperandNums() - 1)))
+            PointerType *Pointer = dynamic_cast<PointerType *>(globlVal->GetType());
+            ArrayType *arry = dynamic_cast<ArrayType *>(Pointer->GetSubType());
+            auto ldInst = mapTrans(globlVal)->as<RISCVInst>();
+
+            if (arry != nullptr)
             {
-                RISCVInst *liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
-                liInst->SetVirRegister();
-                liInst->SetImmOp(inst->GetOperand(inst->GetOperandNums() - 1));
+                int flag = 0;
+                for (int i = inst->GetOperandNums() - 1; i >= 1; i--)
+                {
+                    if (auto val = dynamic_cast<ConstIRInt *>(inst->GetOperand(i)))
+                    {
+                    }
+                    else
+                    {
+                        flag = 1;
+                        break;
+                    }
+                }
+                if (flag == 0) // flag == 0, 代表这个数就是全是不变的数 例如 [2][3] 这样定死的
+                {
+                    int sum = getSumOffset(globlVal, inst);
+                    if (sum <= 2047 && sum >= -2048)
+                    {
+                        RInst = CreateInstAndBuildBind(RISCVInst::_addi, inst);
+                        RInst->SetVirRegister();
+                        RInst->push_back(ldInst->getOpreand(0));
+                        RInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
+                    }
+                    else
+                    {
 
-                RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
-                slliInst->push_back(liInst->getOpreand(0));
-                slliInst->push_back(liInst->getOpreand(0));
-                slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+                        RISCVInst *liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+                        liInst->SetVirRegister();
+                        liInst->SetImmOp(ConstIRInt::GetNewConstant(sum));
 
-                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
-                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
-                RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->GetPrevNode()->getOpreand(0));
-                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                        RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                        RInst->SetVirRegister();
+                        RInst->push_back(ldInst->getOpreand(0));
+                        RInst->push_back(liInst->getOpreand(0));
+                    }
+                }
+                else
+                {
+                    //[i][3] 这样的
+                    getDynmicPoint(globlVal, inst, ldInst, ldInst);
+                }
             }
             else
             {
-                RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
-                Instruction *LInst = dynamic_cast<Instruction *>(inst->GetPrevNode()->GetPrevNode());
-                // LInst 理论上来说是下标的加载
-                RISCVInst *RLInst = mapTrans(LInst)->as<RISCVInst>();
-                if (RLInst == nullptr)
-                    assert("error!!!");
-                slliInst->push_back(RLInst->getOpreand(0));
-                slliInst->push_back(RLInst->getOpreand(0));
-                slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+                if (dynamic_cast<ConstIRInt *>(inst->GetOperand(inst->GetOperandNums() - 1)))
+                {
+                    RISCVInst *liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+                    liInst->SetVirRegister();
+                    liInst->SetImmOp(inst->GetOperand(inst->GetOperandNums() - 1));
 
-                RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
-                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
-                RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
-                RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                    RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+                    slliInst->push_back(liInst->getOpreand(0));
+                    slliInst->push_back(liInst->getOpreand(0));
+                    slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+                    RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                }
+                else
+                {
+                    RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+                    Instruction *LInst = dynamic_cast<Instruction *>(inst->GetPrevNode()->GetPrevNode());
+                    // LInst 理论上来说是下标的加载
+                    RISCVInst *RLInst = mapTrans(LInst)->as<RISCVInst>();
+                    if (RLInst == nullptr)
+                        assert("error!!!");
+                    slliInst->push_back(RLInst->getOpreand(0));
+                    slliInst->push_back(RLInst->getOpreand(0));
+                    slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+                    RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+                    RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+                    RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+                }
             }
+
+            // if (dynamic_cast<ConstIRInt *>(inst->GetOperand(inst->GetOperandNums() - 1)))
+            // {
+            //     RISCVInst *liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+            //     liInst->SetVirRegister();
+            //     liInst->SetImmOp(inst->GetOperand(inst->GetOperandNums() - 1));
+
+            //     RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+            //     slliInst->push_back(liInst->getOpreand(0));
+            //     slliInst->push_back(liInst->getOpreand(0));
+            //     slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+            //     RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+            //     RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+            //     RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->GetPrevNode()->getOpreand(0));
+            //     RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+            // }
+            // else
+            // {
+            //     RISCVInst *slliInst = CreateInstAndBuildBind(RISCVInst::_slli, inst);
+            //     Instruction *LInst = dynamic_cast<Instruction *>(inst->GetPrevNode()->GetPrevNode());
+            //     // LInst 理论上来说是下标的加载
+            //     RISCVInst *RLInst = mapTrans(LInst)->as<RISCVInst>();
+            //     if (RLInst == nullptr)
+            //         assert("error!!!");
+            //     slliInst->push_back(RLInst->getOpreand(0));
+            //     slliInst->push_back(RLInst->getOpreand(0));
+            //     slliInst->SetImmOp(ConstIRInt::GetNewConstant(2));
+
+            //     RInst = CreateInstAndBuildBind(RISCVInst::_add, inst);
+            //     RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+            //     RInst->push_back(RInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+            //     RInst->push_back(RInst->GetPrevNode()->getOpreand(0));
+            // }
         }
     }
     return RInst;

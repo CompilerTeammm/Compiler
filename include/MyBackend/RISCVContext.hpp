@@ -103,6 +103,7 @@ public:
 
     size_t getSumOffset(Value* globlVal,GepInst *inst);
     void getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addiInst,RISCVInst*& RInst);
+    void getDynmicPoint(Value* globlVal,GepInst *inst,RISCVInst *addiInst,RISCVInst*& RInst);
 
     template<typename T>
     T& as()
