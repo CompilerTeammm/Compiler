@@ -52,7 +52,7 @@ class PassManager
 {
 private:
     Module *module;
-    std::unordered_set<std::string> enabledPasses;
+    std::vector<std::string> enabledPasses;
     OptLevel level = None;
 
     AnalysisManager AM; // 只有这一个实例，Run里所有Pass共用
@@ -73,7 +73,7 @@ public:
                 "mem2reg",
                 "sccp",
                 "SCFG",
-                "ConstHoist",
+                "ConstantHoist",
                 // "ECE",
                 // 过程间优化
                 "inline",
@@ -104,7 +104,7 @@ public:
                 //"ExprReorder",
 
                 // 数组
-                // "gepevalute",
+                // "GepEvaluate",
                 //"gepcombine",
                 //"gepflatten",
 
@@ -112,23 +112,24 @@ public:
 
             };
         }
-        else if (lvl = hu1_test)
+        else if (lvl == hu1_test)
         {
             enabledPasses = {
-               // 1. 前期规范化
+                // 1. 前期规范化
+                "SSE", 
                 "mem2reg",
-                "SSE",
-                "SCFG",
-
+                "G2L",
+                "mem2reg",
                 // 2. 基础数据流优化
                 "sccp",
                 "SCFG",
-                "ConstHoist",
+                "ConstantHoist",
 
                 // 3. 过程间优化
                 "inline",
                 "SOGE",
                 "G2L",
+                
 
                 // 4. 清理 + 再优化
                 "DAE",
@@ -142,7 +143,7 @@ public:
                 
 
                 // 6. 数组/GEP 优化
-                "gepevalute",
+                "GepEvaluate",
                 "gepcombine",
                 "gepflatten",
 
@@ -161,280 +162,291 @@ public:
     void EnableTestPasses(const std::vector<std::string> &tags)
     {
         level = Test;
-        enabledPasses.clear();
-        for (auto &tag : tags)
-            enabledPasses.insert(tag);
-    }
-
-    bool IsEnabled(const std::string &tag) const
-    {
-        return enabledPasses.count(tag);
+        enabledPasses = tags;
     }
 
     void Run()
     {
         auto &funcVec = module->GetFuncTion();
-        // 前期规范化
-        if (IsEnabled("mem2reg"))
-        {
-            for (auto &f : funcVec)
+            for(auto&tag:enabledPasses){
+                // 前期规范化
+            if (tag=="mem2reg")
             {
-                auto *func = f.get();
-                int idx = 0;
-                func->GetBBs().clear();
-                for (auto *bb : *func)
+                for (auto &f : funcVec)
                 {
-                    bb->index = idx++;
-                    func->GetBBs().push_back(std::shared_ptr<BasicBlock>(bb));
-                }
-                DominantTree tree(func);
-                tree.BuildDominantTree();
-                Mem2reg(func, &tree).run();
+                    auto *func = f.get();
+                    int idx = 0;
+                    func->GetBBs().clear();
+                    for (auto *bb : *func)
+                    {
+                        bb->index = idx++;
+                        func->GetBBs().push_back(std::shared_ptr<BasicBlock>(bb));
+                    }
+                    DominantTree tree(func);
+                    tree.BuildDominantTree();
+                    Mem2reg(func, &tree).run();
 
-                for (auto &bb_ptr : func->GetBBs())
+                    for (auto &bb_ptr : func->GetBBs())
+                    {
+                        BasicBlock *B = bb_ptr.get();
+                        if (!B)
+                            continue;
+                        B->PredBlocks = tree.getPredBBs(B);
+                        B->NextBlocks = tree.getSuccBBs(B);
+                    }
+                }
+            }
+
+            if (tag=="sccp")
+            {
+                for (auto &function : funcVec)
                 {
-                    BasicBlock *B = bb_ptr.get();
-                    if (!B)
-                        continue;
-                    B->PredBlocks = tree.getPredBBs(B);
-                    B->NextBlocks = tree.getSuccBBs(B);
+                    auto fun = function.get();
+                    AnalysisManager *AM;
+                    ConstantProp(fun).run();
+                }
+            }
+            if (tag=="ConstantHoist")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+
+                    // 构建支配树分析，ConstantHoist 可能依赖它
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+
+                    // 创建 ConstantHoist pass 并运行
+                    ConstantHoist CHPass(fun);
+                    CHPass.run();
+                }
+            }
+            if (tag=="SCFG")
+            {
+                for (auto &func : funcVec)
+                    SimplifyCFG(func.get()).run();
+            }
+
+            // 过程间优化
+            if (tag=="inline")
+            {
+                Inliner inlinerPass(&Singleton<Module>());
+                inlinerPass.run();
+            }
+
+            if (tag=="SOGE")
+            {
+                SOGE sogePass(&Singleton<Module>());
+                sogePass.run();
+            }
+
+            if (tag=="G2L")
+            {
+                Global2Local(&Singleton<Module>(), AM).run();
+            }
+            
+            // 数据流整理
+            if (tag=="ECE")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    ECE ECEpass(fun);
+                    ECEpass.run();
+                }
+            }
+
+            // 局部清理
+            if (tag=="SSE")
+            {
+                SideEffect *se = new SideEffect(&Singleton<Module>());
+                se->GetResult();
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+                    AM.add<SideEffect>(&Singleton<Module>(), se);
+                    SelfStoreElimination(fun, AM).run();
+                    // 如果先跑SSE那就把这个打开
+                    //  for (auto& bb_ptr : fun->GetBBs()) {
+                    //      BasicBlock* B = bb_ptr.get();
+                    //      if (!B) continue;
+                    //      B->PredBlocks = tree.getPredBBs(B);
+                    //      B->NextBlocks = tree.getSuccBBs(B);
+                    //      }
+                }
+            }
+            if (tag=="CondMerge")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    CondMerge(fun, AM).run();
+                }
+            }
+            if (tag=="DAE")
+            {
+                DAE(&Singleton<Module>(), AM).run();
+            }
+            if (tag=="TRE")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    TRE TREPass(fun);
+                    TREPass.run();
+                }
+            }
+
+        if (tag=="LoopSimplify")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    LoopSimplify(func, AM).run();
+                }
+            }
+            if (tag=="LCSSA")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    LcSSA(func, AM).run();
+                }
+            }
+
+            if (tag=="LICM")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    LICMPass(func, AM).run();
+                }
+            }
+
+            if (tag=="SSR")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    ScalarStrengthReduce(func, AM).run();
+                }
+            }
+
+            if (tag=="LoopRotate")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    LoopRotate(func, AM).run();
+                }
+            }
+
+            if (tag=="LoopUnroll")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    LoopUnroll(func, AM).run();
+                }
+            }
+
+            if (tag=="LoopDeletion")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    LoopDeletion(func, AM).run();
+                }
+            }
+
+            // 数据流优化
+            if (tag=="SSAPRE")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+                    SSAPRE(fun, AM).run();
+                }
+            }
+
+            if (tag=="GVN")
+            {
+                for (auto &function : funcVec)
+                {
+                    // Function;
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+                    GVN(fun, AM).run();
+                }
+            }
+
+            if (tag=="DCE")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    AnalysisManager *AM;
+                    DCE(fun, AM).run();
+                }
+            }
+
+            if (tag=="ExprReorder")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+                    ExprReorder(fun).run();
+                }
+            }
+
+            // 数组重写
+            if (tag=="gepcombine")
+            {
+                SideEffect *se = new SideEffect(&Singleton<Module>());
+                se->GetResult();
+
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+
+                    AM.add<DominantTree>(fun, &tree);
+                    AM.add<SideEffect>(&Singleton<Module>(), se);
+
+                    GepCombine gepCombinePass(fun, AM);
+                    gepCombinePass.run();
+                }
+            }
+            if(tag=="GepEvaluate"){
+                for(auto &function:funcVec){
+                    auto fun=function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+
+                    AM.add<DominantTree>(fun,&tree);
+                    GepEvaluate(fun,AM).run();
+                }
+            }
+            if(tag=="gepflatten"){
+                for(auto &function:funcVec){
+                    auto fun=function.get();
+                    GepFlatten(fun).run();
                 }
             }
         }
-
-        if (IsEnabled("sccp"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                AnalysisManager *AM;
-                ConstantProp(fun).run();
-            }
-        }
-        if (IsEnabled("ConstantHoist"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-
-                // 构建支配树分析，ConstantHoist 可能依赖它
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-
-                // 创建 ConstantHoist pass 并运行
-                ConstantHoist CHPass(fun);
-                CHPass.run();
-            }
-        }
-        if (IsEnabled("SCFG"))
-        {
-            for (auto &func : funcVec)
-                SimplifyCFG(func.get()).run();
-        }
-
-        // 过程间优化
-        if (IsEnabled("inline"))
-        {
-            Inliner inlinerPass(&Singleton<Module>());
-            inlinerPass.run();
-        }
-
-        if (IsEnabled("SOGE"))
-        {
-            SOGE sogePass(&Singleton<Module>());
-            sogePass.run();
-        }
-
-        if (IsEnabled("G2L"))
-        {
-            Global2Local(&Singleton<Module>(), AM).run();
-        }
-        
-        // 数据流整理
-        if (IsEnabled("ECE"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                ECE ECEpass(fun);
-                ECEpass.run();
-            }
-        }
-
-        // 局部清理
-        if (IsEnabled("SSE"))
-        {
-            SideEffect *se = new SideEffect(&Singleton<Module>());
-            se->GetResult();
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                AM.add<SideEffect>(&Singleton<Module>(), se);
-                SelfStoreElimination(fun, AM).run();
-                // 如果先跑SSE那就把这个打开
-                //  for (auto& bb_ptr : fun->GetBBs()) {
-                //      BasicBlock* B = bb_ptr.get();
-                //      if (!B) continue;
-                //      B->PredBlocks = tree.getPredBBs(B);
-                //      B->NextBlocks = tree.getSuccBBs(B);
-                //      }
-            }
-        }
-        if (IsEnabled("CondMerge"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                CondMerge(fun, AM).run();
-            }
-        }
-        if (IsEnabled("DAE"))
-        {
-            DAE(&Singleton<Module>(), AM).run();
-        }
-        if (IsEnabled("TRE"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                TRE TREPass(fun);
-                TREPass.run();
-            }
-        }
-
-       if (IsEnabled("LoopSimplify"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto func = function.get();
-                LoopSimplify(func, AM).run();
-            }
-        }
-        if (IsEnabled("LCSSA"))
-        {
-            for (auto &function : funcVec)
-            {
-                 auto func = function.get();
-                 LcSSA(func, AM).run();
-            }
-        }
-
-        if (IsEnabled("LICM"))
-        {
-            for (auto &function : funcVec)
-            {
-                 auto func = function.get();
-                 LICMPass(func, AM).run();
-            }
-        }
-
-        if (IsEnabled("SSR"))
-        {
-            for (auto &function : funcVec)
-            {
-                 auto func = function.get();
-                 ScalarStrengthReduce(func, AM).run();
-            }
-        }
-
-        if (IsEnabled("LoopRotate"))
-        {
-            for (auto &function : funcVec)
-            {
-                 auto func = function.get();
-                 LoopRotate(func, AM).run();
-            }
-        }
-
-        if (IsEnabled("LoopUnroll"))
-        {
-            for (auto &function : funcVec)
-            {
-                 auto func = function.get();
-                 LoopUnroll(func, AM).run();
-            }
-        }
-
-        if (IsEnabled("LoopDeletion"))
-        {
-            for (auto &function : funcVec)
-            {
-                 auto func = function.get();
-                 LoopDeletion(func, AM).run();
-            }
-        }
-
-        // 数据流优化
-        if (IsEnabled("SSAPRE"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                SSAPRE(fun, AM).run();
-            }
-        }
-
-        if (IsEnabled("GVN"))
-        {
-            for (auto &function : funcVec)
-            {
-                // Function;
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                GVN(fun, AM).run();
-            }
-        }
-
-        if (IsEnabled("DCE"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                AnalysisManager *AM;
-                DCE(fun, AM).run();
-            }
-        }
-
-        if (IsEnabled("ExprReorder"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                ExprReorder(fun).run();
-            }
-        }
-
-        // 数组重写
-        if (IsEnabled("gepcombine"))
-        {
-            SideEffect *se = new SideEffect(&Singleton<Module>());
-            se->GetResult();
-
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-
-                AM.add<DominantTree>(fun, &tree);
-                AM.add<SideEffect>(&Singleton<Module>(), se);
-
-                GepCombine gepCombinePass(fun, AM);
-                gepCombinePass.run();
-            }
-        }
-        // 后端准备
     }
+        
 };
