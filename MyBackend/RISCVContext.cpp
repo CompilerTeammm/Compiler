@@ -483,10 +483,19 @@ void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instructi
 
 void RISCVContext::extraDealBeqInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst)
 {
-    RISCVInst* fltInst = CreateInstAndBuildBind(RISCVInst::_flt_s, inst);
-    fltInst->SetVirRegister();
-    fltInst->push_back(fltInst->GetPrevNode()->getOpreand(0));
-    fltInst->push_back(fltInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+    auto CmpInst = inst->GetPrevNode();
+    if (mapTrans(CmpInst)->as<RISCVInst>() == nullptr)
+    {
+        auto Instop1 = mapTrans(CmpInst->GetOperand(0))->as<RISCVInst>();
+        auto Instop2 = mapTrans(CmpInst->GetOperand(1))->as<RISCVInst>();
+
+        RISCVInst *fltInst = CreateInstAndBuildBind(RISCVInst::_flt_s, inst);
+        fltInst->SetVirRegister();
+        if (Instop1 != nullptr)
+            fltInst->push_back(Instop1->getOpreand(0));
+        if (Instop2 != nullptr)
+            fltInst->push_back(Instop2->getOpreand(0));
+    }
 
     RInst = CreateInstAndBuildBind(op, inst);
     RInst->setStoreOp(RInst->GetPrevNode());
@@ -696,9 +705,9 @@ void RISCVContext::extraDealCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::
             auto Inst = CreateInstAndBuildBind(RISCVInst::_li, inst);
             Inst->setRealLIOp(valOp1);
             auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fmv_w_x, inst);
-            Inst->DealMore(Inst2);
+            Inst2->DealMore(Inst);
             Inst2->setFloatMVOp(Inst);
-            valToRiscvOp[valOp1] = Inst;
+            valToRiscvOp[valOp1] = Inst2;
             tmp1 = Inst2;
         }
         if (tmp2 == nullptr)
@@ -706,9 +715,9 @@ void RISCVContext::extraDealCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::
             auto Inst = CreateInstAndBuildBind(RISCVInst::_li, inst);
             Inst->setRealLIOp(valOp2);
             auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fmv_w_x, inst);
-            Inst->DealMore(Inst2);
+            Inst2->DealMore(Inst);
             Inst2->setFloatMVOp(Inst);
-            valToRiscvOp[valOp2] = Inst;
+            valToRiscvOp[valOp2] = Inst2;
             tmp2 = Inst2;
         }
         switch (inst->GetOp())
