@@ -68,22 +68,25 @@ public:
         {
             // 启用全部中端优化
             enabledPasses = {
-                //"SSE",
+                "SSE",
                 // 前期规范化
                 "mem2reg",
-                //"sccp",
-                //"SCFG",
+                "sccp",
+                "SCFG",
                 "ConstHoist",
                 // "ECE",
                 // 过程间优化
-                //"inline",
+                "inline",
 
-                //"SOGE",
-                // "G2L",
+                "SOGE",
+                "G2L",
                 // 局部清理
-                //"DAE",
-                //"TRE",
-                // "CondMerge",
+                "DAE",
+                "TRE",
+                "DCE",
+                "ExprReorder",
+                "sccp",
+                "SCFG",
 
                 // 循环优化
                 "LoopSimplify",
@@ -112,46 +115,41 @@ public:
         else if (lvl = hu1_test)
         {
             enabledPasses = {
-                // 第一波
-                "DAE",
-                // "SSE",
-                "SOGE",
+               // 1. 前期规范化
                 "mem2reg",
+                "SSE",
+                "SCFG",
+
+                // 2. 基础数据流优化
+                "sccp",
+                "SCFG",
+                "ConstHoist",
+
+                // 3. 过程间优化
+                "inline",
+                "SOGE",
                 "G2L",
-                "mem2reg",
-                "sccp",
-                "SCFG",
+
+                // 4. 清理 + 再优化
+                "DAE",
+                "TRE",
                 "DCE",
-                "SOGE",
+                "ExprReorder",
                 "sccp",
                 "SCFG",
 
-                // 第一次内联,循环清理两次
-                "inline",
-                "sccp",
-                "SCFG",
-                "DAE",
-                "SOGE",
-                "DCE",
-                "TRE",
-                "inline",
-                "sccp",
-                "SCFG",
-                "DAE",
-                "SOGE",
-                "DCE",
-                "TRE",
-                // "ECE",
-                // loop基础优化
-                // "Loop_Simplifying",
-                // loop展开+常规优化
+                // 5. 循环优化
+                
 
-                // 再来波常规清理
-                // "ExprReorder",
+                // 6. 数组/GEP 优化
+                "gepevalute",
+                "gepcombine",
+                "gepflatten",
+
+                // 7. 后期清理
                 "sccp",
                 "SCFG",
-                "SOGE",
-                "DCE",
+                "DCE"
             };
         }
         else if (lvl == None)

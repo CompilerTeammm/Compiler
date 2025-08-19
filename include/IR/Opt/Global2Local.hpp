@@ -6,7 +6,6 @@
 #include "../../IR/Analysis/IDF.hpp"
 #include "../../IR/Analysis/LoopInfo.hpp"
 #include "AnalysisManager.hpp"
-#include "../../include/lib/Trival.hpp"
 #include <vector>
 
 class Global2Local : public _PassBase<Global2Local, Module>
