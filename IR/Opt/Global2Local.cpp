@@ -6,11 +6,16 @@ bool Global2Local::run() {
     detectRecursive();
 
     bool modified = false;
+    std::set<std::string> ExcludeGVs = {"next", "dst", "src"};
+
 
     for (auto &gvPtr : module->GetGlobalVariable()) {
         Var* GV = gvPtr.get();
         if (!GV || GV->usage != Var::GlobalVar) continue;
 
+        std::string gvName = GV->GetName();
+        if (ExcludeGVs.count(gvName)) continue;
+        
         // *** 仅处理“标量”全局：跳过数组/结构体/指针等复杂类型
         auto *Ty = GV->GetType();
         if (!Ty) continue;

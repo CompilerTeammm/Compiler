@@ -115,42 +115,32 @@ public:
         else if (lvl == hu1_test)
         {
             enabledPasses = {
-                // 1. 前期规范化
+                // 前期规范化
                 "SSE", 
                 "mem2reg",
                 "G2L",
-                "mem2reg",
-                // 2. 基础数据流优化
+                
+                // 基础数据流优化
                 "sccp",
                 "SCFG",
                 "ConstantHoist",
 
-                // 3. 过程间优化
-                "inline",
-                "SOGE",
-                "G2L",
                 
-
-                // 4. 清理 + 再优化
-                "DAE",
-                "TRE",
-                "DCE",
+                
                 "ExprReorder",
-                "sccp",
-                "SCFG",
 
-                // 5. 循环优化
+                //循环优化
                 
 
-                // 6. 数组/GEP 优化
+               //gep ,inline
                 "GepEvaluate",
                 "gepcombine",
                 "gepflatten",
-
-                // 7. 后期清理
-                "sccp",
-                "SCFG",
-                "DCE"
+                "inline",
+                "SOGE",
+                "DAE",
+                "TRE",
+                "DCE",
             };
         }
         else if (lvl == None)
