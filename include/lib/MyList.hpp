@@ -89,6 +89,21 @@ public:
     next = nullptr;
     manager = nullptr;
   }
+
+  //// dh
+  void InsertBefore(Staff *other)
+  {
+    assert(manager && "Node must belong to a List");
+    auto it = typename List<Manager, Staff>::iterator(static_cast<Staff *>(this));
+    it.InsertBefore(other);
+  }
+
+  void InsertAfter(Staff *other)
+  {
+    assert(manager && "Node must belong to a List");
+    auto it = typename List<Manager, Staff>::iterator(static_cast<Staff *>(this));
+    it.InsertAfter(other);
+  }
 };
 
 // 对于列表整体，关心首尾节点head&back

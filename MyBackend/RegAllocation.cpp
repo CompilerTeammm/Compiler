@@ -156,24 +156,38 @@ void RegAllocation::assignSpill(Register* v)
     }
     int start = LInfo->start;
     int end = LInfo->end;
-    std::vector<RISCVInst*> useInst;
-    std::vector<RISCVInst*> defInst;
+    std::vector<RISCVInst*> useInsts;
+    std::vector<RISCVInst*> defInsts;
     for (int tmp = start; tmp != end+1; tmp++)
     {
         RISCVInst* riscvInst = interval.getOrderAndInst()[tmp];
         for (auto& op : riscvInst->getOpsVec()) {
             if (v == op.get()) {
-                if (op == riscvInst->getOpreand(0))
-                    useInst.push_back(riscvInst);
+                if (op == riscvInst->getOpreand(0) && riscvInst->getOpcode() != RISCVInst::_sw
+                                                      && riscvInst->getOpcode() != RISCVInst::_sd)
+                    defInsts.push_back(riscvInst);
                 else   
-                    defInst.push_back(riscvInst);
+                    useInsts.push_back(riscvInst);
             }
         }
     }
-    
+
     if (!hasStackSlot(v)) {
         int off = allocateStackLocation(v);
         stackLocation[v] = off;
+    }
+
+    for (auto& defInst : defInsts) 
+    {
+        RISCVInst* storeInst = new RISCVInst(RISCVInst::_sw);
+        defInst->InsertAfter(storeInst);
+    }
+
+    for (auto& useInst : useInsts) 
+    {
+        RISCVInst* ldInst = new RISCVInst(RISCVInst::_lw);
+        ldInst->SetRealRegister("t0");
+        useInst->InsertBefore(ldInst);
     }
     spilledRegs.insert(v);
 }
