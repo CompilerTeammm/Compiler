@@ -105,7 +105,7 @@ bool LcSSA::FormalLcSSA(std::vector<Instruction *> &FormingInsts)
     x = 0;
     for (auto ex : exit)
     {
-      if (!m_dom->dominates(target->GetParent(), ex))
+      if (!m_dom->dominates_(target->GetParent(), ex))
         continue;
       auto phi = PhiInst::NewPhiNode(ex->GetFront(), ex, target->GetType(),
                                      GetNameEnum(target));
@@ -125,8 +125,8 @@ bool LcSSA::FormalLcSSA(std::vector<Instruction *> &FormingInsts)
     for (auto rewrite : Rewrite)
     {
       auto userInst = dynamic_cast<Instruction *>(rewrite->GetUser());
-      //if (!userInst)
-       // return; // 或者 continue / break，根据你的上下文逻辑处理
+      // if (!userInst)
+      //  return; // 或者 continue / break，根据你的上下文逻辑处理
 
       BasicBlock *pbb = userInst->GetParent();
       if (auto phi = dynamic_cast<PhiInst *>(userInst))

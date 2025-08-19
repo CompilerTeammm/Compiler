@@ -170,7 +170,7 @@ bool LICMPass::IsDomExit(User *I, std::vector<BasicBlock *> &exit)
   auto targetbb = inst->GetParent();
   for (auto ex : exit)
   {
-    if (!m_dom->dominates(targetbb, ex))
+    if (!m_dom->dominates_(targetbb, ex))
       return false;
   }
   return true;

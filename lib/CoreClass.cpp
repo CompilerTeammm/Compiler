@@ -407,8 +407,7 @@ bool User::HasSideEffect()
         name == "getarray" || name == "putch" || name == "_sysy_starttime" ||
         name == "_sysy_stoptime" || name == "llvm.memcpy.p0.p0.i32")
       return true;
-    Function *func =
-        dynamic_cast<Function *>(this->GetUserUseList()[0]->GetValue());
+    Function *func = dynamic_cast<Function *>(this->GetUserUseList()[0]->GetValue());
     if (func)
     {
       if (func->HasSideEffect || func->tag != Function::Normal)
@@ -420,8 +419,7 @@ bool User::HasSideEffect()
         {
           if (dynamic_cast<CallInst *>(*iter))
           {
-            Function *Func =
-                dynamic_cast<Function *>((*iter)->GetUserUseList()[0]->usee);
+            Function *Func = dynamic_cast<Function *>((*iter)->GetUserUseList()[0]->usee);
             if (Func && Func->HasSideEffect)
               return true;
           }
@@ -431,10 +429,11 @@ bool User::HasSideEffect()
   }
   if (dynamic_cast<GepInst *>(this))
   {
-    auto &users = this->GetUserUseList();
-    for (auto &user_ : users)
+    auto &users = this->GetValUseList();
+    for (auto user_ : users)
     {
-      User *user = user_->GetUser();
+      auto *user = user_->GetUser();
+      // auto inst = user->as<Instruction>();
       if (user->HasSideEffect())
         return true;
       else
@@ -443,7 +442,7 @@ bool User::HasSideEffect()
   }
   if (dynamic_cast<RetInst *>(this))
     return true;
-  if (this->GetUserUseList().empty())
+  if (this->GetValUseList().is_empty())
     return false;
   return false;
 }

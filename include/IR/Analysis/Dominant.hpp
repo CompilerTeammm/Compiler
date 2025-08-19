@@ -181,4 +181,5 @@ public:
     {
         return Dest;
     }
+    DominantTree *GetResult(Function *_func);
 };

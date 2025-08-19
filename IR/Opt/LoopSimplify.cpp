@@ -81,10 +81,10 @@ bool LoopSimplify::SimplifyLoopsImpl(LoopInfo *loop)
       BasicBlock *bb = exit[index];
 
       // 使用新版本DominantTree的API获取前驱
-      auto preds = m_dom->getPredBBs(bb);
+      auto preds = m_dom->getNode(bb)->predNodes;
       for (auto rev : preds)
       {
-        if (!loopAnlay->IsLoopIncludeBB(L, rev->num))
+        if (!loopAnlay->IsLoopIncludeBB(L, rev->curBlock))
           NeedToFormat = true;
       }
 
@@ -107,8 +107,9 @@ bool LoopSimplify::SimplifyLoopsImpl(LoopInfo *loop)
 
     std::vector<BasicBlock *> Latch;
     auto preds = m_dom->getPredBBs(header);
-    for (auto rev : preds)
+    for (auto it = preds.rbegin(); it != preds.rend(); ++it)
     {
+      BasicBlock *rev = *it;
       if (rev != preheader && contain.find(rev) != contain.end())
         Latch.push_back(rev);
     }
@@ -275,9 +276,6 @@ void LoopSimplify::FormatExit(LoopInfo *loop, BasicBlock *exit)
 
   // Phase 5: Update CFG and dominance info
   UpdateInfo(Inside, new_exit, exit, loop);
-
-  // Rebuild dominance tree after CFG changes
-  m_dom->BuildDominantTree();
 }
 
 void LoopSimplify::UpdatePhiNode(PhiInst *phi, std::set<BasicBlock *> &worklist,
@@ -357,22 +355,29 @@ void LoopSimplify::FormatLatch(LoopInfo *loop, BasicBlock *PreHeader,
 {
   BasicBlock *head = loop->GetHeader();
 
-  // Create and insert new latch block
+  // 创建新的 latch block
   BasicBlock *new_latch = new BasicBlock();
   new_latch->SetName(new_latch->GetName() + "_latch");
   m_func->InsertBlock(head, new_latch);
-
-  // Create and setup DominantTree node for new latch
-  DominantTree::TreeNode *newNode = new DominantTree::TreeNode();
-  newNode->curBlock = new_latch;
-  m_dom->Nodes.push_back(newNode);
-  m_dom->BlocktoNode[new_latch] = newNode;
 
 #ifdef DEBUG
   std::cerr << "Insert a latch: " << new_latch->GetName() << std::endl;
 #endif
 
-  // Update Phi nodes in header
+  // 创建对应的 DominantTree 节点
+  DominantTree::TreeNode *newNode = new DominantTree::TreeNode();
+  newNode->curBlock = new_latch;
+  newNode->visited = false;
+  newNode->dfs_order = 0; // 后续可由 DFS 填充
+  newNode->dfs_fa = nullptr;
+  newNode->sdom = newNode;
+  newNode->idom = nullptr;
+
+  // 加入 DominantTree
+  m_dom->Nodes.push_back(newNode);
+  m_dom->BlocktoNode[new_latch] = newNode;
+
+  // 更新 header 中的 phi 节点
   std::set<BasicBlock *> work{latch.begin(), latch.end()};
   for (auto inst : *head)
   {
@@ -386,7 +391,7 @@ void LoopSimplify::FormatLatch(LoopInfo *loop, BasicBlock *PreHeader,
     }
   }
 
-  // Redirect branches from old latches to new latch
+  // 重定向原来 latches 的分支到新的 latch
   for (auto bb : latch)
   {
     auto terminator = bb->GetTerminator();
@@ -404,24 +409,11 @@ void LoopSimplify::FormatLatch(LoopInfo *loop, BasicBlock *PreHeader,
     {
       uncond->ReplaceSomeUseWith(0, new_latch);
     }
-
-    // Update CFG predecessor/successor relationships
-    newNode->predNodes.push_back(m_dom->BlocktoNode[bb]);
-    m_dom->BlocktoNode[bb]->succNodes.push_back(newNode);
   }
 
-  // Connect new latch to header
-  m_dom->BlocktoNode[new_latch]->succNodes.push_back(m_dom->BlocktoNode[head]);
-  m_dom->BlocktoNode[head]->predNodes.push_back(newNode);
-
-  // Update CFG and dominance info
+  // 更新 loop 信息
   UpdateInfo(latch, new_latch, head, loop);
-
-  // Set new latch for the loop
   loop->setLatch(new_latch);
-
-  // Rebuild dominance tree after CFG changes
-  m_dom->BuildDominantTree();
 }
 
 // need to ReAnlaysis loops （暂时先不使用这个功能）

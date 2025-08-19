@@ -252,6 +252,17 @@ bool DominantTree::dominates_(BasicBlock *bb1, BasicBlock *bb2)
     return node1 == node2;
 }
 
+DominantTree *DominantTree::GetResult(Function *_func)
+{
+    InitNodes();
+    BasicBlock *Bbegin = *(_func->begin());
+    DFS(BlocktoNode[Bbegin]);
+    InitDSU();
+    InitIdom();
+    caculateLevel(Nodes[0], 0);
+    return this;
+}
+
 //    A
 //    |  \
 //    B   D

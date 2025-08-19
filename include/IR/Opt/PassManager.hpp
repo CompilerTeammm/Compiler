@@ -19,7 +19,7 @@
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
 #include "DAE.hpp"
-//#include "Global2Local.hpp"
+// #include "Global2Local.hpp"
 #include "SelfStoreElimination.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
@@ -67,30 +67,32 @@ public:
         {
             // 启用全部中端优化
             enabledPasses = {
-                //"SSE",
+                "SSE",
                 // 前期规范化
                 "mem2reg",
-                //"sccp",
-                //"SCFG",
 
                 // "ECE",
                 // 过程间优化
-                //"inline",
 
-                //"SOGE",
-                // "G2L",
+                "G2L",
+                "sccp",
+                "SCFG",
+                "inline",
+                "SOGE",
                 // 局部清理
-                //"DAE",
-                //"TRE",
+                "DAE",
+                "TRE",
                 // "CondMerge",
 
+                //"GVN",
+                "DCE",
                 // 循环优化
                 "LoopSimplify",
-                // "LoopRotate",
+                "Lcssa",
+                "LICM",
+                "LoopRotate",
                 //"LoopUnroll",
-                //"LoopDel",
-                //"Lcssa",
-                //"Licm",
+                "LoopDeletion",
                 //"SSR",
 
                 // 数据流优化
@@ -276,10 +278,12 @@ public:
                 CondMerge(fun, AM).run();
             }
         }
+
         if (IsEnabled("DAE"))
         {
             DAE(&Singleton<Module>(), AM).run();
         }
+
         if (IsEnabled("TRE"))
         {
             for (auto &function : funcVec)
@@ -290,20 +294,71 @@ public:
             }
         }
 
-       if (IsEnabled("LoopSimplify"))
+        if (IsEnabled("LoopSimplify"))
         {
             for (auto &function : funcVec)
             {
-                auto func = function.get();
+                auto *func = function.get();
+
+                func->num = 0;
+                auto &oldVec = func->GetBBs();
+                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                keep.reserve(oldVec.size());
+                for (auto &sp : oldVec)
+                {
+                    keep.emplace(sp.get(), sp);
+                }
+                std::vector<Function::BBPtr> rebuilt;
+                for (auto *bb : *func)
+                {
+                    bb->num = func->num++;
+                    auto it = keep.find(bb);
+                    if (it != keep.end())
+                    {
+                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                    }
+                    else
+                    {
+                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                    }
+                }
+
+                oldVec.swap(rebuilt);
+
                 LoopSimplify(func, AM).run();
             }
         }
+
         if (IsEnabled("LCSSA"))
         {
             for (auto &function : funcVec)
             {
-                 auto func = function.get();
-                 LcSSA(func, AM).run();
+                auto func = function.get();
+                func->num = 0;
+                auto &oldVec = func->GetBBs();
+                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                keep.reserve(oldVec.size());
+                for (auto &sp : oldVec)
+                {
+                    keep.emplace(sp.get(), sp);
+                }
+                std::vector<Function::BBPtr> rebuilt;
+                for (auto *bb : *func)
+                {
+                    bb->num = func->num++;
+                    auto it = keep.find(bb);
+                    if (it != keep.end())
+                    {
+                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                    }
+                    else
+                    {
+                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                    }
+                }
+
+                oldVec.swap(rebuilt);
+                LcSSA(func, AM).run();
             }
         }
 
@@ -311,17 +366,32 @@ public:
         {
             for (auto &function : funcVec)
             {
-                 auto func = function.get();
-                 LICMPass(func, AM).run();
-            }
-        }
+                auto func = function.get();
+                func->num = 0;
+                auto &oldVec = func->GetBBs();
+                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                keep.reserve(oldVec.size());
+                for (auto &sp : oldVec)
+                {
+                    keep.emplace(sp.get(), sp);
+                }
+                std::vector<Function::BBPtr> rebuilt;
+                for (auto *bb : *func)
+                {
+                    bb->num = func->num++;
+                    auto it = keep.find(bb);
+                    if (it != keep.end())
+                    {
+                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                    }
+                    else
+                    {
+                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                    }
+                }
 
-        if (IsEnabled("SSR"))
-        {
-            for (auto &function : funcVec)
-            {
-                 auto func = function.get();
-                 ScalarStrengthReduce(func, AM).run();
+                oldVec.swap(rebuilt);
+                LICMPass(func, AM).run();
             }
         }
 
@@ -329,8 +399,29 @@ public:
         {
             for (auto &function : funcVec)
             {
-                 auto func = function.get();
-                 LoopRotate(func, AM).run();
+                auto func = function.get();
+                func->num = 0;
+
+                auto &oldVec = func->GetBBs();
+
+                // 使用 map 保留原来的 shared_ptr，不移动裸指针
+                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                keep.reserve(oldVec.size());
+                for (auto &sp : oldVec)
+                    keep.emplace(sp.get(), sp); // 存 shared_ptr
+
+                // rebuilt vector
+                std::vector<Function::BBPtr> rebuilt;
+                rebuilt.reserve(oldVec.size());
+                for (auto &sp : oldVec)
+                {
+                    sp->num = func->num++;
+                    rebuilt.push_back(sp);
+                }
+
+                oldVec.swap(rebuilt);
+
+                LoopRotate(func, AM).run();
             }
         }
 
@@ -338,8 +429,8 @@ public:
         {
             for (auto &function : funcVec)
             {
-                 auto func = function.get();
-                 LoopUnroll(func, AM).run();
+                auto func = function.get();
+                LoopUnroll(func, AM).run();
             }
         }
 
@@ -347,8 +438,65 @@ public:
         {
             for (auto &function : funcVec)
             {
-                 auto func = function.get();
-                 LoopDeletion(func, AM).run();
+                auto func = function.get();
+                func->num = 0;
+                auto &oldVec = func->GetBBs();
+                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                keep.reserve(oldVec.size());
+                for (auto &sp : oldVec)
+                {
+                    keep.emplace(sp.get(), sp);
+                }
+                std::vector<Function::BBPtr> rebuilt;
+                for (auto *bb : *func)
+                {
+                    bb->num = func->num++;
+                    auto it = keep.find(bb);
+                    if (it != keep.end())
+                    {
+                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                    }
+                    else
+                    {
+                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                    }
+                }
+
+                oldVec.swap(rebuilt);
+                LoopDeletion(func, AM).run();
+            }
+        }
+
+        if (IsEnabled("SSR"))
+        {
+            for (auto &function : funcVec)
+            {
+                auto func = function.get();
+                func->num = 0;
+                auto &oldVec = func->GetBBs();
+                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                keep.reserve(oldVec.size());
+                for (auto &sp : oldVec)
+                {
+                    keep.emplace(sp.get(), sp);
+                }
+                std::vector<Function::BBPtr> rebuilt;
+                for (auto *bb : *func)
+                {
+                    bb->num = func->num++;
+                    auto it = keep.find(bb);
+                    if (it != keep.end())
+                    {
+                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                    }
+                    else
+                    {
+                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                    }
+                }
+
+                oldVec.swap(rebuilt);
+                ScalarStrengthReduce(func, AM).run();
             }
         }
 
