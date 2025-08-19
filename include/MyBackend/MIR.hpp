@@ -660,6 +660,10 @@ private:
 
     // caller
     int MallocStackForparam = 0;
+
+    // spill And load
+    std::map<Register*,std::pair<std::vector<RISCVInst*>,std::vector<RISCVInst*>>> dealStackSpill;
+    std::vector<Register*> spillRegs;
 public:
     size_t& getparamNum() { return paramNum; }
     std::vector<RISCVInst*>&  getSpilledParam()  { return spilledParam;}
@@ -669,4 +673,10 @@ public:
     
     // caller 
     int& getNeedStackForparam()  { return MallocStackForparam;} 
+
+    // spill And load
+    std::vector<Register*>& getSpillRegs() {  return spillRegs; }
+    using DefInst = RISCVInst;
+    using UseInst = RISCVInst;
+    std::map<Register*,std::pair<std::vector<DefInst*>,std::vector<UseInst*>>>& getSpillStack() { return dealStackSpill; }
 };

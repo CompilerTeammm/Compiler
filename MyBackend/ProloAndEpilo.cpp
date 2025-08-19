@@ -29,7 +29,7 @@
 size_t ProloAndEpilo::caculate()
 {
     int N = INITSIZE;
-    int sumMallocSize = 0;
+    int sumMallocSize = 16;
 
     // deal local arr
     if (mfunc->arroffset != mfunc->defaultSize)
@@ -60,6 +60,35 @@ size_t ProloAndEpilo::caculate()
     }
 
     // deal spilled register
+    auto& DefUseVec = mfunc->getSpillStack();
+    auto& spillRegs = mfunc->getSpillRegs();
+    for (auto& reg : spillRegs)
+    {
+        std::vector<RISCVInst*> defVec = DefUseVec[reg].first;
+        std::vector<RISCVInst*> useVec = DefUseVec[reg].second;
+        // 均按照 8 字节进行存储的
+
+        sumMallocSize += 8;
+        for (auto& def : defVec) 
+        {
+            if (sumMallocSize <= 2047)
+                def->GetNextNode()->setStoreStackS0Op(sumMallocSize);
+            else
+            {
+
+            }
+        }
+
+        for (auto& use : useVec)
+        {
+            if (sumMallocSize <= 2047)
+                use->GetPrevNode()->setStoreStackS0Op(sumMallocSize);
+            else
+            {
+
+            }
+        }
+    }
 
     // caller saved register
 
@@ -85,7 +114,7 @@ size_t ProloAndEpilo::caculate()
 
     // result
     while (N * ALIGN < sumMallocSize)  N++;
-    size_t size = (N +1)* ALIGN;  // 1 is for sp/ra
+    size_t size = (N)* ALIGN;  // 1 is for sp/ra
     return size; 
 }
 

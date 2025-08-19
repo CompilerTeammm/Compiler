@@ -904,8 +904,9 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     {
         return DealMemcpyFunc(inst);
     }
-
-    getCurFunction()->getNeedStackForparam() = inst->GetOperandNums() -1;
+    int size = inst->GetOperandNums() -1;
+    if (size > getCurFunction()->getNeedStackForparam())
+         getCurFunction()->getNeedStackForparam() = size;
     // param  callee_saved  caller_saved  call  ret
     int Num = inst->GetOperandNums() - 1;
     if (Num >= 8)  // 大于 8 个的参数的话通过栈帧进行传递 sp

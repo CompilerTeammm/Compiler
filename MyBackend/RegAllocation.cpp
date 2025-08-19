@@ -179,8 +179,11 @@ void RegAllocation::assignSpill(Register* v)
 
     for (auto& defInst : defInsts) 
     {
+        auto Regop = std::make_shared<RealRegister>("t1");
+        defInst->replacedIndexWithVal(0,Regop);
         RISCVInst* storeInst = new RISCVInst(RISCVInst::_sw);
         defInst->InsertAfter(storeInst);
+        storeInst->push_back(defInst->getOpreand(0));
     }
 
     for (auto& useInst : useInsts) 
@@ -188,7 +191,14 @@ void RegAllocation::assignSpill(Register* v)
         RISCVInst* ldInst = new RISCVInst(RISCVInst::_lw);
         ldInst->SetRealRegister("t0");
         useInst->InsertBefore(ldInst);
+        if (useInst->getOpcode() ==  RISCVInst::_sd || useInst->getOpcode() == RISCVInst::_sw)
+            useInst->replacedIndexWithVal(0,ldInst->getOpreand(0));
+        else  
+            useInst->replacedIndexWithVal(1,ldInst->getOpreand(0));
     }
+
+    mfunc->getSpillStack().emplace(v,std::make_pair(defInsts,useInsts));
+    mfunc->getSpillRegs().push_back(v);
     spilledRegs.insert(v);
 }
 // 寄存器的溢出
