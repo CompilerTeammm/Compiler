@@ -24,7 +24,7 @@ bool ConstantHoist::RunOnBlock(BasicBlock *block)
   if (TrueBlock->Size() != FalseBlock->Size())
     return false;
 
-  // 新增：严格菱形检查（两侧的 terminator 必须是 UnCond 且指向同一个 Merge）
+  //严格菱形检查（两侧的 terminator 必须是 UnCond 且指向同一个 Merge）
   Instruction *TTerm = TrueBlock->GetBack();
   Instruction *FTerm = FalseBlock->GetBack();
   auto *TUn = dynamic_cast<UnCondInst *>(TTerm);
@@ -35,7 +35,6 @@ bool ConstantHoist::RunOnBlock(BasicBlock *block)
   if (!Merge || Merge != FUn->GetOperand(0)->as<BasicBlock>())
     return false;
 
-  // 如果任一边是 return（或其他直接终止函数的指令），放弃（非常危险）
   if (dynamic_cast<RetInst *>(TTerm) || dynamic_cast<RetInst *>(FTerm))
     return false;
 
@@ -67,7 +66,7 @@ bool ConstantHoist::RunOnBlock(BasicBlock *block)
   {
     Instruction *handle1 = *inst;
     ++inst;
-    // 如果是 terminator（TrueBlock->GetBack()），跳过，不移动
+    
     if (handle1 == TrueBlock->GetBack())
       break;
     auto handle = dynamic_cast<Instruction *>(handle1);
@@ -75,7 +74,7 @@ bool ConstantHoist::RunOnBlock(BasicBlock *block)
     Pos.InsertBefore(handle);
   }
 
-  // 用无条件跳转到 Merge 替换原来的条件分支（不要直接 delete Br）
+  
   {
     BasicBlock::List<BasicBlock, Instruction>::iterator BrPos(Br);
     UnCondInst *newJmp = new UnCondInst(Merge);

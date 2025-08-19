@@ -19,7 +19,7 @@ bool Global2Local::run()
         if (ExcludeGVs.count(gvName))
             continue;
 
-        // *** 仅处理“标量”全局：跳过数组/结构体/指针等复杂类型
+        // 仅处理“标量”全局：跳过数组/结构体/指针等复杂类型
         auto *Ty = GV->GetType();
         if (!Ty)
             continue;
@@ -55,7 +55,6 @@ bool Global2Local::run()
                 continue;
 
             // 安全检查：函数内是否有同名局部变量或参数
-            // 这个难道没作用?
             if (HasLocalVarNamed(GV->GetName(), F))
                 continue;
 
@@ -130,10 +129,10 @@ void Global2Local::createSuccFuncs()
         Function *F = funcPtr.get();
 
         for (auto &BBptr : F->GetBBs())
-        {                                 // BBptr 是 shared_ptr<BasicBlock>
-            BasicBlock *BB = BBptr.get(); // 获取裸指针
+        {                                 
+            BasicBlock *BB = BBptr.get(); 
             for (auto *inst : *BB)
-            { // 利用 List 提供的迭代器
+            { 
                 if (auto *call = dynamic_cast<CallInst *>(inst))
                 {
                     Value *calledVal = call->GetCalledFunction();
@@ -167,7 +166,7 @@ void Global2Local::createCallNum()
         {
             BasicBlock *BB = BBptr.get();
             for (auto *inst : *BB)
-            { // 利用 List 提供的迭代器
+            { 
                 if (auto *call = dynamic_cast<CallInst *>(inst))
                 {
                     Value *calledVal = call->GetCalledFunction();
@@ -189,39 +188,38 @@ void Global2Local::detectRecursive()
     // 用于 DFS 访问状态：0 = 未访问, 1 = 访问中, 2 = 已完成
     std::unordered_map<Function *, int> visitStatus;
 
-    // 初始化
     for (auto &funcPtr : module->GetFuncTion())
     {
         visitStatus[funcPtr.get()] = 0;
     }
 
-    // 定义 DFS lambda
+    
     std::function<void(Function *)> dfs = [&](Function *F)
     {
         if (visitStatus[F] == 1)
         {
-            // 正在访问中，又遇到自己 -> 递归
+            
             RecursiveFuncs.insert(F);
             return;
         }
         if (visitStatus[F] == 2)
-            return; // 已经处理过
+            return; 
 
-        visitStatus[F] = 1; // 标记为访问中
+        visitStatus[F] = 1; 
 
-        // 遍历 F 的后继函数
+        
         for (auto *succ : FuncSucc[F])
         {
             dfs(succ);
-            // 如果后继是递归函数，也把 F 标记为递归
+            
             if (RecursiveFuncs.count(succ))
                 RecursiveFuncs.insert(F);
         }
 
-        visitStatus[F] = 2; // 标记为完成
+        visitStatus[F] = 2; 
     };
 
-    // 对每个函数执行 DFS
+    
     for (auto &funcPtr : module->GetFuncTion())
     {
         dfs(funcPtr.get());
@@ -234,7 +232,7 @@ bool Global2Local::addressEscapes(Value *V)
         return true;
     auto *Ty = V->GetType();
     if (!Ty)
-        return true; // 保守处理
+        return true; 
 
     IR_DataType TKind = Ty->GetTypeEnum();
     if (TKind == IR_ARRAY)
@@ -248,21 +246,21 @@ bool Global2Local::addressEscapes(Value *V)
 
         if (dynamic_cast<CallInst *>(user))
         {
-            return true; // 传入调用
+            return true; 
         }
 
         if (auto *store = dynamic_cast<StoreInst *>(user))
         {
-            // store val, ptr
+            
             int idx = user->GetUseIndex(use);
             if (idx == 0)
             {
-                // 把 GV 作为“被存的值” —— 基本不该出现，保守处理为逃逸
+                
                 return true;
             }
             else if (idx == 1)
             {
-                // 存到以 GV 为基的地址
+                
                 Value *ptrVal = use->GetValue();
                 if (!isSimplePtrToSelf(ptrVal, V))
                     return true;
@@ -274,14 +272,14 @@ bool Global2Local::addressEscapes(Value *V)
 
         if (auto *gep = dynamic_cast<GepInst *>(user))
         {
-            // 任何出现 GEP 都认为会形成地址计算，保守视作逃逸
+            
             return true;
         }
     }
     return false;
 }
 
-// 辅助函数：判断 ptr 是否是“简单转换指向自己”，安全不算逃逸
+//判断 ptr 是否是“简单转换指向自己”，安全不算逃逸
 bool Global2Local::isSimplePtrToSelf(Value *ptr, Value *V)
 {
     if (ptr == V)
@@ -306,7 +304,7 @@ bool Global2Local::HasVariableIndex(GepInst *gep)
     return false;
 }
 
-// 辅助函数：判断某值是否直接或间接依赖 GV
+// 判断某值是否直接或间接依赖 GV
 bool Global2Local::usesValue(Value *val, Var *GV)
 {
     if (!val)
@@ -345,7 +343,6 @@ bool Global2Local::promoteGlobal(Var *GV, Function *F)
     if (HasLocalVarNamed(GV->GetName(), F))
         return false;
 
-    // 在 entry block 插入局部 alloca
     BasicBlock *entryBB = F->GetBBs().front().get();
     if (!entryBB)
         return false;
@@ -353,7 +350,7 @@ bool Global2Local::promoteGlobal(Var *GV, Function *F)
     AllocaInst *localAlloca = new AllocaInst(GV->GetType());
     entryBB->push_front(localAlloca);
 
-    // 初始化值放在 entry block 的 first instruction 之后
+    
     if (GV->GetInitializer())
     {
         Operand initVal = GV->GetInitializer();
@@ -362,7 +359,7 @@ bool Global2Local::promoteGlobal(Var *GV, Function *F)
 
     bool modified = false;
 
-    // 遍历函数内所有指令，将使用 GV 的地方替换为 localAlloca
+    
     for (auto &bb_sp : F->GetBBs())
     {
         BasicBlock *bb = bb_sp.get();
@@ -380,10 +377,9 @@ bool Global2Local::promoteGlobal(Var *GV, Function *F)
                 if (u->GetValue() != GV)
                     continue;
 
-                // 只替换真正使用全局变量的指针操作
                 if (auto *loadInst = dynamic_cast<LoadInst *>(inst))
                 {
-                    // Load 的第 0 个操作数是指针
+                    
                     if (loadInst->GetOperand(0) == GV)
                     {
                         inst->ReplaceSomeUseWith(u, localAlloca);
@@ -392,7 +388,7 @@ bool Global2Local::promoteGlobal(Var *GV, Function *F)
                 }
                 else if (auto *storeInst = dynamic_cast<StoreInst *>(inst))
                 {
-                    // Store 的第 1 个操作数是指针
+                    
                     if (storeInst->GetOperand(1) == GV)
                     {
                         inst->ReplaceSomeUseWith(u, localAlloca);
