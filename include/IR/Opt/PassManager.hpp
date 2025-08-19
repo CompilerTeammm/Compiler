@@ -4,10 +4,10 @@
 #include "Mem2reg.hpp"
 #include "MemoryToRegister.hpp"
 #include <queue>
-// #include "../../lib/CoreClass.hpp"
+#include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
 #include <memory>
-// #include "../../lib/Singleton.hpp"
+#include "../../lib/Singleton.hpp"
 #include "DCE.hpp"
 #include "AnalysisManager.hpp"
 #include "ConstantProp.hpp"
@@ -19,11 +19,12 @@
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"
 #include "DAE.hpp"
-// #include "Global2Local.hpp"
+#include "Global2Local.hpp"
 #include "SelfStoreElimination.hpp"
 #include "Inliner.hpp"
 #include "TRE.hpp"
 #include "SOGE.hpp"
+#include "ConstantHoist.hpp"
 #include "ECE.hpp"
 #include "GepCombine.hpp"
 #include "GepEval.hpp"
@@ -51,7 +52,7 @@ class PassManager
 {
 private:
     Module *module;
-    std::unordered_set<std::string> enabledPasses;
+    std::vector<std::string> enabledPasses;
     OptLevel level = None;
 
     AnalysisManager AM; // 只有这一个实例，Run里所有Pass共用
@@ -70,19 +71,22 @@ public:
                 "SSE",
                 // 前期规范化
                 "mem2reg",
-
-                // "ECE",
-                // 过程间优化
-
-                "G2L",
                 "sccp",
                 "SCFG",
+                "ConstantHoist",
+                // "ECE",
+                // 过程间优化
                 "inline",
+
                 "SOGE",
+                "G2L",
                 // 局部清理
                 "DAE",
                 "TRE",
-                // "CondMerge",
+                "DCE",
+                "ExprReorder",
+                "sccp",
+                "SCFG",
 
                 //"GVN",
                 "DCE",
@@ -102,7 +106,7 @@ public:
                 //"ExprReorder",
 
                 // 数组
-                // "gepevalute",
+                // "GepEvaluate",
                 //"gepcombine",
                 //"gepflatten",
 
@@ -110,46 +114,31 @@ public:
 
             };
         }
-        else if (lvl = hu1_test)
+        else if (lvl == hu1_test)
         {
             enabledPasses = {
-                // 第一波
-                "DAE",
+                // 前期规范化
                 "SSE",
-                "SOGE",
-                // "CondMerge"//为什么学长会放在这里
                 "mem2reg",
-                "sccp",
-                "SCFG",
-                "DCE",
-                "SOGE",
-                "sccp",
-                "SCFG",
+                "G2L",
 
-                // 第一次内联,循环清理两次
-                "inline",
+                // 基础数据流优化
                 "sccp",
                 "SCFG",
-                "DAE",
-                "SOGE",
-                "DCE",
-                "TRE",
-                "inline",
-                "sccp",
-                "SCFG",
-                "DAE",
-                "SOGE",
-                "DCE",
-                "TRE",
-                "ECE",
-                // loop基础优化
-                // "Loop_Simplifying",
-                // loop展开+常规优化
+                "ConstantHoist",
 
-                // 再来波常规清理
-                "sccp",
-                "SCFG",
+                "ExprReorder",
+
+                // 循环优化
+
+                // gep ,inline
+                "GepEvaluate",
+                "gepcombine",
+                "gepflatten",
+                "inline",
                 "SOGE",
+                "DAE",
+                "TRE",
                 "DCE",
             };
         }
@@ -162,411 +151,429 @@ public:
     void EnableTestPasses(const std::vector<std::string> &tags)
     {
         level = Test;
-        enabledPasses.clear();
-        for (auto &tag : tags)
-            enabledPasses.insert(tag);
-    }
-
-    bool IsEnabled(const std::string &tag) const
-    {
-        return enabledPasses.count(tag);
+        enabledPasses = tags;
     }
 
     void Run()
     {
         auto &funcVec = module->GetFuncTion();
-        // 前期规范化
-        if (IsEnabled("mem2reg"))
+        for (auto &tag : enabledPasses)
         {
-            for (auto &f : funcVec)
+            // 前期规范化
+            if (tag == "mem2reg")
             {
-                auto *func = f.get();
-                int idx = 0;
-                func->GetBBs().clear();
-                for (auto *bb : *func)
+                for (auto &f : funcVec)
                 {
-                    bb->index = idx++;
-                    func->GetBBs().push_back(std::shared_ptr<BasicBlock>(bb));
-                }
-                DominantTree tree(func);
-                tree.BuildDominantTree();
-                Mem2reg(func, &tree).run();
-
-                for (auto &bb_ptr : func->GetBBs())
-                {
-                    BasicBlock *B = bb_ptr.get();
-                    if (!B)
-                        continue;
-                    B->PredBlocks = tree.getPredBBs(B);
-                    B->NextBlocks = tree.getSuccBBs(B);
-                }
-            }
-        }
-
-        if (IsEnabled("sccp"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                AnalysisManager *AM;
-                ConstantProp(fun).run();
-            }
-        }
-
-        if (IsEnabled("SCFG"))
-        {
-            for (auto &func : funcVec)
-                SimplifyCFG(func.get()).run();
-        }
-
-        // 过程间优化
-        if (IsEnabled("inline"))
-        {
-            Inliner inlinerPass(&Singleton<Module>());
-            inlinerPass.run();
-        }
-
-        if (IsEnabled("SOGE"))
-        {
-            SOGE sogePass(&Singleton<Module>());
-            sogePass.run();
-        }
-        /*
-        if (IsEnabled("G2L"))
-        {
-            Global2Local(&Singleton<Module>(), AM).run();
-        }
-        */
-        // 数据流整理
-        if (IsEnabled("ECE"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                ECE ECEpass(fun);
-                ECEpass.run();
-            }
-        }
-
-        // 局部清理
-        if (IsEnabled("SSE"))
-        {
-            SideEffect *se = new SideEffect(&Singleton<Module>());
-            se->GetResult();
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                AM.add<SideEffect>(&Singleton<Module>(), se);
-                SelfStoreElimination(fun, AM).run();
-                // 如果先跑SSE那就把这个打开
-                //  for (auto& bb_ptr : fun->GetBBs()) {
-                //      BasicBlock* B = bb_ptr.get();
-                //      if (!B) continue;
-                //      B->PredBlocks = tree.getPredBBs(B);
-                //      B->NextBlocks = tree.getSuccBBs(B);
-                //      }
-            }
-        }
-        if (IsEnabled("CondMerge"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                CondMerge(fun, AM).run();
-            }
-        }
-
-        if (IsEnabled("DAE"))
-        {
-            DAE(&Singleton<Module>(), AM).run();
-        }
-
-        if (IsEnabled("TRE"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto fun = function.get();
-                TRE TREPass(fun);
-                TREPass.run();
-            }
-        }
-
-        if (IsEnabled("LoopSimplify"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto *func = function.get();
-
-                func->num = 0;
-                auto &oldVec = func->GetBBs();
-                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
-                keep.reserve(oldVec.size());
-                for (auto &sp : oldVec)
-                {
-                    keep.emplace(sp.get(), sp);
-                }
-                std::vector<Function::BBPtr> rebuilt;
-                for (auto *bb : *func)
-                {
-                    bb->num = func->num++;
-                    auto it = keep.find(bb);
-                    if (it != keep.end())
+                    auto *func = f.get();
+                    int idx = 0;
+                    func->GetBBs().clear();
+                    for (auto *bb : *func)
                     {
-                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        bb->index = idx++;
+                        func->GetBBs().push_back(std::shared_ptr<BasicBlock>(bb));
                     }
-                    else
+                    DominantTree tree(func);
+                    tree.BuildDominantTree();
+                    Mem2reg(func, &tree).run();
+
+                    for (auto &bb_ptr : func->GetBBs())
                     {
-                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        BasicBlock *B = bb_ptr.get();
+                        if (!B)
+                            continue;
+                        B->PredBlocks = tree.getPredBBs(B);
+                        B->NextBlocks = tree.getSuccBBs(B);
                     }
                 }
-
-                oldVec.swap(rebuilt);
-
-                LoopSimplify(func, AM).run();
             }
-        }
 
-        if (IsEnabled("LCSSA"))
-        {
-            for (auto &function : funcVec)
+            if (tag == "sccp")
             {
-                auto func = function.get();
-                func->num = 0;
-                auto &oldVec = func->GetBBs();
-                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
-                keep.reserve(oldVec.size());
-                for (auto &sp : oldVec)
+                for (auto &function : funcVec)
                 {
-                    keep.emplace(sp.get(), sp);
+                    auto fun = function.get();
+                    AnalysisManager *AM;
+                    ConstantProp(fun).run();
                 }
-                std::vector<Function::BBPtr> rebuilt;
-                for (auto *bb : *func)
+            }
+            if (tag == "ConstantHoist")
+            {
+                for (auto &function : funcVec)
                 {
-                    bb->num = func->num++;
-                    auto it = keep.find(bb);
-                    if (it != keep.end())
+                    auto fun = function.get();
+
+                    // 构建支配树分析，ConstantHoist 可能依赖它
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+
+                    // 创建 ConstantHoist pass 并运行
+                    ConstantHoist CHPass(fun);
+                    CHPass.run();
+                }
+            }
+            if (tag == "SCFG")
+            {
+                for (auto &func : funcVec)
+                    SimplifyCFG(func.get()).run();
+            }
+
+            // 过程间优化
+            if (tag == "inline")
+            {
+                Inliner inlinerPass(&Singleton<Module>());
+                inlinerPass.run();
+            }
+            if (tag == "SOGE")
+            {
+                SOGE sogePass(&Singleton<Module>());
+                sogePass.run();
+            }
+            if (tag == "G2L")
+            {
+                Global2Local(&Singleton<Module>(), AM).run();
+            }
+
+            // 数据流整理
+            if (tag == "ECE")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    ECE ECEpass(fun);
+                    ECEpass.run();
+                }
+            }
+
+            // 局部清理
+            if (tag == "SSE")
+            {
+                SideEffect *se = new SideEffect(&Singleton<Module>());
+                se->GetResult();
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+                    AM.add<SideEffect>(&Singleton<Module>(), se);
+                    SelfStoreElimination(fun, AM).run();
+                    // 如果先跑SSE那就把这个打开
+                    //  for (auto& bb_ptr : fun->GetBBs()) {
+                    //      BasicBlock* B = bb_ptr.get();
+                    //      if (!B) continue;
+                    //      B->PredBlocks = tree.getPredBBs(B);
+                    //      B->NextBlocks = tree.getSuccBBs(B);
+                    //      }
+                }
+            }
+            if (tag == "CondMerge")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    CondMerge(fun, AM).run();
+                }
+            }
+            if (tag == "DAE")
+            {
+                DAE(&Singleton<Module>(), AM).run();
+            }
+            if (tag == "TRE")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    TRE TREPass(fun);
+                    TREPass.run();
+                }
+            }
+
+            if (tag == "LoopSimplify")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto *func = function.get();
+
+                    func->num = 0;
+                    auto &oldVec = func->GetBBs();
+                    std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                    keep.reserve(oldVec.size());
+                    for (auto &sp : oldVec)
                     {
-                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        keep.emplace(sp.get(), sp);
                     }
-                    else
+                    std::vector<Function::BBPtr> rebuilt;
+                    for (auto *bb : *func)
                     {
-                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        bb->num = func->num++;
+                        auto it = keep.find(bb);
+                        if (it != keep.end())
+                        {
+                            rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        }
+                        else
+                        {
+                            rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        }
                     }
-                }
 
-                oldVec.swap(rebuilt);
-                LcSSA(func, AM).run();
+                    oldVec.swap(rebuilt);
+
+                    LoopSimplify(func, AM).run();
+                }
             }
-        }
-
-        if (IsEnabled("LICM"))
-        {
-            for (auto &function : funcVec)
+            if (tag == "LCSSA")
             {
-                auto func = function.get();
-                func->num = 0;
-                auto &oldVec = func->GetBBs();
-                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
-                keep.reserve(oldVec.size());
-                for (auto &sp : oldVec)
+                for (auto &function : funcVec)
                 {
-                    keep.emplace(sp.get(), sp);
-                }
-                std::vector<Function::BBPtr> rebuilt;
-                for (auto *bb : *func)
-                {
-                    bb->num = func->num++;
-                    auto it = keep.find(bb);
-                    if (it != keep.end())
+                    auto func = function.get();
+                    func->num = 0;
+                    auto &oldVec = func->GetBBs();
+                    std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                    keep.reserve(oldVec.size());
+                    for (auto &sp : oldVec)
                     {
-                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        keep.emplace(sp.get(), sp);
                     }
-                    else
+                    std::vector<Function::BBPtr> rebuilt;
+                    for (auto *bb : *func)
                     {
-                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        bb->num = func->num++;
+                        auto it = keep.find(bb);
+                        if (it != keep.end())
+                        {
+                            rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        }
+                        else
+                        {
+                            rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        }
                     }
+
+                    oldVec.swap(rebuilt);
+                    LcSSA(func, AM).run();
                 }
-
-                oldVec.swap(rebuilt);
-                LICMPass(func, AM).run();
             }
-        }
-
-        if (IsEnabled("LoopRotate"))
-        {
-            for (auto &function : funcVec)
+            if (tag == "LICM")
             {
-                auto func = function.get();
-                func->num = 0;
-
-                auto &oldVec = func->GetBBs();
-
-                // 使用 map 保留原来的 shared_ptr，不移动裸指针
-                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
-                keep.reserve(oldVec.size());
-                for (auto &sp : oldVec)
-                    keep.emplace(sp.get(), sp); // 存 shared_ptr
-
-                // rebuilt vector
-                std::vector<Function::BBPtr> rebuilt;
-                rebuilt.reserve(oldVec.size());
-                for (auto &sp : oldVec)
+                for (auto &function : funcVec)
                 {
-                    sp->num = func->num++;
-                    rebuilt.push_back(sp);
-                }
-
-                oldVec.swap(rebuilt);
-
-                LoopRotate(func, AM).run();
-            }
-        }
-
-        if (IsEnabled("LoopUnroll"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto func = function.get();
-                LoopUnroll(func, AM).run();
-            }
-        }
-
-        if (IsEnabled("LoopDeletion"))
-        {
-            for (auto &function : funcVec)
-            {
-                auto func = function.get();
-                func->num = 0;
-                auto &oldVec = func->GetBBs();
-                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
-                keep.reserve(oldVec.size());
-                for (auto &sp : oldVec)
-                {
-                    keep.emplace(sp.get(), sp);
-                }
-                std::vector<Function::BBPtr> rebuilt;
-                for (auto *bb : *func)
-                {
-                    bb->num = func->num++;
-                    auto it = keep.find(bb);
-                    if (it != keep.end())
+                    auto func = function.get();
+                    func->num = 0;
+                    auto &oldVec = func->GetBBs();
+                    std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                    keep.reserve(oldVec.size());
+                    for (auto &sp : oldVec)
                     {
-                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        keep.emplace(sp.get(), sp);
                     }
-                    else
+                    std::vector<Function::BBPtr> rebuilt;
+                    for (auto *bb : *func)
                     {
-                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        bb->num = func->num++;
+                        auto it = keep.find(bb);
+                        if (it != keep.end())
+                        {
+                            rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        }
+                        else
+                        {
+                            rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        }
                     }
+
+                    oldVec.swap(rebuilt);
+                    LICMPass(func, AM).run();
                 }
-
-                oldVec.swap(rebuilt);
-                LoopDeletion(func, AM).run();
             }
-        }
-
-        if (IsEnabled("SSR"))
-        {
-            for (auto &function : funcVec)
+            if (tag == "SSR")
             {
-                auto func = function.get();
-                func->num = 0;
-                auto &oldVec = func->GetBBs();
-                std::unordered_map<BasicBlock *, Function::BBPtr> keep;
-                keep.reserve(oldVec.size());
-                for (auto &sp : oldVec)
+                for (auto &function : funcVec)
                 {
-                    keep.emplace(sp.get(), sp);
+                    auto func = function.get();
+                    func->num = 0;
+                    auto &oldVec = func->GetBBs();
+                    std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                    keep.reserve(oldVec.size());
+                    for (auto &sp : oldVec)
+                    {
+                        keep.emplace(sp.get(), sp);
+                    }
+                    std::vector<Function::BBPtr> rebuilt;
+                    for (auto *bb : *func)
+                    {
+                        bb->num = func->num++;
+                        auto it = keep.find(bb);
+                        if (it != keep.end())
+                        {
+                            rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        }
+                        else
+                        {
+                            rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        }
+                    }
+
+                    oldVec.swap(rebuilt);
+                    ScalarStrengthReduce(func, AM).run();
                 }
-                std::vector<Function::BBPtr> rebuilt;
-                for (auto *bb : *func)
+            }
+
+            if (tag == "LoopRotate")
+            {
+                for (auto &function : funcVec)
                 {
-                    bb->num = func->num++;
-                    auto it = keep.find(bb);
-                    if (it != keep.end())
+                    auto func = function.get();
+                    func->num = 0;
+
+                    auto &oldVec = func->GetBBs();
+
+                    // 使用 map 保留原来的 shared_ptr，不移动裸指针
+                    std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                    keep.reserve(oldVec.size());
+                    for (auto &sp : oldVec)
+                        keep.emplace(sp.get(), sp); // 存 shared_ptr
+
+                    // rebuilt vector
+                    std::vector<Function::BBPtr> rebuilt;
+                    rebuilt.reserve(oldVec.size());
+                    for (auto &sp : oldVec)
                     {
-                        rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        sp->num = func->num++;
+                        rebuilt.push_back(sp);
                     }
-                    else
-                    {
-                        rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
-                    }
+
+                    oldVec.swap(rebuilt);
+
+                    LoopRotate(func, AM).run();
                 }
-
-                oldVec.swap(rebuilt);
-                ScalarStrengthReduce(func, AM).run();
             }
-        }
-
-        // 数据流优化
-        if (IsEnabled("SSAPRE"))
-        {
-            for (auto &function : funcVec)
+            if (tag == "LoopUnroll")
             {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                SSAPRE(fun, AM).run();
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    LoopUnroll(func, AM).run();
+                }
             }
-        }
-
-        if (IsEnabled("GVN"))
-        {
-            for (auto &function : funcVec)
+            if (tag == "LoopDeletion")
             {
-                // Function;
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                GVN(fun, AM).run();
-            }
-        }
+                for (auto &function : funcVec)
+                {
+                    auto func = function.get();
+                    func->num = 0;
+                    auto &oldVec = func->GetBBs();
+                    std::unordered_map<BasicBlock *, Function::BBPtr> keep;
+                    keep.reserve(oldVec.size());
+                    for (auto &sp : oldVec)
+                    {
+                        keep.emplace(sp.get(), sp);
+                    }
+                    std::vector<Function::BBPtr> rebuilt;
+                    for (auto *bb : *func)
+                    {
+                        bb->num = func->num++;
+                        auto it = keep.find(bb);
+                        if (it != keep.end())
+                        {
+                            rebuilt.push_back(std::move(it->second)); // 复用原来的 shared_ptr
+                        }
+                        else
+                        {
+                            rebuilt.emplace_back(bb); // 谨慎：只有确认没有别的 shared_ptr 管这个 bb 时才安全
+                        }
+                    }
 
-        if (IsEnabled("DCE"))
-        {
-            for (auto &function : funcVec)
+                    oldVec.swap(rebuilt);
+                    LoopDeletion(func, AM).run();
+                }
+            }
+
+            // 数据流优化
+            if (tag == "SSAPRE")
             {
-                auto fun = function.get();
-                AnalysisManager *AM;
-                DCE(fun, AM).run();
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+                    SSAPRE(fun, AM).run();
+                }
             }
-        }
-
-        if (IsEnabled("ExprReorder"))
-        {
-            for (auto &function : funcVec)
+            if (tag == "GVN")
             {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
-                AM.add<DominantTree>(fun, &tree);
-                ExprReorder(fun).run();
+                for (auto &function : funcVec)
+                {
+                    // Function;
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+                    GVN(fun, AM).run();
+                }
             }
-        }
-
-        // 数组重写
-        if (IsEnabled("gepcombine"))
-        {
-            SideEffect *se = new SideEffect(&Singleton<Module>());
-            se->GetResult();
-
-            for (auto &function : funcVec)
+            if (tag == "DCE")
             {
-                auto fun = function.get();
-                DominantTree tree(fun);
-                tree.BuildDominantTree();
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    AnalysisManager *AM;
+                    DCE(fun, AM).run();
+                }
+            }
+            if (tag == "ExprReorder")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+                    AM.add<DominantTree>(fun, &tree);
+                    ExprReorder(fun).run();
+                }
+            }
 
-                AM.add<DominantTree>(fun, &tree);
-                AM.add<SideEffect>(&Singleton<Module>(), se);
+            // 数组重写
+            if (tag == "gepcombine")
+            {
+                SideEffect *se = new SideEffect(&Singleton<Module>());
+                se->GetResult();
 
-                GepCombine gepCombinePass(fun, AM);
-                gepCombinePass.run();
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+
+                    AM.add<DominantTree>(fun, &tree);
+                    AM.add<SideEffect>(&Singleton<Module>(), se);
+
+                    GepCombine gepCombinePass(fun, AM);
+                    gepCombinePass.run();
+                }
+            }
+            if (tag == "GepEvaluate")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    DominantTree tree(fun);
+                    tree.BuildDominantTree();
+
+                    AM.add<DominantTree>(fun, &tree);
+                    GepEvaluate(fun, AM).run();
+                }
+            }
+            if (tag == "gepflatten")
+            {
+                for (auto &function : funcVec)
+                {
+                    auto fun = function.get();
+                    GepFlatten(fun).run();
+                }
             }
         }
-        // 后端准备
     }
 };

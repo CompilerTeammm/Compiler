@@ -909,6 +909,8 @@ public:
   Operand GenerateFP2SIInst(Operand _A);
   Operand GenerateLoadInst(Operand);
   void GenerateStoreInst(Operand, Operand);
+
+  void hu1_GenerateStoreInst(Operand,Operand,AllocaInst*);
   AllocaInst *GenerateAlloca(Type *_tp, std::string name);
   void GenerateCondInst(Operand, BasicBlock *, BasicBlock *);
   void GenerateUnCondInst(BasicBlock *);

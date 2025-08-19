@@ -22,9 +22,7 @@ public:
     bool run() override;
     SimplifyCFG(Function *_func) : func(_func) {}
     ~SimplifyCFG() = default;
-    // 分层次组织子优化
     bool SimplifyCFGFunction();
-    // bool SimplifyCFGBasicBlock(BasicBlock *bb);
 
     // 子优化：function
     bool removeUnreachableBlocks(); // 删除不可达基本块(集成到simplifyBranch之后,方便)
