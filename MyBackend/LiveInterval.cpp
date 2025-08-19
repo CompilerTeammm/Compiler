@@ -190,6 +190,11 @@ void LiveInterval::orderInsts()
         }
         bbInfos.emplace(mbb,std::make_shared<range>(start,order-1));
     }
+
+    for (auto&[inst,order]: RecordInstAndOrder)
+    {
+        RecordOrderAndInst[order] = inst;
+    }
 }
 
 void LiveInterval::CalcuLiveIntervals()

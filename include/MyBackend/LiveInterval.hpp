@@ -26,6 +26,7 @@ class LiveInterval
 {
     using order = int;
     std::map<RISCVInst*,order> RecordInstAndOrder;
+    std::map<order,RISCVInst*> RecordOrderAndInst;
     void orderInsts();
     LiveInfo liveInfo;
     RISCVFunction* curfunc;
@@ -58,4 +59,6 @@ public:
         return regLiveIntervals;
     }
     void FinalCalcu();
+    std::map<RISCVInst*,order>& getInstAndOrder() { return RecordInstAndOrder; }
+    std::map<order,RISCVInst*>& getOrderAndInst() { return RecordOrderAndInst; }
 };

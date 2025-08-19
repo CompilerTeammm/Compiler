@@ -22,6 +22,21 @@ bool RegAllocation::isCrossCall(rangeInfoptr rangeInfo)
     }
     return false;
 }
+
+// 理论上这个的实现，可以减轻寄存器分配的压力
+// 如果物理寄存器与虚拟寄存器冲突就绝对不能够分配
+// 这个我之后再实现它
+bool RegAllocation::isConflict(rangeInfoptr rangeInfo)
+{
+    for (auto& e : interval.getRealRegWithRange())
+    {
+        if ((rangeInfo->start < e.second->start && rangeInfo->end > e.second->end) ||
+            (rangeInfo->start < e.second->end && rangeInfo->end > e.second->end ))
+                return true;
+    }
+    return false;
+}
+
 bool RegAllocation::isCallerSavedRR(RealRegister* rr)
 {
     return rr->isCallerSaved();
@@ -123,8 +138,8 @@ void RegAllocation::expireOldIntervals(std::pair<Register*,LiveInterval::rangeIn
 // 如果发生溢出的话，应该有变量被搞出来，需要记录变量在那条语句被溢出了
 int RegAllocation::allocateStackLocation(Register* v) 
 {
-    // 需要判断类型去确定要开辟的栈帧大小
-    return 4;
+    // 需要判断类型去确定要开辟的栈帧大小, 同一分配 8 字节的大小去作为栈帧槽
+    return 8;
 }
 bool RegAllocation::hasStackSlot(Register* v)
 {
@@ -132,6 +147,30 @@ bool RegAllocation::hasStackSlot(Register* v)
 }
 void RegAllocation::assignSpill(Register* v)
 {
+    rangeInfoptr LInfo = nullptr;
+    for (auto&[e,LiveInfo] : LinerScaner) {
+        if ( v == e) {
+            LInfo = LiveInfo;
+            break;
+        }
+    }
+    int start = LInfo->start;
+    int end = LInfo->end;
+    std::vector<RISCVInst*> useInst;
+    std::vector<RISCVInst*> defInst;
+    for (int tmp = start; tmp != end+1; tmp++)
+    {
+        RISCVInst* riscvInst = interval.getOrderAndInst()[tmp];
+        for (auto& op : riscvInst->getOpsVec()) {
+            if (v == op.get()) {
+                if (op == riscvInst->getOpreand(0))
+                    useInst.push_back(riscvInst);
+                else   
+                    defInst.push_back(riscvInst);
+            }
+        }
+    }
+    
     if (!hasStackSlot(v)) {
         int off = allocateStackLocation(v);
         stackLocation[v] = off;
@@ -139,7 +178,7 @@ void RegAllocation::assignSpill(Register* v)
     spilledRegs.insert(v);
 }
 // 寄存器的溢出
-void RegAllocation::spillInterval(std::pair<Register*,rangeInfoptr> interval)
+void RegAllocation::spillInterval(std::pair<Register*,rangeInfoptr> newinterval)
 {
     // 选择溢出 end 最大的, 作为溢出的牺牲者
     auto victimIt = std::max_element(active_list.begin(),active_list.end(),
@@ -147,7 +186,7 @@ void RegAllocation::spillInterval(std::pair<Register*,rangeInfoptr> interval)
                 return x.second->end < y.second->end;
             });
     
-    if (victimIt != active_list.end() && victimIt->second->end > interval.second->end) {
+    if (victimIt != active_list.end() && victimIt->second->end > newinterval.second->end) {
         // 新来的interval 可以不溢出，将 victimIt 筛选出来的进行溢出
         auto victimVReg = victimIt->first;
         auto realReg = activeRegs[victimVReg];
@@ -156,33 +195,33 @@ void RegAllocation::spillInterval(std::pair<Register*,rangeInfoptr> interval)
         activeRegs.erase(victimVReg);
         victimIt = active_list.erase(victimIt);
 
-        activeRegs[interval.first] = realReg;
-        active_list.push_back(interval);
+        activeRegs[newinterval.first] = realReg;
+        active_list.push_back(newinterval);
 
         // new Interval 的加入，可以使这个重排
         active_list.sort([](const auto& a, const auto& b){ return a.second->end < b.second->end; });
     } else {
-        assignSpill(interval.first);
+        assignSpill(newinterval.first);
     }
 }
 
-void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr>& interval,bool useCalleeSaved)
+void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr>& newinterval,bool useCalleeSaved)
 {   
     RealRegister* reg = nullptr;
     
-    if (auto real = dynamic_cast<RealRegister*> (interval.first)) {
-        if (isFloatReg(interval.first))
+    if (auto real = dynamic_cast<RealRegister*> (newinterval.first)) {
+        if (isFloatReg(newinterval.first))
         {
             reg = real;
 
             // 加入 active 集合，防止后面错误地复用
-            activeRegs[interval.first] = reg;
-            active_list.emplace_back(interval);
+            activeRegs[newinterval.first] = reg;
+            active_list.emplace_back(newinterval);
             active_list.sort([](const auto &v1, const auto &v2)
                              { return v1.second->end < v2.second->end; });
         }
     } else {   // 虚拟寄存器
-        if (isFloatReg(interval.first))
+        if (isFloatReg(newinterval.first))
         {
             if (useCalleeSaved)
             {
@@ -214,8 +253,8 @@ void RegAllocation::distributeRegs(std::pair<Register*,rangeInfoptr>& interval,b
                 callerSavedIntPool.pop_back();
             }
         }
-        activeRegs[interval.first] = reg;
-        active_list.emplace_back(interval);
+        activeRegs[newinterval.first] = reg;
+        active_list.emplace_back(newinterval);
         active_list.sort([](const auto &v1, const auto &v2)
                          { return v1.second->end < v2.second->end; });
     }
@@ -234,8 +273,9 @@ void RegAllocation::ScanLiveinterval()
         auto& callerPool = isFloatReg(e.first) ? callerSavedFloatPool : callerSavedIntPool;
         auto& calleePool = isFloatReg(e.first) ? calleeSavedFloatPool : calleeSavedIntPool;
 
-        const bool isCross = isCrossCall(e.second);
+        const bool isCross = isCrossCall(e.second);   // 判断是否调用跨call Instruction
         // 跨调用优先 callee_saved , 非跨调用优先 caller_saved
+
         if (isCross) {
             if ( !calleePool.empty()) {
                 distributeRegs(e,true);   

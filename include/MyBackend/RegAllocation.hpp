@@ -58,6 +58,8 @@ public:
 
     // deal Call
     bool isCrossCall(rangeInfoptr rangeInfo);
+    bool isConflict(rangeInfoptr rangeInfo);
+
     bool isCallerSavedRR(RealRegister* rr);
     bool isCalleeSavedRR(RealRegister* rr);
     void releaseRealReg(RealRegister* rr,bool isFP);
