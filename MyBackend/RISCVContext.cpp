@@ -483,6 +483,11 @@ void RISCVContext::extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instructi
 
 void RISCVContext::extraDealBeqInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst)
 {
+    RISCVInst* fltInst = CreateInstAndBuildBind(RISCVInst::_flt_s, inst);
+    fltInst->SetVirRegister();
+    fltInst->push_back(fltInst->GetPrevNode()->getOpreand(0));
+    fltInst->push_back(fltInst->GetPrevNode()->GetPrevNode()->getOpreand(0));
+
     RInst = CreateInstAndBuildBind(op, inst);
     RInst->setStoreOp(RInst->GetPrevNode());
     RInst->push_back(std::make_shared<RISCVOp>("zero"));
@@ -594,6 +599,7 @@ void RISCVContext::extraDealIntBinary(RISCVInst* & RInst,BinaryInst* inst, RISCV
     }
 }
 
+// fmv.w.x  ft0,t0
 void RISCVContext::extraDealFloatBinary(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op)
 {
     Value *valOp1 = inst->GetOperand(0);
@@ -609,26 +615,42 @@ void RISCVContext::extraDealFloatBinary(RISCVInst* & RInst,BinaryInst* inst, RIS
 
     if (Immop1 != nullptr) {
         ImmOneInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
-        ImmOneInst->SetVirFloatRegister();
+        ImmOneInst->SetVirRegister();
         ImmOneInst->SetImmOp(Immop1);
     }
 
     if (Immop2 != nullptr) {
         ImmTwoInst = CreateInstAndBuildBind(RISCVInst::_li,inst);
-        ImmTwoInst->SetVirFloatRegister();
+        ImmTwoInst->SetVirRegister();
         ImmTwoInst->SetImmOp(Immop2);
     }
+
+    // fmv.w.x  ft0,t0
+    RISCVInst* fmvInstI = nullptr;
+    RISCVInst* fmvInstII = nullptr;
+    if(ImmOneInst != nullptr) {
+        fmvInstI = CreateInstAndBuildBind(RISCVInst::_fmv_w_x, inst);
+        fmvInstI->SetVirFloatRegister();
+        fmvInstI->push_back(ImmOneInst->getOpreand(0));
+    }
+
+    if(ImmTwoInst != nullptr) {
+        fmvInstII = CreateInstAndBuildBind(RISCVInst::_fmv_w_x, inst);
+        fmvInstII->SetVirFloatRegister();
+        fmvInstII->push_back(ImmTwoInst->getOpreand(0));
+    }
+
 
     RInst = CreateInstAndBuildBind(Op, inst);
     if(ImmOneInst != nullptr) {
         if (ImmTwoInst != nullptr) {
-            RInst->setThreeFRegs(ImmOneInst->getOpreand(0), ImmTwoInst->getOpreand(0));
+            RInst->setThreeFRegs(fmvInstI->getOpreand(0), fmvInstII->getOpreand(0));
         } else {
-            RInst->setThreeFRegs(ImmOneInst->getOpreand(0), RISCVop2->getOpreand(0));
+            RInst->setThreeFRegs(fmvInstI->getOpreand(0), RISCVop2->getOpreand(0));
         }
     } else {  // RISCVop1 != nullptr
         if(ImmTwoInst != nullptr){
-            RInst->setThreeFRegs(RISCVop1->getOpreand(0),ImmTwoInst->getOpreand(0));
+            RInst->setThreeFRegs(RISCVop1->getOpreand(0),fmvInstII->getOpreand(0));
         } else {
             RInst->setThreeFRegs(RISCVop1->getOpreand(0), RISCVop2->getOpreand(0));
         }
@@ -820,13 +842,13 @@ RISCVInst* RISCVContext::CreateI2Fnst(SI2FPInst *inst)
     auto val = inst->GetOperand(0);
 
     if(val->isConst()) {
-        Inst = CreateInstAndBuildBind(RISCVInst::_li, inst);
-        Inst->setRealLIOp(val);
+        auto liInst = CreateInstAndBuildBind(RISCVInst::_li, inst);
+        liInst->setRealLIOp(val);
 
-        auto Inst2 = CreateInstAndBuildBind(RISCVInst::_fcvt_s_w, inst);
-        Inst2->SetVirFloatRegister();
-        Inst2->setStoreOp(Inst2->GetPrevNode());
-        Inst->DealMore(Inst2);
+        Inst = CreateInstAndBuildBind(RISCVInst::_fcvt_s_w, inst);
+        Inst->SetVirFloatRegister();
+        Inst->setStoreOp(Inst->GetPrevNode());
+        Inst->DealMore(liInst);
     } else {
         Inst = CreateInstAndBuildBind(RISCVInst::_fcvt_s_w, inst);
         Inst->SetVirFloatRegister();
@@ -953,10 +975,18 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
             Value *val = inst->GetOperand(paramNum);
             if (dynamic_cast<CallInst *>(val))
             {
-                auto mvInst = mapTrans(val)->as<RISCVInst>();
-                param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
-                param->SetRealRegister("a" + std::to_string(paramNum - 1));
-                param->push_back(mvInst->getOpreand(0));
+                if (val->GetType() == FloatType::NewFloatTypeGet())
+                {
+                    auto mvInst = mapTrans(val)->as<RISCVInst>();
+                    param = CreateInstAndBuildBind(RISCVInst::_fmv_s, inst);
+                    param->SetRealRegister("fa" + std::to_string(paramNum - 1));
+                    param->push_back(mvInst->getOpreand(0));
+                } else {
+                    auto mvInst = mapTrans(val)->as<RISCVInst>();
+                    param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+                    param->SetRealRegister("a" + std::to_string(paramNum - 1));
+                    param->push_back(mvInst->getOpreand(0));
+                }
             }
             if (dynamic_cast<ConstantData *>(val))
             {
@@ -966,15 +996,25 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
             }
             else
             {
-                auto lwInst = mapTrans(val)->as<RISCVInst>();
-                if (lwInst == nullptr) // need to deal
-                    continue;
-                //auto op = std::make_shared<RealRegister> ("a" + std::to_string(paramNum - 1));
-                //lwInst->replacedIndexWithVal(0,op);
-                //lwInst->getOpreand(0)->as<VirRegister>()->reWriteRegWithReal("a" + std::to_string(paramNum - 1));
-                param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
-                param->SetRealRegister("a" + std::to_string(paramNum - 1));
-                param->push_back(lwInst->getOpreand(0));
+                if (val->GetType() == FloatType::NewFloatTypeGet())
+                {
+                    auto lwInst = mapTrans(val)->as<RISCVInst>();
+                    if (lwInst == nullptr) // need to deal
+                        continue;
+                    param = CreateInstAndBuildBind(RISCVInst::_fmv_s, inst);
+                    param->SetRealRegister("fa" + std::to_string(paramNum - 1));
+                    param->push_back(lwInst->getOpreand(0));   
+                } else {
+                    auto lwInst = mapTrans(val)->as<RISCVInst>();
+                    if (lwInst == nullptr) // need to deal
+                        continue;
+                    // auto op = std::make_shared<RealRegister> ("a" + std::to_string(paramNum - 1));
+                    // lwInst->replacedIndexWithVal(0,op);
+                    // lwInst->getOpreand(0)->as<VirRegister>()->reWriteRegWithReal("a" + std::to_string(paramNum - 1));
+                    param = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+                    param->SetRealRegister("a" + std::to_string(paramNum - 1));
+                    param->push_back(lwInst->getOpreand(0));
+                }
             }
         }
     }
@@ -983,11 +1023,21 @@ RISCVInst* RISCVContext::CreateCInst(CallInst *inst)
     Inst->push_back(std::make_shared<RISCVOp>(inst->GetOperand(0)->GetName()));
     if (param != nullptr)
         Inst->DealMore(param);
+    
     // ret
-    ret = CreateInstAndBuildBind(RISCVInst::_mv,inst);
-    ret->SetVirRegister();
-    ret->SetRealRegister("a0");
-    Inst->DealMore(ret);
+    if (inst->GetType() == FloatType::NewFloatTypeGet())
+    {
+        ret = CreateInstAndBuildBind(RISCVInst::_fmv_s, inst);
+        ret->SetVirFloatRegister();
+        ret->SetRealRegister("fa0");
+        Inst->DealMore(ret);
+    }
+    else {
+        ret = CreateInstAndBuildBind(RISCVInst::_mv, inst);
+        ret->SetVirRegister();
+        ret->SetRealRegister("a0");
+        Inst->DealMore(ret);
+    }
    
     return ret;
 }

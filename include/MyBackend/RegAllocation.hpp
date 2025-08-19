@@ -33,8 +33,10 @@ class RegAllocation :public BackendPassBase
     std::map<RISCVInst*,position> CallAndPosRecord;
 
     // 记录已使用的 callee_saved 寄存器，用于 pro epi 保存/恢复
+    // callee_saved 寄存器要进行保存
     std::unordered_set<RealRegister*> usedCalleeSavedInt;
     std::unordered_set<RealRegister*> usedCalleeSavedFP;
+
 public:
     RegAllocation(RISCVFunction* _mfunc,std::shared_ptr<RISCVContext>& _ctx)
                 :mfunc(_mfunc),ctx(_ctx),interval(_mfunc,_ctx) { }

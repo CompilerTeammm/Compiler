@@ -184,8 +184,10 @@ void LiveInterval::orderInsts()
                     }
                 }
             }
-            if (mInst->getOpcode() == RISCVInst::_call)  // 记录一下call 语句
+            if (mInst->getOpcode() == RISCVInst::_call) {
                 CallAndPosRecord[mInst] = order;
+                curfunc->getCallRecord().push_back(mInst);
+            } // 记录一下call 语句
             order++;
         }
         bbInfos.emplace(mbb,std::make_shared<range>(start,order-1));

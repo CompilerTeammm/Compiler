@@ -154,9 +154,11 @@ public:
         fs0,fs1,fs2,fs3,fs4,fs5,fs6,fs7,fs8,fs9,fs10,fs11,
          _NULL,
     };
+    realReg arr[52] = {zero,ra,sp,gp,tp,t0,t1,s0,a0,a1,a2,a3,a4,a5,a6,a7,t2,t3,t4,t5,t6,s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,
+    fa0,fa1,fa2,fa3,fa4,fa5,fa6,fa7,fs0,fs1,fs2,fs3,fs4,fs5,fs6,fs7,fs8,fs9,fs10,fs11};
 
     bool isCallerSaved() {
-        if (realRegop >= t2 && realRegop <= a7) {
+        if (realRegop >= a0 && realRegop <= t6) {
             return true;
         }
         if ( realRegop >= fa0 && realRegop <= fa7) {
@@ -664,6 +666,11 @@ private:
     // spill And load
     std::map<Register*,std::pair<std::vector<RISCVInst*>,std::vector<RISCVInst*>>> dealStackSpill;
     std::vector<Register*> spillRegs;
+
+    // call 语句进行记录进行栈帧save callee_saved regs
+    std::vector<RISCVInst*> callInstRecord;
+    // 需要存储的 callee_saved 寄存器
+    std::set<std::string> needTodealCalleeSavedRegs;
 public:
     size_t& getparamNum() { return paramNum; }
     std::vector<RISCVInst*>&  getSpilledParam()  { return spilledParam;}
@@ -679,4 +686,11 @@ public:
     using DefInst = RISCVInst;
     using UseInst = RISCVInst;
     std::map<Register*,std::pair<std::vector<DefInst*>,std::vector<UseInst*>>>& getSpillStack() { return dealStackSpill; }
+
+    // callInst 
+    std::vector<RISCVInst*>& getCallRecord() { return callInstRecord;}
+    std::unordered_set<RealRegister*> usedCalleeSavedInt;
+    std::unordered_set<RealRegister*> usedCalleeSavedFP;
+
+    std::set<std::string>& getneedDealCSRegs() { return needTodealCalleeSavedRegs; }
 };

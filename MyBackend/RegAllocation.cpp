@@ -330,12 +330,14 @@ void RegAllocation::ReWriteRegs()
 
         if (itReg != activeRegs.end()) {
             virReg->as<VirRegister>()->reWriteRegWithReal(activeRegs[virReg]);
-        } else if (itSlot != stackLocation.end()) {
-            // 溢出的情况应该有其他的语句去加成
-        }
+        } 
+        // else if (itSlot != stackLocation.end()) {
+        //     // 溢出的情况在溢出函数里面就处理了
+        // }
     }
 
     // callee_saved  caller_saved 重写
+    // 被调用的函数应该存储 callee_saved寄存器
     for (auto& kv : CallAndPosRecord) {
 
     }
@@ -346,6 +348,27 @@ bool RegAllocation::run()
     fillLinerScaner();    // 变量的活跃区间的填充
     ScanLiveinterval();
     ReWriteRegs();
+
+    mfunc->usedCalleeSavedInt = usedCalleeSavedInt;
+    mfunc->usedCalleeSavedFP = usedCalleeSavedFP;
+
+    for (auto &callInst : mfunc->getCallRecord())
+    {
+        auto it = callInst->getOpreand(0);
+        auto func = it->as<RISCVFunction>();
+        if (func == nullptr)
+            continue;
+        for (auto& e : usedCalleeSavedFP)
+        {
+            std::string name = RealRegister::realRegToString(e->getRegop());
+            mfunc->getneedDealCSRegs().insert(name);
+        }
+        for (auto& e : usedCalleeSavedInt)
+        {
+            std::string name = RealRegister::realRegToString(e->getRegop());
+            mfunc->getneedDealCSRegs().insert(name);
+        }
+    }
 
     return true;
 }

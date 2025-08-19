@@ -59,6 +59,8 @@ size_t ProloAndEpilo::caculate()
         }
     }
 
+    if (sumMallocSize % 8 != 0)
+        sumMallocSize += 4;
     // deal spilled register
     auto& DefUseVec = mfunc->getSpillStack();
     auto& spillRegs = mfunc->getSpillRegs();
@@ -93,9 +95,12 @@ size_t ProloAndEpilo::caculate()
     // caller saved register
 
     // callee saved register
+    csrStart = sumMallocSize;
+    int CSRsize = mfunc->getneedDealCSRegs().size();
+    sumMallocSize += CSRsize * 8;
+
 
     // deal spill arguments  small -> big
-    
     // callee
     auto& LoadInstVec = mfunc->getSpilledParamLoadInst();
     size_t spillOffset = 0;
@@ -110,7 +115,6 @@ size_t ProloAndEpilo::caculate()
     if ( paraNum  > 8) {
         sumMallocSize += (paraNum -8) * 8;
     }
-
 
     // result
     while (N * ALIGN < sumMallocSize)  N++;
@@ -262,6 +266,18 @@ void ProloAndEpilo::CreateProlo(size_t size)
     SetS0Op(s0inst,size);
     InstVec.push_back(s0inst);
 
+
+    size_t tmpCSR = csrStart;
+    auto stringRegs = mfunc->getneedDealCSRegs();
+    for (std::string name :stringRegs)
+    {
+        auto sdInst = std::make_shared<RISCVInst> (RISCVInst::_sd);
+        sdInst->SetRealRegister(std::move(name));
+        sdInst->setStoreStackS0Op(tmpCSR);
+        tmpCSR += 8;
+        InstVec.push_back(sdInst);
+    }
+
     mfunc->setPrologue(it);
 }
 
@@ -269,6 +285,17 @@ void ProloAndEpilo::CreateEpilo(size_t size)
 {
     auto it = std::make_shared<RISCVEpilogue> ();
     auto& InstVec = it->getInstsVec();
+
+    size_t tmpCSR = csrStart;
+    auto stringRegs = mfunc->getneedDealCSRegs();
+    for (std::string name : stringRegs)
+    {
+        auto sdInst = std::make_shared<RISCVInst>(RISCVInst::_ld);
+        sdInst->SetRealRegister(std::move(name));
+        sdInst->setStoreStackS0Op(tmpCSR);
+        tmpCSR += 8;
+        InstVec.push_back(sdInst);
+    }
 
     auto ldRaInst = std::make_shared<RISCVInst> (RISCVInst::_ld);
     SetldRaOp(ldRaInst,size); 
