@@ -13,7 +13,6 @@
 #include "GVN.hpp"
 #include "SSAPRE.hpp"
 #include "SimplifyCFG.hpp"
-#include "CondMerge.hpp"
 #include "../Analysis/SideEffect.hpp"
 #include "../Analysis/AliasAnalysis.hpp"
 #include "DSE.hpp"

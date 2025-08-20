@@ -61,6 +61,8 @@ bool TransFunction::run(Function* func)
     // 构造了 TransFunction
     auto mfunc = ctx->mapTrans(func)->as<RISCVFunction>();
     ctx->setCurFunction(mfunc);
+    ctx->DealFunctionParam(func);
+
     // RISCVFunc 与 RISCVBlock 建立了联系
     for (BasicBlock *BB : *func)
     {
@@ -75,12 +77,14 @@ bool TransFunction::run(Function* func)
         select.MatchAllInsts(BB);
     }
 
-    changeTheOrders(mfunc);
+    // changeTheOrders(mfunc);
 
     // 后端优化 phi 函数的消除
-    PhiEliminate phi(func);
+    PhiEliminate phi(func,ctx);
     ret = phi.run();
     if(!ret)   LOG(ERROR,"Phi failed");
+
+    // LiveInterval(mfunc,ctx).run();
 
     //寄存器分配算法
     RegAllocation RA(mfunc, ctx);
@@ -123,13 +127,14 @@ void TransFunction::reWritestackOffse(RISCVFunction*& mfunc)
     }
 }
 
-
 void TransFunction::changeTheOrders(RISCVFunction*& mfunc)
 {
     auto BrVec = mfunc->getBrInstSuccBBs();
+    auto& bbList = mfunc->getRecordBBs();
     std::map<BasicBlock*,BasicBlock*> curToSuccMap; 
     std::map<Instruction*,BasicBlock*> curToLabelMap; 
     std::map<Instruction*,int> recordOneOrTwo;
+    
     for(auto [inst,pair1] :BrVec) 
     {
         auto curbb = inst->GetParent();
@@ -155,7 +160,6 @@ void TransFunction::changeTheOrders(RISCVFunction*& mfunc)
         }
     }
 
-    auto& bbList = mfunc->getRecordBBs();
     std::list<RISCVBlock*> newList;
     RISCVBlock* succBB = nullptr;
     auto it = bbList.begin();

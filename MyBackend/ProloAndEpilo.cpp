@@ -14,45 +14,146 @@
 // ld s0,offset2
 // addi   sp,sp,Malloc
 
-// I think the std::move is not the must, Compiler will do this
-// I hope to search it.
+//
+// frame
+// ra,s0
+// local arrs
+// local int/float/ptr
+// spilled register
+// caller saved register
+// callee saved register
+// spill arguments
+//
+
+// deal the fame and caculate the size  
+size_t ProloAndEpilo::caculate()
+{
+    int N = INITSIZE;
+    int sumMallocSize = 16;
+
+    // deal local arr
+    if (mfunc->arroffset != mfunc->defaultSize)
+        sumMallocSize += mfunc->arroffset - mfunc->defaultSize;
+
+    // local int/float/ptr
+    for (auto allocInst : mfunc->getAllocas())
+    {
+        if(allocInst->GetTypeEnum() == IR_PTR) 
+        {
+            auto PType = dynamic_cast<PointerType*> (allocInst->GetType());
+            if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
+            {
+
+            }
+            else if (PType->GetSubType()->GetTypeEnum() == IR_PTR)
+            {
+                size_t ptrSize = PType->GetSubType()->GetSize();
+                sumMallocSize += ptrSize;
+                if (sumMallocSize % 8 != 0)
+                    sumMallocSize += 4;
+            }
+            else if(PType->GetSubType()->GetTypeEnum() == IR_Value_Float ||
+                  PType->GetSubType()->GetTypeEnum() == IR_Value_INT ) {
+                sumMallocSize += sizeof(int32_t);
+            }
+        }
+    }
+
+    if (sumMallocSize % 8 != 0)
+        sumMallocSize += 4;
+    // deal spilled register
+    auto& DefUseVec = mfunc->getSpillStack();
+    auto& spillRegs = mfunc->getSpillRegs();
+    for (auto& reg : spillRegs)
+    {
+        std::vector<RISCVInst*> defVec = DefUseVec[reg].first;
+        std::vector<RISCVInst*> useVec = DefUseVec[reg].second;
+        // 均按照 8 字节进行存储的
+
+        sumMallocSize += 8;
+        for (auto& def : defVec) 
+        {
+            if (sumMallocSize <= 2047)
+                def->GetNextNode()->setStoreStackS0Op(sumMallocSize);
+            else
+            {
+
+            }
+        }
+
+        for (auto& use : useVec)
+        {
+            if (sumMallocSize <= 2047)
+                use->GetPrevNode()->setStoreStackS0Op(sumMallocSize);
+            else
+            {
+
+            }
+        }
+    }
+
+    // caller saved register
+
+    // callee saved register
+    csrStart = sumMallocSize;
+    int CSRsize = mfunc->getneedDealCSRegs().size();
+    sumMallocSize += CSRsize * 8;
+
+
+    // deal spill arguments  small -> big
+    // callee
+    auto& LoadInstVec = mfunc->getSpilledParamLoadInst();
+    size_t spillOffset = 0;
+    for (auto& inst : LoadInstVec)
+    {
+        inst->SetstackOffsetOp(std::to_string(spillOffset) + "(s0)");
+        spillOffset += 8;
+    }
+
+    // caller 
+    auto& paraNum = mfunc->getNeedStackForparam();
+    if ( paraNum  > 8) {
+        sumMallocSize += (paraNum -8) * 8;
+    }
+
+    // result
+    while (N * ALIGN < sumMallocSize)  N++;
+    size_t size = (N)* ALIGN;  // 1 is for sp/ra
+    return size; 
+}
 
 // array  stack 传参
 bool ProloAndEpilo:: DealStoreInsts()
 {
-    auto MallocVec = mfunc->getStoreInsts();
-    // auto StoreRecord = mfunc->getStoreRecord();
+    auto MallocVec = mfunc->getStoreRecord();
     auto& AOffsetRecord = mfunc->getAOffsetRecord();
-    size_t offset = TheSizeofStack;
+    size_t offset = mfunc->arroffset;
     std::set<AllocaInst*> tmp;
     for (auto& alloc:mfunc->getAllocas())
     {
-        AOffsetRecord[alloc] = offset;
-        auto it = alloc->GetType()->GetLayer();
-        auto it2 =  dynamic_cast<PointerType*> (alloc->GetType())->GetSubType()->GetTypeEnum();
         if(alloc->GetType()->GetLayer() > 1)
             if (dynamic_cast<PointerType*>(alloc->GetType())->GetSubType()->GetTypeEnum() == IR_ARRAY)
-                offset += 0;
-            else 
-                offset -= 8;
+                offset -= 0;
+            else  {  // ptr 8 字节对齐
+                offset += 8;
+                if (offset % 8 != 0)
+                    offset += 4;
+            }
         else 
-            offset -= 4;
+            offset += 4;
+        AOffsetRecord[alloc] = offset;
     }
 
     for(auto[StackInst,alloc] : MallocVec)
     {
         if(AOffsetRecord[alloc] <= 2047)
-            StackInst->setStoreStackOp(AOffsetRecord[alloc]);
-        // if (tmp.find(alloc) == tmp.end())
-        // {
-        //     tmp.emplace(alloc);
-        //     offset += 4;
-        //     StackInst->setStoreStackOp(offset);
-        //     AOffsetRecord.emplace(alloc,offset);
-        // }
-        // else {
-        //     StackInst->setStoreStackOp(AOffsetRecord[alloc]);
-        // }
+            StackInst->setStoreStackS0Op(AOffsetRecord[alloc]);
+        else {
+            int size = mfunc->arroffset;
+            int offset = AOffsetRecord[alloc];
+            int subOffset = offset - size;
+            StackInst->SetstackOffsetOp(std::to_string(subOffset) +"(sp)");
+        }
     }
 
     return true;
@@ -68,22 +169,14 @@ bool ProloAndEpilo:: DealLoadInsts()
         auto Alloc = record[Inst];
         size_t off = offset[Alloc];
         if (off <= 2047)
-            Inst->setStoreStackOp(off);  
+            Inst->setStoreStackS0Op(off);  
         else  {
-           
+            int size = mfunc->arroffset;
+            int subOffset = off - size;
+            Inst->SetstackOffsetOp(std::to_string(subOffset) +"(sp)");
         }
     }
 
-    // auto LoadInsts = mfunc->getLoadInsts();
-    // auto record = mfunc->getLoadRecord();
-    // auto storeRecord = mfunc->getStoreRecord();
-    // for(auto Inst : LoadInsts)
-    // {
-    //     auto Alloc = record[Inst];
-    //     auto Store = storeRecord[Alloc];
-    //     if (Store != nullptr)
-    //         Inst->getOpsVec().push_back(Store->getOpreand(1));
-    // }
 
     return true;
 }
@@ -94,8 +187,8 @@ bool ProloAndEpilo::run()
 
     TheSizeofStack = StackMallocSize;
 
+    // 前言与后续的处理需要考虑callee_saved and  caller_saved
     if(TheSizeofStack <= 2047) { 
-    // 生成函数的前言和后序,并且set了
         CreateProlo(StackMallocSize);
         CreateEpilo(StackMallocSize);
     } else {
@@ -108,44 +201,11 @@ bool ProloAndEpilo::run()
     return ret;
 }
 
-size_t ProloAndEpilo::caculate()
-{
-    int N = INITSIZE;
-    int sumMallocSize = 0;
-
-    for(auto allocInst : mfunc->getAllocas())
-    {
-        if(allocInst->GetTypeEnum() == IR_PTR) 
-        {
-            auto PType = dynamic_cast<PointerType*> (allocInst->GetType());
-            if (PType->GetSubType()->GetTypeEnum() == IR_ARRAY)
-            {
-
-            }
-            else if (PType->GetSubType()->GetTypeEnum() == IR_PTR)
-            {
-                size_t ptrSize = PType->GetSubType()->GetSize();
-                sumMallocSize += ptrSize;
-            }
-            else if(PType->GetSubType()->GetTypeEnum() == IR_Value_Float ||
-                  PType->GetSubType()->GetTypeEnum() == IR_Value_INT ) {
-                sumMallocSize += sizeof(int32_t);
-            }
-        }
-    }
-    if (mfunc->arroffset != mfunc->defaultSize)  // 未开辟数组
-        sumMallocSize += mfunc->arroffset;
-    while (N * ALIGN < sumMallocSize)   N++;
-
-    size_t size = (N + INITSIZE) * ALIGN;
-    return size; 
-}
-
-
+// TODO: reWrite the CreateEpilo And CreateEpilo
 void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool flag)
 {
-    inst->SetRegisterOp(std::move("sp"),Register::real);
-    inst->SetRegisterOp (std::move("sp"),Register::real);
+    inst->SetRealRegister(std::move("sp"));
+    inst->SetRealRegister(std::move("sp"));
 
     if(flag == _malloc)
         inst->SetstackOffsetOp(std::move("-"+std::to_string(size)));
@@ -154,18 +214,18 @@ void ProloAndEpilo::SetSPOp(std::shared_ptr<RISCVInst> inst,size_t size,bool fla
 }
 void ProloAndEpilo::SetsdRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("ra",Register::real);
-    inst->SetRegisterOp(std::to_string(size-8)+"(sp)",Register::real);
+    inst->SetRealRegister("ra");
+    inst->SetRealRegister(std::to_string(size-8)+"(sp)");
 }
 void ProloAndEpilo::SetsdS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("s0",Register::real);
-    inst->SetRegisterOp(std::to_string(size-16)+"(sp)",Register::real);
+    inst->SetRealRegister("s0");
+    inst->SetRealRegister(std::to_string(size-16)+"(sp)");
 }
 void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("s0",Register::real);
-    inst->SetRegisterOp("sp",Register::real);
+    inst->SetRealRegister("s0");
+    inst->SetRealRegister("sp");
     
     inst->SetstackOffsetOp(std::to_string(size));
 
@@ -173,13 +233,13 @@ void ProloAndEpilo::SetS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 
 void ProloAndEpilo::SetldRaOp(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("ra",Register::real);
-    inst->SetRegisterOp (std::to_string(size-8)+"(sp)",Register::real);
+    inst->SetRealRegister("ra");
+    inst->SetRealRegister(std::to_string(size-8)+"(sp)");
 }
 void ProloAndEpilo::SetldS0Op(std::shared_ptr<RISCVInst> inst,size_t size)
 {
-    inst->SetRegisterOp("s0",Register::real);
-    inst->SetRegisterOp (std::to_string(size-16)+"(sp)",Register::real);
+    inst->SetRealRegister("s0");
+    inst->SetRealRegister(std::to_string(size-16)+"(sp)");
 }
 
 void ProloAndEpilo::CreateProlo(size_t size)
@@ -206,12 +266,36 @@ void ProloAndEpilo::CreateProlo(size_t size)
     SetS0Op(s0inst,size);
     InstVec.push_back(s0inst);
 
+
+    size_t tmpCSR = csrStart;
+    auto stringRegs = mfunc->getneedDealCSRegs();
+    for (std::string name :stringRegs)
+    {
+        auto sdInst = std::make_shared<RISCVInst> (RISCVInst::_sd);
+        sdInst->SetRealRegister(std::move(name));
+        sdInst->setStoreStackS0Op(tmpCSR);
+        tmpCSR += 8;
+        InstVec.push_back(sdInst);
+    }
+
     mfunc->setPrologue(it);
 }
+
 void ProloAndEpilo::CreateEpilo(size_t size)
 {
     auto it = std::make_shared<RISCVEpilogue> ();
     auto& InstVec = it->getInstsVec();
+
+    size_t tmpCSR = csrStart;
+    auto stringRegs = mfunc->getneedDealCSRegs();
+    for (std::string name : stringRegs)
+    {
+        auto sdInst = std::make_shared<RISCVInst>(RISCVInst::_ld);
+        sdInst->SetRealRegister(std::move(name));
+        sdInst->setStoreStackS0Op(tmpCSR);
+        tmpCSR += 8;
+        InstVec.push_back(sdInst);
+    }
 
     auto ldRaInst = std::make_shared<RISCVInst> (RISCVInst::_ld);
     SetldRaOp(ldRaInst,size); 

@@ -46,8 +46,9 @@ public:
     std::vector<MFuncPtr>& getMfuncs() {    return Mfuncs;  }
 
     void setCurFunction(RISCVFunction* func) {   curMfunc = func;  }
-
     RISCVFunction* getCurFunction() { return curMfunc; }
+    void DealFunctionParam(Function* func);
+
 
     RISCVOp* Create(Value*);
     RISCVOp* mapTrans(Value* val);
@@ -56,7 +57,10 @@ public:
     RISCVInst* CreateLInst(LoadInst* inst);
     RISCVInst* CreateSInst(StoreInst* inst);
     RISCVInst* CreateAInst(AllocaInst* inst);
+
+    RISCVInst* DealMemcpyFunc(CallInst *inst);
     RISCVInst* CreateCInst(CallInst* inst);
+
     RISCVInst* CreateRInst(RetInst* inst);
     RISCVInst* CreateCondInst(CondInst* inst);
     RISCVInst* CreateUCInst(UnCondInst* inst);
@@ -76,7 +80,6 @@ public:
     {
         BasicBlock *BB = Inst->GetParent();
         auto it = mapTrans(BB)->as<RISCVBlock>();
-        
         it->push_back(RCInst);
         // Inst 把 BB 设为 Parent，貌似 在 push_back 之后已经建立了父子关系 
         // RCInst->SetManager(it);
@@ -86,20 +89,21 @@ public:
     void extraDealStoreInst(RISCVInst* RISCVinst,StoreInst* inst);
     void extraDealLoadInst(RISCVInst* RISCVinst,LoadInst* inst);
 
-    void extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,
-                                        Instruction* CmpInst);
+    void extraDealBrInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst,Instruction* CmpInst);
     void extraDealBeqInst(RISCVInst*& RInst,RISCVInst::ISA op,Instruction* inst);    
 
 
     // BinanryInst 
-    void extraDealBinary(RISCVInst* & RInst, BinaryInst* inst, RISCVInst::ISA Op);
+    void extraDealIntBinary(RISCVInst* & RInst, BinaryInst* inst, RISCVInst::ISA Op);
+    void extraDealFloatBinary(RISCVInst* & RInst, BinaryInst* inst, RISCVInst::ISA Op);
     // CmpInst 
     void extraDealCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op=RISCVInst::_li);
     void extraDealFlCmp(RISCVInst* & RInst,BinaryInst* inst, RISCVInst::ISA Op,
                                             op op1,op op2);
 
-    size_t getSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addInst);
+    size_t getSumOffset(Value* globlVal,GepInst *inst);
     void getDynmicSumOffset(Value* globlVal,GepInst *inst,RISCVInst *addiInst,RISCVInst*& RInst);
+    void getDynmicPoint(Value* globlVal,GepInst *inst,RISCVInst *addiInst,RISCVInst*& RInst);
 
     template<typename T>
     T& as()

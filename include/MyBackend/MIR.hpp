@@ -104,163 +104,85 @@ public:
     stackOffset(Value *_val) : val(_val), RISCVOp(_val->GetName()) {}
     stackOffset(std::string name) : RISCVOp(name) {}
 };
-
-// 虚拟实际寄存器封装到一起
-// 我将 虚拟寄存器和 物理实际寄存器进行了封装
-class Register:public RISCVOp
-{
-public:
-    static int VirtualReg;
-    enum FLAG {
-        real,   // 0
-        vir     // 1
-    };
-    enum realReg{
-        // int  ABI name
-        zero,ra,sp,gp,tp,t0,t1,t2,
-        s0,s1,a0,a1,a2,a3,a4,a5,a6,
-        a7,s2,s3,s4,s5,s6,s7,s8,s9,
-        s10,s11,t3,t4,t5,t6,
-
-        x0=zero,x1=ra,x2=sp,x3=gp,x4=tp,x5=t0,x6=t1,x7=t2,
-        x8=s0,x9=s1,x10=a0,x11=a1,x12=a2,x13=a3,x14=a4,x15=a5,
-        x16=a6,x17=a7,x18=s2,x19=s3,x20=s4,x21=s5,x22=s6,x23=s7,
-        x24=s8,x25=s9,x26=s10,x27=s11,x28=t3,x29=t4,x30=t5,x31=t6,
-        
-        // float
-        ft0,ft1,ft2,ft3,ft4,ft5,ft6,ft7,ft8,ft9,ft10,ft11,
-        fs0,fs1,fs2,fs3,fs4,fs5,fs6,fs7,fs8,fs9,fs10,fs11,
-        fa0,fa1,fa2,fa3,fa4,fa5,fa6,fa7, _NULL,
-    } realRegop;
-    Register(std::string _name,bool Flag = vir,int _Fflag=0 );
-    Register(realReg _Regop,bool Flag = real,int _Fflag=0);
-    int Fflag;
-    int RVflag;
-    bool IsrealRegister() { return RVflag == real; }  // vir or real Reg
-    bool IsFflag() { return Fflag == 1; }           // FloatReg or  IntReg
-    realReg getRegop();
-    void setRVflag() { RVflag = real; }
-    void reWirteRegWithReal(Register* );
-    static Register* GetRealReg(realReg);
-    std::string realRegToString(realReg reg) {
-    switch(reg) {
-        // 基础整数寄存器
-        case realReg::zero: return "zero";
-        case realReg::ra:   return "ra";
-        case realReg::sp:   return "sp";
-        case realReg::gp:   return "gp";
-        case realReg::tp:   return "tp";
-        case realReg::t0:   return "t0";
-        case realReg::t1:   return "t1";
-        case realReg::t2:   return "t2";
-        case realReg::s0:   return "s0";
-        case realReg::s1:   return "s1";
-        case realReg::a0:   return "a0";
-        case realReg::a1:   return "a1";
-        case realReg::a2:   return "a2";
-        case realReg::a3:   return "a3";
-        case realReg::a4:   return "a4";
-        case realReg::a5:   return "a5";
-        case realReg::a6:   return "a6";
-        case realReg::a7:   return "a7";
-        case realReg::s2:   return "s2";
-        case realReg::s3:   return "s3";
-        case realReg::s4:   return "s4";
-        case realReg::s5:   return "s5";
-        case realReg::s6:   return "s6";
-        case realReg::s7:   return "s7";
-        case realReg::s8:   return "s8";
-        case realReg::s9:   return "s9";
-        case realReg::s10:  return "s10";
-        case realReg::s11:  return "s11";
-        case realReg::t3:   return "t3";
-        case realReg::t4:   return "t4";
-        case realReg::t5:   return "t5";
-        case realReg::t6:   return "t6";
-
-        // 浮点寄存器
-        case realReg::ft0:  return "ft0";
-        case realReg::ft1:  return "ft1";
-        case realReg::ft2:  return "ft2";
-        case realReg::ft3:  return "ft3";
-        case realReg::ft4:  return "ft4";
-        case realReg::ft5:  return "ft5";
-        case realReg::ft6:  return "ft6";
-        case realReg::ft7:  return "ft7";
-        case realReg::ft8:  return "ft8";
-        case realReg::ft9:  return "ft9";
-        case realReg::ft10: return "ft10";
-        case realReg::ft11: return "ft11";
-        case realReg::fs0:  return "fs0";
-        case realReg::fs1:  return "fs1";
-        case realReg::fs2:  return "fs2";
-        case realReg::fs3:  return "fs3";
-        case realReg::fs4:  return "fs4";
-        case realReg::fs5:  return "fs5";
-        case realReg::fs6:  return "fs6";
-        case realReg::fs7:  return "fs7";
-        case realReg::fs8:  return "fs8";
-        case realReg::fs9:  return "fs9";
-        case realReg::fs10: return "fs10";
-        case realReg::fs11: return "fs11";
-        case realReg::fa0:  return "fa0";
-        case realReg::fa1:  return "fa1";
-        case realReg::fa2:  return "fa2";
-        case realReg::fa3:  return "fa3";
-        case realReg::fa4:  return "fa4";
-        case realReg::fa5:  return "fa5";
-        case realReg::fa6:  return "fa6";
-        case realReg::fa7:  return "fa7";
-
-        // 特殊别名（与基础寄存器共享值）
-        // case realReg::x0:   return "x0";   // = zero
-        // case realReg::x1:   return "x1";   // = ra
-        // case realReg::x2:   return "x2";   // = sp
-        // case realReg::x3:   return "x3";   // = gp
-        // case realReg::x4:   return "x4";   // = tp
-        // case realReg::x5:   return "x5";   // = t0
-        // case realReg::x6:   return "x6";   // = t1
-        // case realReg::x7:   return "x7";   // = t2
-        // case realReg::x8:   return "x8";   // = s0
-        // case realReg::x9:   return "x9";   // = s1
-        // case realReg::x10:  return "x10";  // = a0
-        // case realReg::x11:  return "x11";  // = a1
-        // case realReg::x12:  return "x12";  // = a2
-        // case realReg::x13:  return "x13";  // = a3
-        // case realReg::x14:  return "x14";  // = a4
-        // case realReg::x15:  return "x15";  // = a5
-        // case realReg::x16:  return "x16";  // = a6
-        // case realReg::x17:  return "x17";  // = a7
-        // case realReg::x18:  return "x18";  // = s2
-        // case realReg::x19:  return "x19";  // = s3
-        // case realReg::x20:  return "x20";  // = s4
-        // case realReg::x21:  return "x21";  // = s5
-        // case realReg::x22:  return "x22";  // = s6
-        // case realReg::x23:  return "x23";  // = s7
-        // case realReg::x24:  return "x24";  // = s8
-        // case realReg::x25:  return "x25";  // = s9
-        // case realReg::x26:  return "x26";  // = s10
-        // case realReg::x27:  return "x27";  // = s11
-        // case realReg::x28:  return "x28";  // = t3
-        // case realReg::x29:  return "x29";  // = t4
-        // case realReg::x30:  return "x30";  // = t5
-        // case realReg::x31:  return "x31";  // = t6
-
-        // 特殊值（如 _NULL）
-       // case realReg::_NULL: return "_NULL";
-
-        default:
-            throw std::invalid_argument("Invalid realReg value");
-        }
-    }
-};
-
 // 地址操作符
 class RISCVAddrOp:public RISCVOp 
 {
 public:
     RISCVAddrOp(std::string name) :RISCVOp(name) { }
 };
+
+class RealRegister;
+class VirRegister;
+class Register:public RISCVOp
+{
+public:
+    Register(std::string _name);
+    int Floatflag = 0; 
+    bool IsFloatFlag() { return Floatflag == 1; }   // FloatReg or  IntReg
+};
+
+class VirRegister:public Register
+{
+public:
+    static int VirtualRegNum;
+    VirRegister():Register("%"+ std::to_string(VirtualRegNum)) 
+                  {   VirtualRegNum++;   }
+    void setFloatflag() { Floatflag = 1; }
+    void reWriteRegWithReal(RealRegister* );
+    void reWriteRegWithReal(std::string name);
+};
+
+class RealRegister:public Register
+{
+public:
+    enum realReg{
+        // x0=zero,x1=ra,x2=sp,x3=gp,x4=tp,x5=t0,x6=t1,x7=t2,
+        // x8=s0,x9=s1,x10=a0,x11=a1,x12=a2,x13=a3,x14=a4,x15=a5,
+        // x16=a6,x17=a7,x18=s2,x19=s3,x20=s4,x21=s5,x22=s6,x23=s7,
+        // x24=s8,x25=s9,x26=s10,x27=s11,x28=t3,x29=t4,x30=t5,x31=t6,
+        // INT  ABI name
+        zero,ra,sp,gp,tp,t0,t1,s0,
+        // caller_saved
+        a0,a1,a2,a3,a4,a5,a6,a7,t2,t3,t4,t5,t6,
+        // callee_saved
+        s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,
+        
+        // FLOAT
+        // caller_saved
+        fa0,fa1,fa2,fa3,fa4,fa5,fa6,fa7,
+        // callee_saved
+        fs0,fs1,fs2,fs3,fs4,fs5,fs6,fs7,fs8,fs9,fs10,fs11,
+         _NULL,
+    };
+    realReg arr[52] = {zero,ra,sp,gp,tp,t0,t1,s0,a0,a1,a2,a3,a4,a5,a6,a7,t2,t3,t4,t5,t6,s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,
+    fa0,fa1,fa2,fa3,fa4,fa5,fa6,fa7,fs0,fs1,fs2,fs3,fs4,fs5,fs6,fs7,fs8,fs9,fs10,fs11};
+
+    bool isCallerSaved() {
+        if (realRegop >= a0 && realRegop <= t6) {
+            return true;
+        }
+        if ( realRegop >= fa0 && realRegop <= fa7) {
+            return true;
+        }
+        return false;
+    } 
+    bool isCalleeSaved() {
+        if (realRegop >= s1 && realRegop <= s11) {
+            return true;
+        }
+        if ( realRegop >= fs1 && realRegop <= fs7) {
+            return true;
+        }
+        return false;
+    }
+    realReg realRegop;
+    static std::string realRegToString(realReg reg);
+    static RealRegister* GetRealReg(realReg);
+    realReg getRegop();
+    RealRegister(realReg _Regop):Register(realRegToString(_Regop)),realRegop(_Regop) {}
+    RealRegister(std::string name):Register(name) {}
+};
+
 
 class RISCVInst:public RISCVOp,public Node<RISCVBlock,RISCVInst>
 {
@@ -441,6 +363,7 @@ public:
     };
 
     Status status = ONE;
+
 public:
     RISCVInst(ISA op) :opCode(op) { }
     ISA getOpcode() { return opCode;}
@@ -459,17 +382,23 @@ public:
             opCode = _ble;
     }
 
-    void SetRegisterOp(std::string&& str,bool Flag = Register::vir)
-    {
-        auto Regop = std::make_shared<Register>(str, Flag);
+    // Virtual
+    void SetVirRegister()  {
+        auto Regop = std::make_shared<VirRegister>();
         opsVec.push_back(Regop);
     }
-    void SetVirRegister()  {
-        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+
+    void SetVirFloatRegister()  {
+        auto Regop = std::make_shared<VirRegister>();
+        Regop->setFloatflag();
+        opsVec.push_back(Regop);
     }
+    // Real
     void SetRealRegister(std::string&& str) {
-        SetRegisterOp(std::move(str),Register::real);   
+        auto Regop = std::make_shared<RealRegister>(str);
+        opsVec.push_back(Regop); 
     } 
+
     void SetstackOffsetOp(std::string &&str) {   // prolo  epilo
         auto stackOff = std::make_shared<stackOffset>(str);
         opsVec.push_back(stackOff);
@@ -478,13 +407,6 @@ public:
     {
         std::shared_ptr<Imm> Immop = Imm::GetImm(val->as<ConstantData>());
         opsVec.push_back(Immop);
-    }
-    
-    void SetAddrOp(std::string hi_lo,Value* val)
-    {
-        std::string s1(hi_lo+"(" + val->GetName() + ")");
-        std::shared_ptr<RISCVAddrOp> addrOp = std::make_shared<RISCVAddrOp> (s1);
-        opsVec.push_back(addrOp);
     }
     
     void SetAddrOp(Value* val)  // la reg, .G.a
@@ -496,6 +418,7 @@ public:
 
     void deleteOp(int index)  { opsVec.erase(opsVec.begin() + index); }
 
+    void replacedIndexWithVal(int index,op val) {  opsVec[index] = val; } 
     void push_back(op Op) { opsVec.push_back(Op); }
     std::vector<op> &getOpsVec() { return opsVec; }
     std::vector<Instsptr> &getInsts() { return Insts; }
@@ -522,59 +445,74 @@ public:
         
         opsVec.push_back(reg);
     }
-    void setStoreStackOp(size_t offset)
+    void setStoreStackS0Op(size_t offset)
     {
-       opsVec.push_back(std::make_shared<RISCVOp> 
-                       ("-" + std::to_string(offset) + "(s0)"));
+       opsVec.push_back(std::make_shared<stackOffset>("-" + std::to_string(offset) + "(s0)"));
     }
 
-    void setThreeRigs(op op1, op op2) // addw
+
+    void setThreeRegs(op op1, op op2) // addw
     {
-        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        SetVirRegister();
+        opsVec.push_back(op1);
+        opsVec.push_back(op2);
+    }
+
+    void setThreeFRegs(op op1, op op2) // addw
+    {
+        SetVirFloatRegister();
         opsVec.push_back(op1);
         opsVec.push_back(op2);
     }
 
     void setRetOp(Value* val)  // ret
     {
-        SetRegisterOp("a0",Register::real);
+        SetRealRegister("a0");
         SetImmOp(val);
     }
     void setFRetOp(Value* val)  // ret
     {
-        SetRegisterOp("fa0",Register::real);
+        SetRealRegister("fa0");
         SetImmOp(val);
     }
     void setRetOp(op val)
     {
-        SetRegisterOp("a0",Register::real);
+        SetRealRegister("a0");
         opsVec.push_back(val);
     }
     void setFRetOp(op val)
     {
-        SetRegisterOp("fa0",Register::real);
+        SetRealRegister("fa0");
         opsVec.push_back(val);
-    }
-
-    void setLoadOp()  // ld
-    {
-        SetRegisterOp ("%." + std::to_string(Register::VirtualReg));
     }
 
     void setVirLIOp(Value* val) // li
     {
-        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        SetVirRegister();
         SetImmOp(val);
     }
     void setRealLIOp(Value* val) // li
     {
-        SetRegisterOp("t0",Register::real);
+        SetRealRegister("t0");
         SetImmOp(val);
     }
 
     void setMVOp(RISCVInst* Inst)
     {
-        SetRegisterOp("%." + std::to_string(Register::VirtualReg));
+        SetVirRegister();
+        auto reg = Inst->getOpreand(0);
+        opsVec.push_back(reg);
+    }
+
+    void setFloatMVOp(RISCVInst* Inst)
+    {
+        SetVirFloatRegister();
+        auto reg = Inst->getOpreand(0);
+        opsVec.push_back(reg);
+    }
+
+    void setOpWInstFOpread(RISCVInst* Inst) 
+    {
         auto reg = Inst->getOpreand(0);
         opsVec.push_back(reg);
     }
@@ -594,7 +532,7 @@ public:
     ~RISCVBlock() = default;
     static std::string getCounter();
     std::vector<BasicBlock*> getSuccBlocks();
-    std::set<Register*>& getLiveUse()  {  return LiveUse; }
+    std::set<Register*>& getLiveUse()  {  return LiveUse; }   // LiveUse or LiveDef 都是VirReg
     std::set<Register*>& getLiveDef()  {  return LiveDef; }
     BasicBlock*& getIRbb() { return cur_bb; }
 };
@@ -619,7 +557,6 @@ public:
 class RISCVPrologue:public RISCVOp
 {
     using Instptr = std::shared_ptr<RISCVInst>;
-    // std::vector<Instptr> proloInsts;
     typedef std::vector<Instptr> ProloInsts;
     ProloInsts proloInsts;
 public:
@@ -631,7 +568,6 @@ public:
 class RISCVEpilogue:public RISCVOp
 {
     using Instptr = std::shared_ptr<RISCVInst>;
-    // std::vector<Instptr> proloInsts;
     typedef std::vector<Instptr> EpilogueInsts;
     EpilogueInsts epiloInsts;
 public:
@@ -642,70 +578,119 @@ public:
 };
 
 // Function include BBs Name 
+// And func produce the frame 
 class RISCVFunction:public RISCVOp, public List<RISCVFunction, RISCVBlock>
 {
-    Function* func;
     RISCVBlock* exit;   
     std::shared_ptr<RISCVPrologue> prologue;
     std::shared_ptr<RISCVEpilogue> epilogue;
 
-    //由所有函数记录该函数内的所有 storeInsts 语句 
-    using lastStoreInstPtr = RISCVInst*;
-    std::map<AllocaInst*,lastStoreInstPtr> StackStoreRecord;
-    using matchLoadInstPtr = RISCVInst*;
-    std::map<matchLoadInstPtr,AllocaInst*> StackLoadRecord;
+    using matchLoadRInst = RISCVInst*;
+    std::map<matchLoadRInst,AllocaInst*> StackLoadRecord;
     using offset = size_t;
     std::map<AllocaInst*,offset> AllocaOffsetRecord;
 
-    std::map<RISCVInst*,AllocaInst*> StoreInsts;
+    using matchStoreRInst = RISCVInst*;
+    std::map<matchStoreRInst,AllocaInst*> StackStoreRecord;
     std::vector<RISCVInst*> LoadInsts;
     std::vector<AllocaInst*> AllocaInsts;
-    
-    std::list<RISCVBlock*> recordBBs;  // 记录顺序
-    std::map<size_t,size_t> oldBBindexTonew;
-public:
-    offset arroffset = 16;
-    offset defaultSize = 16;
-private:
+
     // 处理数组，局部与全局的处理
     std::map<Instruction*,offset> recordGepOffset;
     std::map<Value*,Value*> GepGloblToLocal;
+
+    std::map<Value*,offset> LocalArrToOffset;
     // 全局变量，除了数组
     std::vector<Instruction*> globlValRecord; 
 
+    
+    std::list<RISCVBlock*> recordBBs;  // 记录顺序
+    std::map<size_t,size_t> oldBBindexTonew;
+    
     std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>> recordBrInstSuccBBs;
     std::vector<RISCVInst*> LabelInsts;
-
-    std::map<Value*,offset> LocalArrToOffset;
+public:
+    Function* func;
+    offset arroffset = 16;    // arr space =  arroffset - defaulSize
+    offset defaultSize = 16;  // 存储 ra,sp 的栈帧space
 public:
     RISCVFunction(Function* _func,std::string name)
                 :func(_func),RISCVOp(name)     {   }
+    
+    // adjust bbs 
     std::vector<RISCVInst*>&  getLabelInsts() { return LabelInsts; }
     std::vector<std::pair<Instruction*,std::pair<BasicBlock*,BasicBlock*>>>& getBrInstSuccBBs() { return recordBrInstSuccBBs; }
     std::list<RISCVBlock*>& getRecordBBs()  { return recordBBs; }
     std::map<size_t,size_t>& OldToNewIndex() { return oldBBindexTonew;}
-    std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
+    
+
+    // local Int float deal
+    //std::map<AllocaInst*,lastStoreRInst>& getStoreRecord() {   return StackStoreRecord;   }
+    std::map<matchLoadRInst,AllocaInst*>& getLoadRecord() {   return StackLoadRecord;   }
+    std::map<matchStoreRInst,AllocaInst*>& getStoreRecord() {   return StackStoreRecord;    }   
+    std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    } 
     std::vector<AllocaInst*>& getAllocas()  { return AllocaInsts;  }
-    std::map<Value*,Value*>&getGepGloblToLocal()  { return GepGloblToLocal;}
-    std::vector<Instruction*>& getGloblValRecord() { return globlValRecord; }
-    std::vector<RISCVInst*>& getLoadInsts()  {   return LoadInsts;    }
-    std::map<RISCVInst*,AllocaInst*>& getStoreInsts() {   return StoreInsts;    }    
-    std::map<AllocaInst*,lastStoreInstPtr>& getStoreRecord() {   return StackStoreRecord;   }
-    std::map<matchLoadInstPtr,AllocaInst*>& getLoadRecord() {   return StackLoadRecord;   }
-    std::map<AllocaInst*,size_t>& getAOffsetRecord() { return AllocaOffsetRecord; }
-    std::map<Value*,offset>& getLocalArrToOffset() { return LocalArrToOffset;}
-    void RecordStackMalloc(RISCVInst* inst,AllocaInst* alloca)
-    {
-        StoreInsts.emplace( std::make_pair(inst,alloca) );
+    void RecordStackMalloc(RISCVInst* inst,AllocaInst* alloca) {
+       StackStoreRecord.emplace( std::make_pair(inst,alloca) );
     }
 
+    // 处理arr stack offset     
+    // gloabl val
+    std::map<AllocaInst*,size_t>& getAOffsetRecord() { return AllocaOffsetRecord; }
+    std::map<Value*,offset>& getLocalArrToOffset() { return LocalArrToOffset;}
     void getCurFuncArrStack(RISCVInst*& ,Value* val,Value* alloc);
+    std::map<Instruction*,offset>& getRecordGepOffset() { return recordGepOffset; }
+    std::map<Value*,Value*>&getGepGloblToLocal()  { return GepGloblToLocal;}
+    std::vector<Instruction*>& getGloblValRecord() { return globlValRecord; }
 
+
+    // prologue and epilogue
     void setPrologue(std::shared_ptr<RISCVPrologue>& it ) { prologue = it;}
     void setEpilogue(std::shared_ptr<RISCVEpilogue>& it ) { epilogue = it;}
-
     std::shared_ptr<RISCVPrologue>& getPrologue() { return prologue;}
     std::shared_ptr<RISCVEpilogue>& getEpilogue() { return epilogue;}
             
     ~RISCVFunction() = default;
+
+// solve the paramNums problem
+private:
+    // callee
+    size_t paramNum;
+    std::vector<RISCVInst*> spilledParam;
+    std::vector<IR_DataType> spilledParamType;
+    std::vector<RISCVInst*> spilledParamLoadInst;
+
+    // caller
+    int MallocStackForparam = 0;
+
+    // spill And load
+    std::map<Register*,std::pair<std::vector<RISCVInst*>,std::vector<RISCVInst*>>> dealStackSpill;
+    std::vector<Register*> spillRegs;
+
+    // call 语句进行记录进行栈帧save callee_saved regs
+    std::vector<RISCVInst*> callInstRecord;
+    // 需要存储的 callee_saved 寄存器
+    std::set<std::string> needTodealCalleeSavedRegs;
+public:
+    size_t& getparamNum() { return paramNum; }
+    std::vector<RISCVInst*>&  getSpilledParam()  { return spilledParam;}
+    // need to save the last value Type
+    std::vector<IR_DataType>& getSpilledParamType()  { return spilledParamType; }
+    std::vector<RISCVInst*>& getSpilledParamLoadInst() { return spilledParamLoadInst; }
+    
+    // caller 
+    int& getNeedStackForparam()  { return MallocStackForparam;} 
+
+    // spill And load
+    std::vector<Register*>& getSpillRegs() {  return spillRegs; }
+    using DefInst = RISCVInst;
+    using UseInst = RISCVInst;
+    std::map<Register*,std::pair<std::vector<DefInst*>,std::vector<UseInst*>>>& getSpillStack() { return dealStackSpill; }
+
+    // callInst 
+    std::vector<RISCVInst*>& getCallRecord() { return callInstRecord;}
+    std::unordered_set<RealRegister*> usedCalleeSavedInt;
+    std::unordered_set<RealRegister*> usedCalleeSavedFP;
+
+    std::set<std::string>& getneedDealCSRegs() { return needTodealCalleeSavedRegs; }
 };
