@@ -5,206 +5,87 @@
 #include "Passbase.hpp"
 
 class AnalysisManager;
-typedef std::unordered_map<Value *, std::unordered_map<size_t, Value *>> ValueAddr_Struct;
+using ValueMap = std::unordered_map<Value*, std::unordered_map<size_t, Value*>>;
 
-struct InitHash
+struct AllocaHasher
 {
-    size_t operator()(AllocaInst *alloca, std::vector<int> index)
+    size_t operator()(AllocaInst* alloc, std::vector<int> idx)
     {
-        std::reverse(index.begin(), index.end());
-        size_t hash = 0;
-        hash ^= std::hash<AllocaInst *>()(alloca);
+        std::reverse(idx.begin(), idx.end());
+        size_t hash = std::hash<AllocaInst*>()(alloc);
         int j = 0;
-        for (auto i : index)
+        for (int v : idx)
         {
-            hash += (((std::hash<int>()(i + 3) * 10107 ^ std::hash<int>()(i + 5) * 137) * 157) * ((j + 4) * 107));
-            j++;
+            hash += (((std::hash<int>()(v + 3) * 10107 ^ std::hash<int>()(v + 5) * 137) * 157) * ((j + 4) * 107));
+            ++j;
         }
         return hash;
     }
 };
 
-struct ValueHash
+struct ValueHasher
 {
-    size_t operator()(Value *val) const
+    size_t operator()(Value* val) const
     {
-        if (auto val_int = dynamic_cast<ConstIRInt *>(val))
-            return ((std::hash<int>()(val_int->GetVal() + 3) * 10107 ^ std::hash<int>()(val_int->GetVal() + 5) * 137) *
-                    157);
-        else
-            return std::hash<Value *>{}(val) ^ (std::hash<Value *>{}(val) << 3);
+        if (auto cint = dynamic_cast<ConstIRInt*>(val))
+        {
+            int v = cint->GetVal();
+            return ((std::hash<int>()(v + 3) * 10107 ^ std::hash<int>()(v + 5) * 137) * 157);
+        }
+        return std::hash<Value*>{}(val) ^ (std::hash<Value*>{}(val) << 3);
     }
 };
 
-struct GepHash
+struct GepHasher
 {
-    size_t operator()(GepInst *gep, ValueAddr_Struct *addr) const
-    {
-        size_t h = 0;
-        Value *Base = gep->GetOperand(0);
-        if (!Base->isParam())
-        {
-            if (auto alloca = dynamic_cast<AllocaInst *>(Base))
-            {
-                h ^= std::hash<AllocaInst *>()(alloca);
-                int j = 0;
-                for (int i = 2; i < gep->GetUserUseList().size(); i++)
-                {
-                    auto p = gep->GetUserUseList()[i]->usee;
-                    if (auto load = dynamic_cast<LoadInst *>(p))
-                    {
-                        if (auto load_gep = dynamic_cast<GepInst *>(load->GetUserUseList()[0]->usee))
-                        {
-                            size_t load_gep_hash = GepHash{}(load_gep, addr);
-                            if (addr->find(load_gep->GetUserUseList()[0]->usee) != addr->end())
-                            {
-                                if (addr->find(load_gep->GetUserUseList()[0]->usee)->second.find(load_gep_hash) !=
-                                    addr->find(load_gep->GetUserUseList()[0]->usee)->second.end())
-                                {
-                                    h += ValueHash{}(
-                                             addr->find(load_gep->GetUserUseList()[0]->usee)->second[load_gep_hash]) *
-                                         ((j + 4) * 107);
-                                }
-                                else
-                                {
-                                    h += (std::hash<int>{}(load_gep_hash) << (j + 3) * 101);
-                                }
-                            }
-                            else
-                            {
-                                h += (std::hash<int>{}(load_gep_hash) << (j + 3) * 333);
-                            }
-                        }
-                        else
-                        {
-                            h += ValueHash{}(p) * ((j + 111) * 123) * (j + 1);
-                        }
-                    }
-                    else
-                        h += ValueHash{}(p) * ((j + 4) * 107);
-                    j++;
-                }
-            }
-            else if (auto gep_base = dynamic_cast<GepInst *>(Base))
-            {
-                auto alloca = dynamic_cast<AllocaInst *>(gep_base->GetOperand(0));
-                int j = 0;
-                for (int i = 1; i < gep->GetUserUseList().size(); i++)
-                {
-                    auto p = gep->GetUserUseList()[i]->usee;
-                    if (auto load = dynamic_cast<LoadInst *>(p))
-                    {
-                        if (auto load_gep = dynamic_cast<GepInst *>(load->GetUserUseList()[0]->usee))
-                        {
-                            size_t load_gep_hash = GepHash{}(load_gep, addr);
-                            if (addr->find(load_gep->GetUserUseList()[0]->usee) != addr->end())
-                            {
-                                if (addr->find(load_gep->GetUserUseList()[0]->usee)->second.find(load_gep_hash) !=
-                                    addr->find(load_gep->GetUserUseList()[0]->usee)->second.end())
-                                {
-                                    h += ValueHash{}(
-                                             addr->find(load_gep->GetUserUseList()[0]->usee)->second[load_gep_hash]) *
-                                         ((j + 4) * 107);
-                                }
-                                else
-                                {
-                                    h += (std::hash<int>{}(load_gep_hash) << (j + 3) * 101);
-                                }
-                            }
-                            else
-                            {
-                                h += (std::hash<int>{}(load_gep_hash) << (j + 3) * 333);
-                            }
-                        }
-                    }
-                    else
-                        h += ValueHash{}(p) * ((j + 4) * 107);
-                    j++;
-                }
-            }
-        }
-        else
-        {
-            if (dynamic_cast<HasSubType *>(Base->GetType())->GetSubType()->GetTypeEnum() == IR_DataType::IR_ARRAY)
-            {
-                auto array = dynamic_cast<ArrayType *>(dynamic_cast<HasSubType *>(Base->GetType())->GetSubType());
-                h ^= (std::hash<Value *>()(Base) << array->GetNum());
-            }
-            else
-                h ^= std::hash<Var *>()(dynamic_cast<Var *>(Base));
-            int j = 0;
-            for (int i = 1; i < gep->GetUserUseList().size(); i++)
-            {
-                auto p = gep->GetUserUseList()[i]->usee;
-                h ^= ValueHash{}(p) * ((j + 4) * 107);
-                j++;
-            }
-        }
-        return h;
-    }
+    size_t operator()(GepInst* gep, ValueMap* addr) const;
 };
 
-class GepEvaluate : public _PassBase<GepEvaluate, Function>
+class GepEvaluator : public _PassBase<GepEvaluator, Function>
 {
-    class HandleNode
+    class NodeHandler
     {
-      private:
-        BasicBlock *block;
-        DominantTree *DomTree;
-        DominantTree::TreeNode *dom_node;
-        bool Processed = false;
-        std::list<DominantTree::TreeNode *>::iterator Curiter;
-        std::list<DominantTree::TreeNode *>::iterator Enditer;
+        BasicBlock* blk;
+        DominantTree* tree;
+        DominantTree::TreeNode* node;
+        bool done = false;
+        std::list<DominantTree::TreeNode*>::iterator childIt;
+        std::list<DominantTree::TreeNode*>::iterator childEnd;
 
-      public:
-        ValueAddr_Struct ValueAddr;
+    public:
+        ValueMap valueMapping;
 
-      public:
-        std::list<DominantTree::TreeNode *>::iterator Child() { return Curiter; }
-        std::list<DominantTree::TreeNode *>::iterator NextChild() {
-            auto iter = Curiter;
-            ++Curiter;
-            return iter;
-        }
-        std::list<DominantTree::TreeNode *>::iterator EndIter() { return Enditer; }
-        bool isProcessed()
+        NodeHandler(DominantTree* dt, DominantTree::TreeNode* n,
+                    std::list<DominantTree::TreeNode*>::iterator begin,
+                    std::list<DominantTree::TreeNode*>::iterator end,
+                    ValueMap mapping)
+            : tree(dt), node(n), childIt(begin), childEnd(end), valueMapping(mapping)
         {
-            return Processed;
+            blk = n->curBlock;
         }
-        void Process()
-        {
-            Processed = true;
-        }
-        BasicBlock *GetBlock()
-        {
-            return block;
-        }
-    HandleNode(DominantTree *dom,
-               DominantTree::TreeNode *node,
-               std::list<DominantTree::TreeNode *>::iterator child,
-               std::list<DominantTree::TreeNode *>::iterator end,
-               std::unordered_map<Value *, std::unordered_map<size_t, Value *>> ValueAddr)
-        : DomTree(dom), dom_node(node), Curiter(child), Enditer(end), ValueAddr(ValueAddr) {
-        block = node->curBlock; 
-    }
+
+        auto ChildIter() { return childIt; }
+        auto NextChildIter() { return childIt++; }
+        auto EndIter() { return childEnd; }
+        bool isDone() { return done; }
+        void markDone() { done = true; }
+        BasicBlock* Block() { return blk; }
     };
 
-  private:
-    Function *func;
-    DominantTree *DomTree;
-    AnalysisManager &AM;
-    std::vector<Instruction *> wait_del;//从User改成Instruction了
-    std::unordered_map<BasicBlock *, HandleNode *> Mapping;
-    std::unordered_map<AllocaInst *, Initializer *> AllocaInitMap;
-    std::unordered_set<AllocaInst *> allocas;
-    bool ProcessNode(HandleNode *node);
-    void HandleMemcpy(AllocaInst *inst, Initializer *init, HandleNode *node, std::vector<int> index);
-    void HandleZeroInitializer(AllocaInst *inst, HandleNode *node, std::vector<int> index);
-    void HandleBlockIn(ValueAddr_Struct &addr, HandleNode *node);
+    Function* function;
+    DominantTree* domTree;
+    AnalysisManager& analysisMgr;
+    std::vector<Instruction*> pendingDelete;
+    std::unordered_map<BasicBlock*, NodeHandler*> blockMap;
+    std::unordered_map<AllocaInst*, Initializer*> allocInitMap;
+    std::unordered_set<AllocaInst*> allocas;
 
-  public:
-    GepEvaluate(Function *_func, AnalysisManager &_AM) : func(_func), AM(_AM)
-    {
-    }
+    bool processNode(NodeHandler* node);
+    void handleMemcpy(AllocaInst* inst, Initializer* init, NodeHandler* node, std::vector<int> index);
+    void handleZeroInit(AllocaInst* inst, NodeHandler* node, std::vector<int> index);
+    void processBlock(ValueMap& addr, NodeHandler* node);
+
+public:
+    GepEvaluator(Function* f, AnalysisManager& am) : function(f), analysisMgr(am) {}
     bool run();
 };

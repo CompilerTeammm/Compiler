@@ -563,7 +563,7 @@ public:
                     tree.BuildDominantTree();
 
                     AM.add<DominantTree>(fun, &tree);
-                    GepEvaluate(fun, AM).run();
+                    GepEvaluator(fun, AM).run();
                 }
             }
             if (tag == "gepflatten")

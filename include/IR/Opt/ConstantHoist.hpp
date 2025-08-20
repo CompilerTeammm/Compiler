@@ -3,40 +3,37 @@
 #include "../Analysis/Dominant.hpp"
 #include "Passbase.hpp"
 
-class _AnalysisManager;
-
 class ConstantHoist : public _PassBase<ConstantHoist, Function>
 {
-  struct HoistNode
-  {
-    Instruction *LHS_Inst;
-    Value *LHS;
-    Instruction *RHS_Inst;
-    Value *RHS;
-    int index;
-    HoistNode(Instruction *LHS_Inst_, Value *LHS_, Instruction *RHS_Inst_, Value *RHS_, int index_)
-        : LHS_Inst(LHS_Inst_), LHS(LHS_), RHS_Inst(RHS_Inst_), RHS(RHS_), index(index_)
-    {
-    }
-  };
-
 private:
-  Function *func;
-  DominantTree *DomTree;
-  //_AnalysisManager &AM;
-  std::vector<HoistNode *> HoistList;
-  std::unordered_map<BasicBlock *, std::unordered_map<Instruction *, int>> InstIndex;
+    struct HoistEntry
+    {
+        Instruction* lhsInst;
+        Value* lhsValue;
+        Instruction* rhsInst;
+        Value* rhsValue;
+        int index;
 
-  bool RunOnBlock(BasicBlock *bb);
-  bool HoistInstInBlock(BasicBlock *TrueBlock, BasicBlock *FalseBlock);
+        HoistEntry(Instruction* lhsI, Value* lhsV, Instruction* rhsI, Value* rhsV, int idx)
+            : lhsInst(lhsI), lhsValue(lhsV), rhsInst(rhsI), rhsValue(rhsV), index(idx) {}
+    };
+
+    Function* function;
+    DominantTree* domTree;
+    std::vector<std::unique_ptr<HoistEntry>> hoistEntries;
+    std::unordered_map<BasicBlock*, std::unordered_map<Instruction*, int>> instructionIndices;
+
+    // 对单个基本块进行常量提升
+    bool processBlock(BasicBlock* bb);
+
+    // 尝试在条件块间提升指令
+    bool hoistInstructionsBetweenBlocks(BasicBlock* trueBlock, BasicBlock* falseBlock);
 
 public:
-  ConstantHoist(Function *func_) : func(func_)
-  {
-  }
-  ~ConstantHoist()
-  {
-    HoistList.clear();
-  }
-  bool run();
+    explicit ConstantHoist(Function* func)
+        : function(func), domTree(nullptr) {}
+
+    ~ConstantHoist() = default;
+
+    bool run();
 };
