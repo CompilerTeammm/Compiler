@@ -1,73 +1,40 @@
-// #pragma once
-// // #include "../CoreClass.hpp"
-// #include "../CoreClass.hpp"
-// // #include "../Type.hpp"
-// #include "BaseAst.hpp"
-// #include "MagicEnum.hpp"
 
 #pragma once
 #include "../CFG.hpp"
-#include "../MyList.hpp"
-#include "../MagicEnum.hpp"
 #include "BaseAst.hpp"
-#include <cassert>
-#include <list>
-#include <memory>
-#include <string>
 
-class BaseAST;
-class CompUnit; // codegen, acquire what's in list has codegen
-class Grammar_Assistance;
-class ConstDecl; // codegen(CompUnit) GetInst
-class ConstDefs; // codegen(CompUnit) GetInst
-class InnerBaseExps;
-class InitVal;
-class InitVals;
-class VarDecl;
-class VarDefs;
-class FuncDef;
-class FuncParams;
-class FuncParam;
-class Block;
-class BlockItems;
-class AssignStmt;
-class ExpStmt;
-class WhileStmt;
-class IfStmt;
-class BreakStmt;
-class ContinueStmt;
-class ReturnStmt;
-class LVal;
-template <typename T>
-class BaseExp;
-class FunctionCall;
-template <typename T>
-class ConstValue;
-class BaseDef;
-
-enum AST_Type
+enum ASTNodeType
 {
-  AST_INT,
-  AST_FLOAT,
-  AST_VOID,
-  AST_ADD,
-  AST_SUB,
-  AST_MUL,
-  AST_MODULO,
-  AST_DIV,
-  AST_GREAT,
-  AST_GREATEQ,
-  AST_LESS,
-  AST_LESSEQ,
-  AST_EQ,
-  AST_ASSIGN,
-  AST_NOTEQ,
-  AST_NOT,
-  AST_AND,
-  AST_OR,
+    // 基础类型
+    TypeInt,
+    TypeFloat,
+    TypeVoid,
+
+    // 算术运算
+    OpAdd,
+    OpSub,
+    OpMul,
+    OpDiv,
+    OpModulo,
+
+    // 比较运算
+    OpGreater,
+    OpGreaterEq,
+    OpLess,
+    OpLessEq,
+    OpEqual,
+    OpNotEqual,
+
+    // 逻辑运算
+    OpNot,
+    OpAnd,
+    OpOr,
+
+    // 赋值
+    OpAssign,
 };
 
-void AstToType(AST_Type type);
+void AstToType(ASTNodeType type);
 
 struct GetInstState
 {
@@ -92,154 +59,84 @@ template <typename T>
 class BaseExp : public HasOperand
 {
 public:
-  std::list<AST_Type> OpList; // 操作符
+  std::list<ASTNodeType> OpList; // 操作符
   BaseList<T> DataList;       // 数据
 
-  BaseExp(T *_data)
-  {
-    DataList.push_back(_data);
-  }
-  void push_back(AST_Type _tp)
-  {
-    OpList.push_back(_tp);
-  }
-  void push_front(AST_Type _tp)
-  {
-    OpList.push_front(_tp);
-  }
-  void push_back(T *_data)
-  {
-    DataList.push_back(_data);
-  }
-  void push_front(T *_data)
-  {
-    DataList.push_front(_data);
-  }
+  BaseExp(T *_data){DataList.push_back(_data);}
+  void push_back(ASTNodeType _tp){OpList.push_back(_tp);}
+  void push_front(ASTNodeType _tp){OpList.push_front(_tp);}
+  void push_back(T *_data){DataList.push_back(_data);}
+  void push_front(T *_data){DataList.push_front(_data);}
 
   // 短路求值逻辑
-  void GetOperand(BasicBlock *block, BasicBlock *is_true, BasicBlock *is_false)
-  {
-    std::cerr << "Only prepare for short circuit\n";
-    assert(0);
-  }
+  void GetOperand(BasicBlock *block, BasicBlock *is_true, BasicBlock *is_false){}
 
-  Operand GetOperand(BasicBlock *block) final
-  {
-    // Unary
-    if constexpr (std::is_same_v<T, HasOperand>)
-    {
-      Operand ptr = DataList.front()->GetOperand(block);
-      for (auto i = OpList.rbegin(); i != OpList.rend(); i++)
-      {
-        switch (*i)
-        {
-        case AST_NOT:
-          switch (ptr->GetType()->GetTypeEnum())
-          {
-          case IR_Value_INT:
-            if (dynamic_cast<BoolType *>(ptr->GetType()))
-              ptr = BasicBlock::GenerateBinaryInst(block, ptr, BinaryInst::Op_E, ConstIRBoolean::GetNewConstant());
+  Operand GetOperand(BasicBlock* block) final {
+    // Unary helpers
+    auto genUnaryNot = [&](Operand val) -> Operand {
+        switch (val->GetType()->GetTypeEnum()) {
+        case IR_Value_INT:
+            if (dynamic_cast<BoolType*>(val->GetType()))
+                return static_cast<Operand>(BasicBlock::GenerateBinaryInst(block, val, BinaryInst::Op_E, ConstIRBoolean::GetNewConstant()));
             else
-              ptr = BasicBlock::GenerateBinaryInst(block, ptr, BinaryInst::Op_E, ConstIRInt::GetNewConstant());
-            break;
-          case IR_Value_Float:
-            ptr = BasicBlock::GenerateBinaryInst(block, ConstIRFloat::GetNewConstant(), BinaryInst::Op_E, ptr);
-            break;
-          case IR_PTR:
-            ptr = BasicBlock::GenerateBinaryInst(block, ConstPtr::GetNewConstant(ptr->GetType()), BinaryInst::Op_E, ptr);
-            break;
-          default:
-            assert(0);
-          }
-        case AST_ADD:
-          break;
-        case AST_SUB:
-          if (ptr->GetType()->GetTypeEnum() == IR_Value_INT)
-            ptr = BasicBlock::GenerateBinaryInst(block, ConstIRInt::GetNewConstant(), BinaryInst::Op_Sub, ptr);
-          else
-            ptr = BasicBlock::GenerateBinaryInst(block, ConstIRFloat::GetNewConstant(), BinaryInst::Op_Sub, ptr);
-          break;
+                return static_cast<Operand>(BasicBlock::GenerateBinaryInst(block, val, BinaryInst::Op_E, ConstIRInt::GetNewConstant()));
+        case IR_Value_Float:
+            return static_cast<Operand>(BasicBlock::GenerateBinaryInst(block, ConstIRFloat::GetNewConstant(), BinaryInst::Op_E, val));
+        case IR_PTR:
+            return static_cast<Operand>(BasicBlock::GenerateBinaryInst(block, ConstPtr::GetNewConstant(val->GetType()), BinaryInst::Op_E, val));
         default:
-          assert(0);
-          std::cerr << "Wrong Operator in BinaryExp\n";
-          break;
+            throw std::runtime_error("Unsupported type for OpNot");
         }
-      }
-      return ptr;
-    }
-    else
-    {
-      // Binary
-      auto i = DataList.begin();
-      auto oper = (*i)->GetOperand(block);
-      for (auto &j : OpList)
-      {
-        i++;
-        auto another = (*i)->GetOperand(block);
-        BinaryInst::Operation opcode;
-        switch (j)
-        {
-        case AST_ADD:
-          opcode = BinaryInst::Op_Add;
-          break;
-        case AST_SUB:
-          opcode = BinaryInst::Op_Sub;
-          break;
-        case AST_DIV:
-          opcode = BinaryInst::Op_Div;
-          break;
-        case AST_MUL:
-          opcode = BinaryInst::Op_Mul;
-          break;
-        case AST_EQ:
-          opcode = BinaryInst::Op_E;
-          break;
-        case AST_AND:
-          opcode = BinaryInst::Op_And;
-          break;
-        case AST_GREAT:
-          opcode = BinaryInst::Op_G;
-          break;
-        case AST_LESS:
-          opcode = BinaryInst::Op_L;
-          break;
-        case AST_GREATEQ:
-          opcode = BinaryInst::Op_GE;
-          break;
-        case AST_LESSEQ:
-          opcode = BinaryInst::Op_LE;
-          break;
-        case AST_MODULO:
-          opcode = BinaryInst::Op_Mod;
-          break;
-        case AST_NOTEQ:
-          opcode = BinaryInst::Op_NE;
-          break;
-        case AST_OR:
-          opcode = BinaryInst::Op_Or;
-          break;
-        default:
-          std::cerr << "No such Opcode\n";
-          assert(0);
-        }
-        oper = BasicBlock::GenerateBinaryInst(block, oper, opcode, another);
-      }
-      return oper;
-    }
-  }
+    };
 
-  void print(int x) final
-  {
-    if (!OpList.empty())
-    {
-      for (int i = 0; i < x; i++)
-        std::cout << "  ";
-      std::cout << magic_enum::enum_name(OpList.front())
-                << " Level Expression\n";
+    auto genUnarySub = [&](Operand val) -> Operand {
+        return (val->GetType()->GetTypeEnum() == IR_Value_INT)
+                   ? static_cast<Operand>(BasicBlock::GenerateBinaryInst(block, ConstIRInt::GetNewConstant(), BinaryInst::Op_Sub, val))
+                   : static_cast<Operand>(BasicBlock::GenerateBinaryInst(block, ConstIRFloat::GetNewConstant(), BinaryInst::Op_Sub, val));
+    };
+
+    if constexpr (std::is_same_v<T, HasOperand>) {
+        // Unary
+        Operand result = DataList.front()->GetOperand(block);
+        for (auto it = OpList.rbegin(); it != OpList.rend(); ++it) {
+            switch (*it) {
+            case OpNot: result = genUnaryNot(result); break;
+            case OpAdd: break; // unary plus
+            case OpSub: result = genUnarySub(result); break;
+            default: throw std::runtime_error("Unsupported unary operator");
+            }
+        }
+        return result;
+    } else {
+        // Binary
+        auto it = DataList.begin();
+        Operand result = (*it)->GetOperand(block);
+        ++it;
+
+        // static map, 不用 lambda
+        static const std::unordered_map<ASTNodeType, BinaryInst::Operation> opMap = {
+            {OpAdd, BinaryInst::Op_Add}, {OpSub, BinaryInst::Op_Sub},
+            {OpMul, BinaryInst::Op_Mul}, {OpDiv, BinaryInst::Op_Div},
+            {OpEqual, BinaryInst::Op_E}, {OpNotEqual, BinaryInst::Op_NE},
+            {OpAnd, BinaryInst::Op_And}, {OpOr, BinaryInst::Op_Or},
+            {OpGreater, BinaryInst::Op_G}, {OpLess, BinaryInst::Op_L},
+            {OpGreaterEq, BinaryInst::Op_GE}, {OpLessEq, BinaryInst::Op_LE},
+            {OpModulo, BinaryInst::Op_Mod}
+        };
+
+        for (auto& op : OpList) {
+            Operand rhs = (*it)->GetOperand(block);
+            ++it;
+
+            auto mapIt = opMap.find(op);
+            if (mapIt == opMap.end())
+                throw std::runtime_error("Unsupported binary operator");
+
+            result = BasicBlock::GenerateBinaryInst(block, result, mapIt->second, rhs);
+        }
+        return result;
     }
-    for (auto &i : DataList)
-      i->print(x + !OpList.empty());
-  }
+}
 };
 
 using UnaryExp = BaseExp<HasOperand>; // 基本
@@ -250,113 +147,130 @@ using RelExp = BaseExp<AddExp>;       // 逻辑
 template <>
 inline Operand BaseExp<RelExp>::GetOperand(BasicBlock *block)
 {
-  auto i = DataList.begin();
-  auto oper = (*i)->GetOperand(block);
+    auto it = DataList.begin();
+    Operand result = (*it)->GetOperand(block);
 
-  if (OpList.empty() && oper->GetType() != BoolType::NewBoolTypeGet())
-  {
-    switch (oper->GetType()->GetTypeEnum())
-    {
-    case IR_PTR:
-      oper = block->GenerateBinaryInst(oper, BinaryInst::Op_NE,
-                                       ConstPtr::GetNewConstant(oper->GetType()));
-      break;
-    case IR_Value_INT:
-      oper = block->GenerateBinaryInst(oper, BinaryInst::Op_NE,
-                                       ConstIRInt::GetNewConstant());
-      break;
-    case IR_Value_Float:
-      oper = block->GenerateBinaryInst(oper, BinaryInst::Op_NE,
-                                       ConstIRFloat::GetNewConstant());
-      break;
-    default:
-      throw std::runtime_error("Unexpected operand type in GetOperand");
-    }
-    return oper;
-  }
-
-  static const std::unordered_map<int, BinaryInst::Operation> op_map = {
-      {AST_EQ, BinaryInst::Op_E},
-      {AST_NOTEQ, BinaryInst::Op_NE}};
-
-  for (auto &j : OpList)
-  {
-    i++;
-    auto another = (*i)->GetOperand(block);
-
-    auto it = op_map.find(j);
-    if (it == op_map.end())
-    {
-      std::cerr << "Wrong Opcode for EqExp\n";
-      assert(0);
+    // 如果没有操作符且类型不是布尔，则转换为布尔值
+    if (OpList.empty() && result->GetType() != BoolType::NewBoolTypeGet()) {
+        Operand zeroValue = nullptr;
+        switch (result->GetType()->GetTypeEnum()) {
+        case IR_PTR:   zeroValue = ConstPtr::GetNewConstant(result->GetType()); break;
+        case IR_Value_INT:   zeroValue = ConstIRInt::GetNewConstant(); break;
+        case IR_Value_Float: zeroValue = ConstIRFloat::GetNewConstant(); break;
+        default:    throw std::runtime_error("Unexpected operand type in GetOperand");
+        }
+        result = block->GenerateBinaryInst(result, BinaryInst::Op_NE, zeroValue);
+        return result;
     }
 
-    oper = block->GenerateBinaryInst(oper, it->second, another);
-  }
+    // 只处理 == 和 !=
+    static const std::unordered_map<ASTNodeType, BinaryInst::Operation> opMap = {
+        {OpEqual, BinaryInst::Op_E},
+        {OpNotEqual, BinaryInst::Op_NE}
+    };
 
-  return oper;
+    for (auto &op : OpList) {
+        ++it;
+        Operand rhs = (*it)->GetOperand(block);
+
+        auto mapIt = opMap.find(op);
+        if (mapIt == opMap.end())
+            throw std::runtime_error("Unsupported operator in RelExp");
+
+        result = block->GenerateBinaryInst(result, mapIt->second, rhs);
+    }
+
+    return result;
 }
 
 using EqExp = BaseExp<RelExp>; //==
 
 template <>
-inline void BaseExp<EqExp>::GetOperand(BasicBlock *block, BasicBlock *_true,
-                                       BasicBlock *_false)
+inline void BaseExp<EqExp>::GetOperand(BasicBlock *block, BasicBlock *TrueBlock,
+                                                   BasicBlock *FalseBlock)
 {
-  for (auto &i : DataList)
-  {
-    auto tmp = i->GetOperand(block);
+    auto lastIt = std::prev(DataList.end());
 
-    if (tmp->IsBoolean())
-    {
-      auto Const = static_cast<ConstIRBoolean *>(tmp);
-      if (Const->GetVal() == false)
-      {
-        block->GenerateUnCondInst(_false);
-        return;
-      }
-      if (i != DataList.back())
-        continue;
-      block->GenerateUnCondInst(_true);
-      return;
+    for (auto it = DataList.begin(); it != DataList.end(); ++it) {
+        Operand tmp = (*it)->GetOperand(block);
+
+        // 常量布尔值处理
+        if (tmp->IsBoolean()) {
+            auto constBool = static_cast<ConstIRBoolean*>(tmp);
+            if (!constBool->GetVal()) {
+                block->GenerateUnCondInst(FalseBlock);
+                return;
+            }
+            if (it == lastIt) {
+                block->GenerateUnCondInst(TrueBlock);
+                return;
+            }
+            continue; // true 常量继续循环
+        }
+
+        // 非常量布尔值
+        BasicBlock* nextBlock = (it != lastIt) ? block->GenerateNewBlock() : TrueBlock;
+        block->GenerateCondInst(tmp, nextBlock, FalseBlock);
+        block = nextBlock;
     }
-
-    auto nxt_block = (i != DataList.back()) ? block->GenerateNewBlock() : _true;
-    block->GenerateCondInst(tmp, nxt_block, _false);
-    block = nxt_block;
-  }
 }
 
 using LAndExp = BaseExp<EqExp>; //&&
 
 template <>
-inline void BaseExp<LAndExp>::GetOperand(BasicBlock *block, BasicBlock *is_true,
-                                         BasicBlock *is_false)
+inline void BaseExp<LAndExp>::GetOperand(BasicBlock *block, BasicBlock *TrueBlock,
+                                         BasicBlock *FalseBlock)
 {
-  for (auto it = DataList.begin(); it != DataList.end(); ++it)
-  {
-    if (it != std::prev(DataList.end()))
+    auto endOperand = std::prev(DataList.end());
+
+    for (auto nodeIt = DataList.begin(); nodeIt != DataList.end(); ++nodeIt)
     {
-      auto nxt_block = block->GenerateNewBlock();
-      (*it)->GetOperand(block, is_true, nxt_block);
-      if (!nxt_block->GetValUseList().is_empty())
-      {
-        block = nxt_block;
-      }
-      else
-      {
-        nxt_block->EraseFromManager();
-        return;
-      }
+        if (nodeIt != endOperand)
+        {
+            // 构建中间块处理短路逻辑
+            BasicBlock *nextblock = block->GenerateNewBlock();
+            (*nodeIt)->GetOperand(block, TrueBlock, nextblock);
+
+            if (nextblock->GetValUseList().is_empty())
+            {
+                // 如果中间块没有使用，直接删除
+                nextblock->EraseFromManager();
+                return;
+            }
+            block = nextblock; 
+        }
+        else
+        {
+            // 最终操作数跳转到真/假块
+            (*nodeIt)->GetOperand(block, TrueBlock, FalseBlock);
+        }
     }
-    else
-    {
-      (*it)->GetOperand(block, is_true, is_false);
-    }
-  }
 }
 
 using LOrExp = BaseExp<LAndExp>; //||
+template <>
+inline void BaseExp<LOrExp>::GetOperand(BasicBlock *block, BasicBlock *TrueBlock,
+                                                   BasicBlock *FalseBlock) {
+    auto curBlk = block;
+
+    for (auto it = DataList.begin(); it != DataList.end(); ++it) {
+        bool isLast = (std::next(it) == DataList.end());
+        BasicBlock *NextBlock = isLast ? FalseBlock : curBlk->GenerateNewBlock();
+
+        // 遇到真值立即跳转到 blkTrue，短路
+        (*it)->GetOperand(curBlk, TrueBlock, NextBlock);
+
+        if (!isLast) {
+            // 如果中间块还有使用，就继续，否则直接删除
+            if (!NextBlock->GetValUseList().is_empty()) {
+                curBlk = NextBlock;
+            } else {
+                NextBlock->EraseFromManager();
+                return;
+            }
+        }
+    }
+}
 
 class InnerBaseExps : public BaseAST
 {
@@ -367,13 +281,6 @@ public:
   InnerBaseExps(AddExp *_data) { push_front(_data); }
   void push_front(AddExp *_data) { DataList.push_front(_data); }
   void push_back(AddExp *_data) { DataList.push_back(_data); }
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-    for (auto &i : DataList)
-      i->print(x + 1);
-  }
 };
 
 class Exps : public InnerBaseExps
@@ -402,14 +309,6 @@ public:
   InitVal(BaseAST *_data);
   Operand GetFirst(BasicBlock *block);
   Operand GetOperand(Type *_tp, BasicBlock *block);
-  void print(int x)
-  {
-    BaseAST::print(x);
-    if (val == nullptr)
-      std::cout << ":empty{}\n";
-    else
-      std::cout << '\n', val->print(x + 1);
-  }
 };
 
 class InitVals : public BaseAST
@@ -421,13 +320,6 @@ public:
   explicit InitVals(InitVal *_data);
   void push_back(InitVal *_data);
   Operand GetOperand(Type *_tp, BasicBlock *block);
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-    for (auto &i : DataList)
-      ((BaseAST *)i.get())->print(x + 1);
-  }
 };
 
 class BaseDef : public Stmt
@@ -443,15 +335,6 @@ public:
   BasicBlock *GetInst(GetInstState) final;
 
   void codegen();
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << ":" << name << '\n';
-    if (array_descriptor != nullptr)
-      array_descriptor->print(x + 1);
-    if (initval != nullptr)
-      initval->print(x + 1);
-  }
 };
 
 // codegen:IR  print:AST
@@ -465,14 +348,6 @@ public:
   void push_back(BaseAST *_data);
   void push_front(BaseAST *_data);
   void codegen();
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-    for (auto &i : DataList)
-      i->print(x + 1);
-    std::cout << '\n';
-  }
 };
 
 class VarDef : public BaseDef
@@ -491,29 +366,18 @@ public:
   void push_back(VarDef *_data);
   BasicBlock *GetInst(GetInstState state) final;
   void codegen();
-  void print(int x)
-  {
-    for (auto &i : DataList)
-      i->print(x);
-  }
 };
 
 class VarDecl : public Stmt
 {
 private:
-  AST_Type type;
+  ASTNodeType type;
   std::unique_ptr<VarDefs> vardefs;
 
 public:
-  VarDecl(AST_Type _tp, VarDefs *_vardefs);
+  VarDecl(ASTNodeType _tp, VarDefs *_vardefs);
   BasicBlock *GetInst(GetInstState state) final;
   void codegen();
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << ":" << magic_enum::enum_name(type) << '\n';
-    vardefs->print(x + 1);
-  }
 };
 
 class ConstDef : public BaseDef
@@ -532,29 +396,18 @@ public:
   void push_back(ConstDef *_data);
   BasicBlock *GetInst(GetInstState state) final;
   void codegen();
-  void print(int x)
-  {
-    for (auto &i : DataList)
-      i->print(x);
-  }
 };
 
 class ConstDecl : public Stmt
 {
 private:
-  AST_Type type;
+  ASTNodeType type;
   std::unique_ptr<ConstDefs> constdefs;
 
 public:
-  ConstDecl(AST_Type _tp, ConstDefs *_constdefs);
+  ConstDecl(ASTNodeType _tp, ConstDefs *_constdefs);
   BasicBlock *GetInst(GetInstState state) final;
   void codegen();
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << ":TYPE:" << magic_enum::enum_name(type) << '\n';
-    constdefs->print(x + 1);
-  }
 };
 
 template <typename T>
@@ -571,11 +424,6 @@ public:
     else
       return ConstIRFloat::GetNewConstant(data);
   }
-  void print(int x) final
-  {
-    BaseAST::print(x);
-    std::cout << ":" << data << '\n';
-  }
 };
 
 class FunctionCall : public HasOperand
@@ -587,37 +435,20 @@ private:
 public:
   FunctionCall(std::string _name, CallParams *ptr = nullptr);
   Operand GetOperand(BasicBlock *block);
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << name;
-    if (callparams != nullptr)
-      callparams->print(x + 1);
-  }
 };
 
 class FuncParam : public BaseAST
 {
 private:
-  AST_Type tp;
+  ASTNodeType tp;
   std::string name;
   bool empty_square;
   std::unique_ptr<Exps> array_subscripts;
 
 public:
-  FuncParam(AST_Type _tp, std::string _name, bool is_empty = false, Exps *ptr = nullptr);
+  FuncParam(ASTNodeType _tp, std::string _name, bool is_empty = false, Exps *ptr = nullptr);
 
   void GetVar(Function &tmp);
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << ":" << magic_enum::enum_name(tp);
-    if (empty_square == 1)
-      std::cout << "ptr";
-    std::cout << name;
-    if (array_subscripts != nullptr)
-      array_subscripts->print(x + 1);
-  }
 };
 
 class FuncParams : public BaseAST
@@ -629,11 +460,6 @@ public:
   FuncParams(FuncParam *ptr);
   void push_back(FuncParam *ptr);
   void GetVar(Function &tmp);
-  void print(int x)
-  {
-    for (auto &i : DataList)
-      i->print(x);
-  }
 };
 
 class BlockItems : public Stmt
@@ -646,13 +472,6 @@ public:
   void push_back(Stmt *ptr);
 
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-    for (auto &i : DataList)
-      i->print(x + 1);
-  }
 };
 
 class Block : public Stmt
@@ -664,29 +483,20 @@ public:
   Block(BlockItems *ptr);
 
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x) { items->print(x); }
 };
 
 class FuncDef : public BaseAST
 {
 private:
-  AST_Type tp;
+  ASTNodeType tp;
   std::string name;
   std::unique_ptr<FuncParams> params;
   std::unique_ptr<Block> func_body;
 
 public:
-  FuncDef(AST_Type _tp, std::string _name, FuncParams *_params, Block *_func_body);
+  FuncDef(ASTNodeType _tp, std::string _name, FuncParams *_params, Block *_func_body);
 
   void codegen();
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << ":" << name << ":" << magic_enum::enum_name(tp) << '\n';
-    if (params != nullptr)
-      params->print(x + 1);
-    func_body->print(x + 1);
-  }
 };
 
 class LVal : public HasOperand
@@ -701,15 +511,6 @@ public:
 
   Operand GetPointer(BasicBlock *block);
   Operand GetOperand(BasicBlock *block);
-  void print(int x)
-  {
-    BaseAST::print(x);
-    if (array_descriptor != nullptr)
-      std::cout << ":with array descripters";
-    std::cout << ":" << name << '\n';
-    if (array_descriptor != nullptr)
-      array_descriptor->print(x + 1);
-  }
 };
 
 class AssignStmt : public Stmt
@@ -722,14 +523,6 @@ public:
   AssignStmt(LVal *m, AddExp *n);
 
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-    assert(lval != nullptr);
-    lval->print(x + 1);
-    exp->print(x + 1);
-  }
 };
 
 class ExpStmt : public Stmt
@@ -741,13 +534,6 @@ public:
   ExpStmt(AddExp *ptr);
 
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x)
-  {
-    if (exp == nullptr)
-      BaseAST::print(x);
-    else
-      exp->print(x);
-  }
 };
 
 class WhileStmt : public Stmt
@@ -760,14 +546,7 @@ public:
   WhileStmt(LOrExp *p1, Stmt *p2);
 
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-    assert(cond != nullptr && stmt != nullptr);
-    cond->print(x + 1);
-    stmt->print(x + 1);
-  }
+
 };
 
 class IfStmt : public Stmt
@@ -780,37 +559,18 @@ public:
   IfStmt(LOrExp *p0, Stmt *p1, Stmt *p2 = nullptr);
 
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-    assert(true_stmt != nullptr);
-    true_stmt->print(x + 1);
-    if (false_stmt != nullptr)
-      false_stmt->print(x + 1);
-  }
 };
 
 class BreakStmt : public Stmt
 {
 public:
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-  }
 };
 
 class ContinueStmt : public Stmt
 {
 public:
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-  }
 };
 
 class ReturnStmt : public Stmt
@@ -821,11 +581,4 @@ private:
 public:
   ReturnStmt(AddExp *ptr = nullptr);
   BasicBlock *GetInst(GetInstState state) final;
-  void print(int x)
-  {
-    BaseAST::print(x);
-    std::cout << '\n';
-    if (ret_val != nullptr)
-      ret_val->print(x + 1);
-  }
 };

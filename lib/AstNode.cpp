@@ -2,62 +2,62 @@
 #include "../include/lib/ast/AstNode.hpp"
 
 #include <algorithm>
-std::string ast_type_to_string(AST_Type type)
+std::string ASTNodeType_to_string(ASTNodeType type)
 {
   switch (type)
   {
-  case AST_INT:
-    return "AST_INT";
-  case AST_FLOAT:
-    return "AST_FLOAT";
-  case AST_VOID:
-    return "AST_VOID";
-  case AST_ADD:
-    return "AST_ADD";
-  case AST_SUB:
-    return "AST_SUB";
-  case AST_MUL:
-    return "AST_MUL";
-  case AST_MODULO:
-    return "AST_MODULO";
-  case AST_DIV:
-    return "AST_DIV";
-  case AST_GREAT:
-    return "AST_GREAT";
-  case AST_GREATEQ:
-    return "AST_GREATEQ";
-  case AST_LESS:
-    return "AST_LESS";
-  case AST_LESSEQ:
-    return "AST_LESSEQ";
-  case AST_EQ:
-    return "AST_EQ";
-  case AST_ASSIGN:
-    return "AST_ASSIGN";
-  case AST_NOTEQ:
-    return "AST_NOTEQ";
-  case AST_NOT:
-    return "AST_NOT";
-  case AST_AND:
-    return "AST_AND";
-  case AST_OR:
-    return "AST_OR";
+  case TypeInt:
+    return "TypeInt";
+  case TypeFloat:
+    return "TypeFloat";
+  case TypeVoid:
+    return "TypeVoid";
+  case OpAdd:
+    return "OpAdd";
+  case OpSub:
+    return "OpSub";
+  case OpMul:
+    return "OpMul";
+  case OpModulo:
+    return "OpModulo";
+  case OpDiv:
+    return "OpDiv";
+  case OpGreater:
+    return "OpGreater";
+  case OpGreaterEq:
+    return "OpGreaterEq";
+  case OpLess:
+    return "OpLess";
+  case OpLessEq:
+    return "OpLessEq";
+  case OpEqual:
+    return "OpEqual";
+  case OpAssign:
+    return "OpAssign";
+  case OpNotEqual:
+    return "OpNotEqual";
+  case OpNot:
+    return "OpNot";
+  case OpAnd:
+    return "OpAnd";
+  case OpOr:
+    return "OpOr";
   default:
     return "UNKNOWN";
   }
 }
 
-void AstToType(AST_Type type)
+void AstToType(ASTNodeType type)
 {
   switch (type)
   {
-  case AST_INT:
+  case TypeInt:
     Singleton<IR_DataType>() = IR_Value_INT;
     break;
-  case AST_FLOAT:
+  case TypeFloat:
     Singleton<IR_DataType>() = IR_Value_Float;
     break;
-  case AST_VOID:
+  case TypeVoid:
   default:
     std::cerr << "void as variable is not allowed!\n";
     assert(0);
@@ -526,7 +526,7 @@ void VarDefs::codegen()
   }
 }
 
-VarDecl::VarDecl(AST_Type _tp, VarDefs *_vardefs)
+VarDecl::VarDecl(ASTNodeType _tp, VarDefs *_vardefs)
     : type(_tp), vardefs(_vardefs) {}
 
 BasicBlock *VarDecl::GetInst(GetInstState state)
@@ -566,7 +566,7 @@ void ConstDefs::codegen()
     i->codegen();
 }
 
-ConstDecl::ConstDecl(AST_Type _tp, ConstDefs *_constdefs)
+ConstDecl::ConstDecl(ASTNodeType _tp, ConstDefs *_constdefs)
     : type(_tp), constdefs(_constdefs)
 {
 }
@@ -592,10 +592,11 @@ FunctionCall::FunctionCall(std::string _name, CallParams *ptr)
 
 Operand FunctionCall::GetOperand(BasicBlock *block)
 {
+  static int call_counter = 0;
   std::vector<Operand> args;
   if (callparams != nullptr)
     args = callparams->GetParams(block);
-  return block->GenerateCallInst(name, args, begin);
+  return block->GenerateCallInst(name, args, call_counter++);
 }
 
 CallParams::CallParams(AddExp *_addexp)
@@ -611,23 +612,23 @@ std::vector<Operand> CallParams::GetParams(BasicBlock *block)
   return params;
 }
 
-FuncParam::FuncParam(AST_Type _tp, std::string _name, bool is_empty, Exps *ptr)
+FuncParam::FuncParam(ASTNodeType _tp, std::string _name, bool is_empty, Exps *ptr)
     : tp(_tp), name(_name), empty_square(is_empty), array_subscripts(ptr)
 {
 }
 
 void FuncParam::GetVar(Function &tmp)
 {
-  auto get_type = [](AST_Type _tp) -> Type *
+  auto get_type = [](ASTNodeType _tp) -> Type *
   {
     switch (_tp)
     {
-    case AST_INT:
+    case TypeInt:
       return IntType::NewIntTypeGet();
-    case AST_FLOAT:
+    case TypeFloat:
       return FloatType::NewFloatTypeGet();
     default:
-      throw std::invalid_argument("Unknown AST_Type");
+      throw std::invalid_argument("Unknown ASTNodeType");
     }
   };
 
@@ -659,13 +660,13 @@ void FuncParam::GetVar(Function &tmp)
 
 // void FuncParam::GetVar(Function &tmp)
 // {
-//   auto get_type = [](AST_Type _tp) -> Type *
+//   auto get_type = [](ASTNodeType _tp) -> Type *
 //   {
 //     switch (_tp)
 //     {
-//     case AST_INT:
+//     case TypeInt:
 //       return IntType::NewIntTypeGet();
-//     case AST_FLOAT:
+//     case TypeFloat:
 //       return FloatType::NewFloatTypeGet();
 //     default:
 //       std::cerr << "Wrong Type\n";
@@ -711,20 +712,20 @@ void FuncParams::GetVar(Function &tmp)
   }
 }
 
-FuncDef::FuncDef(AST_Type _tp, std::string _name, FuncParams *_params, Block *_func_body)
+FuncDef::FuncDef(ASTNodeType _tp, std::string _name, FuncParams *_params, Block *_func_body)
     : tp(_tp), name(_name), params(_params), func_body(_func_body) {}
 
 void FuncDef::codegen()
 {
-  auto get_type = [](AST_Type _tp)
+  auto get_type = [](ASTNodeType _tp)
   {
     switch (_tp)
     {
-    case AST_INT:
+    case TypeInt:
       return IR_DataType::IR_Value_INT;
-    case AST_FLOAT:
+    case TypeFloat:
       return IR_DataType::IR_Value_Float;
-    case AST_VOID:
+    case TypeVoid:
       return IR_DataType::IR_Value_VOID;
     default:
       std::cerr << "Wrong Type\n";
@@ -936,9 +937,9 @@ WhileStmt::WhileStmt(LOrExp *p1, Stmt *p2)
 
 BasicBlock *WhileStmt::GetInst(GetInstState state)
 {
-  auto condition_part = state.cur_block->GenerateNewBlock("wc" + std::to_string(begin));
-  auto inner_loop = state.cur_block->GenerateNewBlock("wloop." + std::to_string(begin) + "." + std::to_string(end));
-  auto nxt_block = state.cur_block->GenerateNewBlock("wn" + std::to_string(begin));
+  auto condition_part = state.cur_block->GenerateNewBlock("wc");
+  auto inner_loop = state.cur_block->GenerateNewBlock("wloop.");
+  auto nxt_block = state.cur_block->GenerateNewBlock("wn");
 
   state.cur_block->GenerateUnCondInst(condition_part); // 跳条件块
 

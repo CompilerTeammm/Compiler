@@ -1,6 +1,5 @@
 #pragma once
 #include "Passbase.hpp"
-#include "../../lib/Singleton.hpp"
 #include "../../lib/CFG.hpp"
 #include "../Analysis/Dominant.hpp"
 // #include "../Analysis/LoopInfo.hpp"

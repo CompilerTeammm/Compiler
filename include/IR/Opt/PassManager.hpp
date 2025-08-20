@@ -7,7 +7,6 @@
 #include "../../lib/CoreClass.hpp"
 #include "../../lib/CFG.hpp"
 #include <memory>
-#include "../../lib/Singleton.hpp"
 #include "DCE.hpp"
 #include "AnalysisManager.hpp"
 #include "ConstantProp.hpp"
@@ -68,36 +67,36 @@ public:
         {
             // 启用全部中端优化
             enabledPasses = {
-                // "SSE",
+                "SSE",
                 // 前期规范化
                 "mem2reg",
-                // "sccp",
-                // "SCFG",
-                // "ConstantHoist",
+                "sccp",
+                "SCFG",
+                "ConstantHoist",
                 // "ECE",
                 // 过程间优化
-                // "inline",
+                "inline",
 
                 "SOGE",
-                // "G2L",
+                "G2L",
                 // // 局部清理
-                // "DAE",
-                // "TRE",
-                // "DCE",
-                // "ExprReorder",
-                // "sccp",
-                // "SCFG",
+                "DAE",
+                "TRE",
+                "DCE",
+                "ExprReorder",
+                "sccp",
+                "SCFG",
 
-                // //"GVN",
-                // "DCE",
+                //"GVN",
+                "DCE",
                 // // 循环优化
-                // "LoopSimplify",
-                // "Lcssa",
-                // "LICM",
-                // "LoopRotate",
+                "LoopSimplify",
+                "Lcssa",
+                "LICM",
+                "LoopRotate",
                 // //"LoopUnroll",
-                // "LoopDeletion",
-                //"SSR",
+                "LoopDeletion",
+                // "SSR",
 
                 // 数据流优化
                 // "SSAPRE",

@@ -1,33 +1,3 @@
-// #pragma once
-// #include <cassert>
-// #include <string>
-// #include <vector>
-// #include <iostream>
-// #include <memory>
-// #include <unordered_map>
-// #include <algorithm>
-// #include <set>
-// #include <variant>
-// #include <map>
-// #include <stack>
-// #include <sstream>
-// #include "Type.hpp"
-// #include "Singleton.hpp"
-// #include "MyList.hpp"
-// #include "CFG.hpp"
-// #include "SymbolTable.hpp"
-
-// class Use;
-// class User;
-// class Value;
-// class Instruction;
-// class BasicBlock;
-// class Function;
-// class Module;
-// class BinaryInst;
-
-// class ValUseList;
-
 #pragma once
 #include <vector>
 #include <cassert>

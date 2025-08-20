@@ -1,11 +1,27 @@
 #pragma once
 #include "SymbolTable.hpp"
-#include "Singleton.hpp"
 #include "CoreClass.hpp"
 #include <set>
 #include <unordered_set>
 #include <algorithm>
 #include <vector>
+
+template <typename T>
+T &Singleton()
+{
+    static T inner;
+    return inner;
+}
+
+struct IR_CONSTDECL_FLAG
+{
+    bool flag;
+};
+
+struct Inline_Recursion{
+    bool flag=false;
+};
+
 class BasicBlock;
 class Function;
 

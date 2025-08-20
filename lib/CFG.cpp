@@ -1,7 +1,5 @@
 #include "../include/lib/CFG.hpp"
 #include "../include/lib/CoreClass.hpp"
-#include "../include/lib/MagicEnum.hpp"
-// #include "../util/my_stl.hpp"
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -1657,7 +1655,7 @@ void Function::InsertBlock(BasicBlock *pred, BasicBlock *succ,
     if (auto *cond = dynamic_cast<CondInst *>(condition))
     {
         auto &uses = cond->GetUserUseList();
-        assert(uses.size() >= 3 && "CondInst should have at least 3 operands");
+        assert(uses.size() >= 3 && "CondInst should have at least 3 DataList");
         for (int i = 1; i <= 2; ++i)
         {
             if (uses[i]->GetValue() == succ)

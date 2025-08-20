@@ -213,7 +213,7 @@ extern char *yytext;
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
-#define COMMENT 1
+#define MULTI_COMMENT 1
 
 #endif
 
@@ -467,7 +467,7 @@ extern int yylex (void);
 #undef yyTABLES_NAME
 #endif
 
-#line 143 "lex.l"
+#line 143 "./lex.l"
 
 
 #line 474 "scanner_output.hpp"
