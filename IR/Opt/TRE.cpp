@@ -1,121 +1,121 @@
 #include "../../include/IR/Opt/TRE.hpp"
-std::vector<std::pair<CallInst*, RetInst*>> TRE::TailCallPairs(Function* func) {
-    std::vector<std::pair<CallInst*, RetInst*>> worklist;
+std::vector<std::pair<CallInst*, RetInst*>> TailRecElim::collectTailCalls(Function* func) {
+    std::vector<std::pair<CallInst*, RetInst*>> tailCalls;
 
-    auto usrlist = func->GetValUseList();
-    for (auto usr : usrlist) {
-        auto userInst = usr->GetUser();
-        if (!userInst) continue;  // 防空
+    auto userList = func->GetValUseList();
+    for (auto* use : userList) {
+        auto* inst = use->GetUser();
+        if (!inst) continue;
 
-        auto call = userInst->as<CallInst>();
-        if (!call) continue;  // 非调用指令跳过
+        auto* call = inst->as<CallInst>();
+        if (!call) continue;
 
-        // 判断call属于当前函数
-        if (call->GetParent() && call->GetParent()->GetParent() == func) {
-            auto nextInst = call->GetNextNode();
-            if (!nextInst) continue;  // 防空
+        // 确认调用在当前函数中
+        auto* parentFunc = call->GetParent() ? call->GetParent()->GetParent() : nullptr;
+        if (parentFunc != func) continue;
 
-            auto ret = nextInst->as<RetInst>();
-            if (!ret) continue;
+        auto* nextInst = call->GetNextNode();
+        if (!nextInst) continue;
 
-            auto retOp = ret->GetOperand(0);
-            // 满足以下任一条件则认为是尾递归
-            if (ret->GetValUseListSize() == 0 
-                || (retOp && retOp->IsUndefVal())
-                || (retOp == call)) {
-                worklist.emplace_back(call, ret);
-            }
+        auto* ret = nextInst->as<RetInst>();
+        if (!ret) continue;
+
+        auto* retOp = ret->GetOperand(0);
+
+        // 尾递归条件判断
+        if (ret->GetValUseListSize() == 0 
+            || (retOp && retOp->IsUndefVal())
+            || (retOp == call)) {
+            tailCalls.emplace_back(call, ret);
         }
     }
 
-    return worklist;
+    return tailCalls;
 }
 
-std::pair<BasicBlock*, BasicBlock*> TRE::HoistAllocas() {
-    auto entry = func->GetFront();  // 入口块
-    Instruction* lastAllocaInst = nullptr;
+std::pair<BasicBlock*, BasicBlock*> TailRecElim::liftAllocas() {
+    auto* entryBlock = func->GetFront();   // 函数入口块
+    Instruction* lastAlloca = nullptr;
 
-    // 找到入口块中连续的Alloca指令的最后一个
-    for (auto inst : *entry) {
+    // 找到入口块中连续的 Alloca 指令的最后一个
+    for (auto* inst : *entryBlock) {
         if (inst->as<AllocaInst>() != nullptr) {
-            lastAllocaInst = inst;
+            lastAlloca = inst;
         } else {
             break;
         }
     }
 
-    // 如果没有alloca指令，则新建基本块，跳转到入口块
-    if (!lastAllocaInst) {
-        auto newBlock = new BasicBlock();
-        newBlock->push_back(new UnCondInst(entry));
-        func->push_front(newBlock);
-        return {newBlock, entry};
+    // 如果没有 Alloca 指令，则新建基本块跳转到入口块
+    if (!lastAlloca) {
+        auto* allocBlock = new BasicBlock();
+        allocBlock->push_back(new UnCondInst(entryBlock));
+        func->push_front(allocBlock);
+        return {allocBlock, entryBlock};
     }
 
-    // 获取最后一个alloca指令的下一条指令
-    Instruction* splitInst = lastAllocaInst->GetNextNode();
+    // 获取最后一个 Alloca 的下一条指令
+    Instruction* splitInst = lastAlloca->GetNextNode();
     if (!splitInst) {
-        // 这里可能函数只有alloca指令，没有后续指令，异常处理
-        // 可以直接返回或抛异常，根据项目约定
-        return {entry, nullptr};
+        // 如果函数只有 Alloca 指令，直接返回入口块，loopBlock 为 nullptr
+        return {entryBlock, nullptr};
     }
 
-    // 在splitInst处分割入口块，生成新块
-    auto newBlock = entry->SplitAt(splitInst);
+    // 在 splitInst 处分割入口块，生成新的基本块
+    auto* allocBlock = entryBlock->SplitAt(splitInst);
 
     // 在入口块末尾添加无条件跳转到新块
-    entry->push_back(new UnCondInst(newBlock));
+    entryBlock->push_back(new UnCondInst(allocBlock));
 
-    // 在函数基本块链表中插入新块，紧跟入口块之后
-    auto funcIt = List<Function, BasicBlock>::iterator(entry);
-    funcIt.InsertAfter(newBlock);
+    // 将新块插入函数基本块链表中，紧跟入口块之后
+    auto it = List<Function, BasicBlock>::iterator(entryBlock);
+    it.InsertAfter(allocBlock);
 
-    return {entry, newBlock};
+    return {entryBlock, allocBlock};
 }
 
 
-bool TRE::run() {
-    auto worklist = TailCallPairs(func);
-    if (worklist.empty())
+bool TailRecElim::run() {
+    auto tailCalls = collectTailCalls(func);
+    if (tailCalls.empty())
         return false;
 
-    auto [entry, jump_dst] = HoistAllocas();
-
+    auto [entryBlock, loopBlock] = liftAllocas();
     auto& params = func->GetParams();
-    std::vector<PhiInst*> paramPhis;
+    std::vector<PhiInst*> paramPhiNodes;
 
-    // 为每个参数创建Phi节点，替换原有参数使用
+    // 为每个参数创建 Phi 节点，并替换原有参数使用
     for (auto& param : params) {
-        auto newPhi = new PhiInst(param->GetType());
-        param->ReplaceAllUseWith(newPhi);
-        newPhi->addIncoming(param.get(), entry);
-        paramPhis.push_back(newPhi);
+        auto* phi = new PhiInst(param->GetType());
+        param->ReplaceAllUseWith(phi);
+        phi->addIncoming(param.get(), entryBlock);
+        paramPhiNodes.push_back(phi);
     }
 
-    for (auto [call, ret] : worklist) {
-        auto src = call->GetParent();
-        size_t size = call->GetUserUseList().size() - 1;
+    for (auto [call, ret] : tailCalls) {
+        auto* srcBlock = call->GetParent();
+        size_t argCount = call->GetUserUseList().size() - 1;
 
-        // 保证调用参数数目和phi节点数一致
-        assert(size == paramPhis.size() && "Frontend guarantees this condition");
+        assert(argCount == paramPhiNodes.size() && "Frontend guarantees this condition");
 
-        for (size_t i = 0; i < size; ++i) {
-            paramPhis[i]->addIncoming(call->GetOperand(i + 1), src);
+        // 更新 phi 节点的 incoming
+        for (size_t i = 0; i < argCount; ++i) {
+            paramPhiNodes[i]->addIncoming(call->GetOperand(i + 1), srcBlock);
         }
 
-        // 用无条件跳转指令替换返回指令，实现循环跳转
-        auto newUncond = new UnCondInst(jump_dst);
-        ret->InstReplace(newUncond);
+        // 用无条件跳转替换返回指令
+        auto* br = new UnCondInst(loopBlock);
+        ret->InstReplace(br);
 
-        // 注意：直接delete可能导致悬空指针，确保安全后操作
+        // 安全删除原返回和调用指令
         delete ret;
         delete call;
     }
 
-    // 格式化phi指令并插入跳转块前面
-    for (auto phi : paramPhis) {
+    // 将 phi 节点插入 loopBlock 前端，并格式化
+    for (auto* phi : paramPhiNodes) {
         phi->FormatPhi();
-        jump_dst->push_front(phi);
+        loopBlock->push_front(phi);
     }
 
     func->isRecursive(false);

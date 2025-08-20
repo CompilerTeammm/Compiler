@@ -2,54 +2,70 @@
 #include "../../lib/CFG.hpp"
 #include "Passbase.hpp"
 
-
-class InlineHeuristic {
+class InlinePolicy
+{
 public:
-    virtual bool CanBeInlined(CallInst* call) = 0;
+    virtual ~InlinePolicy() = default;
+    virtual bool shouldInline(CallInst *call) = 0;
 
-    static std::unique_ptr<InlineHeuristic> get(Module* m);
+    static std::unique_ptr<InlinePolicy> create(Module *module);
 };
 
-
-class InlineHeuristicManager : public InlineHeuristic,
-                               public std::vector<std::unique_ptr<InlineHeuristic>> {
+class PolicySet : public InlinePolicy
+{
 public:
-    bool CanBeInlined(CallInst* call) override;
-    InlineHeuristicManager();
-};
+    PolicySet();
 
+    bool shouldInline(CallInst *call) override;
 
-class SizeLimit : public InlineHeuristic {
-    size_t cost=0;
-    const size_t maxframesize = 7864320;
-    const size_t maxsize = 10000;
-public:
-    bool CanBeInlined(CallInst* call) override;
-    SizeLimit();
-};
-
-
-class NoRecursive : public InlineHeuristic {
-    Module* m;
-public:
-    bool CanBeInlined(CallInst* call) override;
-    NoRecursive(Module* m);
-};
-
-
-class Inliner : public _PassBase<Inliner, Module> {
-public:
-    bool run();
-    bool Inline(Module* m);
-
-    Inliner(Module* m) : m(m) {}
+    void addPolicy(std::unique_ptr<InlinePolicy> policy);
 
 private:
-    std::vector<BasicBlock*> CopyBlocks(Instruction* inst);
-    void HandleVoidRet(BasicBlock* splitBlock, std::vector<BasicBlock*>& blocks);
-    void HandleRetPhi(BasicBlock* RetBlock, PhiInst* phi, std::vector<BasicBlock*>& blocks);
+    std::vector<std::unique_ptr<InlinePolicy>> policies;
+};
 
-    Module* m;
-    std::vector<CallInst*> NeedInlineCall;
-    void init(Module* m);
+/// 限制函数体大小的策略
+class BudgetPolicy final : public InlinePolicy
+{
+public:
+    BudgetPolicy();
+
+    bool shouldInline(CallInst *call) override;
+
+private:
+    size_t currentCost = 0;
+    static constexpr size_t MaxFrameSize = 7864320; // ~7.5MB
+    static constexpr size_t MaxInstCount = 10000;
+};
+
+/// 禁止递归内联的策略
+class NoSelfCall final : public InlinePolicy
+{
+public:
+    explicit NoSelfCall(Module *module);
+
+    bool shouldInline(CallInst *call) override;
+
+private:
+    Module *mod;
+};
+
+class Inliner : public _PassBase<Inliner, Module>
+{
+public:
+    explicit Inliner(Module *module): mod(module) {}
+
+    bool run();
+    bool performInline(Module *module);
+
+private:
+    void initialize(Module *module);
+
+    std::vector<BasicBlock *> cloneBlocks(Instruction *inst);
+    void fixVoidReturn(BasicBlock *splitBlock, std::vector<BasicBlock *> &blocks);
+    void fixReturnPhi(BasicBlock *retBlock, PhiInst *phi, std::vector<BasicBlock *> &blocks);
+
+private:
+    Module *mod;
+    std::vector<CallInst *> pendingCalls;
 };

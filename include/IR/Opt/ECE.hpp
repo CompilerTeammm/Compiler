@@ -3,15 +3,16 @@
 #include "../../lib/CFG.hpp"
 #include "../Analysis/Dominant.hpp"
 
-class ECE: public _PassBase<ECE, Function> {
+class EdgeCriticalElim : public _PassBase<EdgeCriticalElim, Function> {
 private:
-  Function *m_func;
-  std::set<std::pair<BasicBlock*, BasicBlock*>> splitEdges;
-//   AnalysisManager &AM;
+    Function* func;
+    std::set<std::pair<BasicBlock*, BasicBlock*>> splitEdges;
 
 public:
-  void SplitCriticalEdges();
-  void AddEmptyBlock(Instruction *inst, int succ);
-  ECE(Function *func): m_func(func){}
-  bool run();
+    explicit EdgeCriticalElim(Function* f) : func(f) {}
+
+    void splitCriticalEdges();
+    void insertEmptyBlock(Instruction* inst, int succIndex);
+
+    bool run();
 };

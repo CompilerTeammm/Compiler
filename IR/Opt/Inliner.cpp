@@ -1,227 +1,305 @@
 #include "../../include/IR/Opt/Inliner.hpp"
 #include "../../include/lib/CFG.hpp"
 
-std::unique_ptr<InlineHeuristic> InlineHeuristic::get(Module *m)
+std::unique_ptr<InlinePolicy> InlinePolicy::create(Module *m)
 {
-    auto heuristic = std::make_unique<InlineHeuristicManager>();
-    heuristic->push_back(std::make_unique<NoRecursive>(m));
-    heuristic->push_back(std::make_unique<SizeLimit>());
-    return heuristic;
+    auto policies = std::make_unique<PolicySet>();
+    policies->addPolicy(std::make_unique<NoSelfCall>(m));
+    policies->addPolicy(std::make_unique<BudgetPolicy>());
+    return policies;
 }
 
-InlineHeuristicManager::InlineHeuristicManager()
+PolicySet::PolicySet() = default;
+
+void PolicySet::addPolicy(std::unique_ptr<InlinePolicy> policy)
 {
+    policies.push_back(std::move(policy));
 }
 
-bool InlineHeuristicManager::CanBeInlined(CallInst *call)
+bool PolicySet::shouldInline(CallInst *call)
 {
-    for (auto &heuristic : *this)
-        if (!heuristic->CanBeInlined(call))
+    for (auto &policy : policies)
+    {
+        if (!policy->shouldInline(call))
+        {
             return false;
+        }
+    }
     return true;
 }
 
-SizeLimit::SizeLimit()
-{
-}
+BudgetPolicy::BudgetPolicy() = default;
 
-bool SizeLimit::CanBeInlined(CallInst *call)
+bool BudgetPolicy::shouldInline(CallInst *call)
 {
-    // static size_t cost = 0;
-    auto master = call->GetParent()->GetParent();
-    auto inline_func = call->GetOperand(0)->as<Function>();
-    assert(master != nullptr && inline_func != nullptr);
-    auto &[master_code_size, master_frame_size] = master->GetInlineInfo();
-    auto &[inline_code_size, inline_frame_size] = inline_func->GetInlineInfo();
-    if (inline_frame_size + master_frame_size > maxframesize)
+    auto master = call->GetParent()->GetParent();          // 调用者函数
+    auto inlineFunc = call->GetOperand(0)->as<Function>(); // 被调函数
+    assert(master != nullptr && inlineFunc != nullptr);
+
+    auto &[masterCodeSize, masterFrameSize] = master->GetInlineInfo();
+    auto &[calleeCodeSize, calleeFrameSize] = inlineFunc->GetInlineInfo();
+
+    // 超过 Frame 限制
+    if (calleeFrameSize + masterFrameSize > MaxFrameSize)
         return false;
-    if (inline_code_size + cost > maxsize)
+
+    // 超过 Code 限制
+    if (calleeCodeSize + currentCost > MaxInstCount)
         return false;
-    cost += inline_code_size;
-    master_code_size += inline_code_size;
-    master_frame_size += inline_frame_size;
+
+    // 更新 inline 信息
+    currentCost += calleeCodeSize;
+    masterCodeSize += calleeCodeSize;
+    masterFrameSize += calleeFrameSize;
+
     return true;
 }
 
-NoRecursive::NoRecursive(Module *_m) : m(_m)
-{
-}
+NoSelfCall::NoSelfCall(Module *module) : mod(module) {}
 
-bool NoRecursive::CanBeInlined(CallInst *call)
+bool NoSelfCall::shouldInline(CallInst *call)
 {
-    auto &&slave = call->GetOperand(0)->as<Function>();
-    auto &&master = call->GetParent()->GetParent();
-    if (slave->tag == Function::Tag::ParallelBody || master->tag == Function::Tag::UnrollBody || slave->tag == Function::Tag::BuildIn)
+    auto callee = call->GetOperand(0)->as<Function>(); // 被调函数
+    auto caller = call->GetParent()->GetParent();      // 调用者函数
+    assert(caller != nullptr && callee != nullptr);
+
+    // 一些特殊 tag 的函数禁止内联
+    if (callee->tag == Function::Tag::ParallelBody ||
+        caller->tag == Function::Tag::UnrollBody ||
+        callee->tag == Function::Tag::BuildIn)
+    {
         return false;
+    }
+
+    // 如果全局 Inline_Recursion 启动
     if (Singleton<Inline_Recursion>().flag)
     {
-        static int InlineTimes = 0;
-        if (!master->isRecursive() && !slave->isRecursive())
+        static int inlineTimes = 0; // 保持原版的静态行为
+        if (!caller->isRecursive() && !callee->isRecursive())
             return true;
-        if (InlineTimes<3&&(master->Size()+slave->Size())*3<100)
+
+        if (inlineTimes < 3 &&
+            (caller->Size() + callee->Size()) * 3 < 100)
         {
-            InlineTimes++;
+            ++inlineTimes;
             return true;
         }
     }
+    // 如果没启用全局递归内联
     else
     {
-        if (!master->isRecursive() && !slave->isRecursive())
+        if (!caller->isRecursive() && !callee->isRecursive())
             return true;
     }
+
     return false;
 }
 
 bool Inliner::run()
 {
     bool modified = false;
-    init(m);
-    modified |= Inline(m);
-    m->EraseDeadFunc();
-    for (auto &func : m->GetFuncTion())
+    initialize(mod);
+    modified |= performInline(mod);
+    mod->EraseDeadFunc();
+    for (auto &func : mod->GetFuncTion())
+    {
         func->ClearInlineInfo();
+    }
     return modified;
 }
 
-void Inliner::init(Module *m)
+void Inliner::initialize(Module *module)
 {
-    for (auto it = m->GetFuncTion().begin(); it != m->GetFuncTion().end();)
+    // 移除没有使用的函数（除了 main）
+    for (auto it = module->GetFuncTion().begin(); it != module->GetFuncTion().end();)
     {
         if (it->get()->GetValUseListSize() == 0 && it->get()->GetName() != "main")
-            it = m->GetFuncTion().erase(it);
+        {
+            it = module->GetFuncTion().erase(it);
+        }
         else
-            it++;
+        {
+            ++it;
+        }
     }
 
-    auto judge = InlineHeuristic::get(m);
+    // 构建策略集合
+    auto policy = InlinePolicy::create(module);
 
-    for (auto &funcptr : m->GetFuncTion())
+    // 收集符合条件的调用点
+    for (auto &funcPtr : module->GetFuncTion())
     {
-        Function *func = funcptr.get();
-        auto &calllists = func->GetValUseList();
-        for (auto callinst : calllists)
+        Function *func = funcPtr.get();
+        auto &callList = func->GetValUseList();
+        for (auto *use : callList)
         {
-            auto call = callinst->GetUser()->as<CallInst>();
-            assert(call != nullptr);
-            if (judge->CanBeInlined(call))
-                NeedInlineCall.push_back(call);
+            auto *callInst = use->GetUser()->as<CallInst>();
+            assert(callInst != nullptr);
+            if (policy->shouldInline(callInst))
+            {
+                pendingCalls.push_back(callInst);
+            }
         }
     }
 }
 
-bool Inliner::Inline(Module *m)
+bool Inliner::performInline(Module *module)
 {
     bool modified = false;
-    while (!NeedInlineCall.empty())
+
+    while (!pendingCalls.empty())
     {
-        modified |= true;
-        Instruction *inst = NeedInlineCall.front();
-        NeedInlineCall.erase(NeedInlineCall.begin());
+        modified = true;
+
+        Instruction *inst = pendingCalls.front();
+        pendingCalls.erase(pendingCalls.begin());
+
         BasicBlock *block = inst->GetParent();
         Function *func = block->GetParent();
-        BasicBlock *SplitBlock = block->SplitAt(inst);
+
+        // 在调用点切分基本块
+        BasicBlock *splitBlock = block->SplitAt(inst);
+
+        // 递归内联情况：调用自己
         if (inst->GetUserUseList()[0]->usee == func)
         {
-            auto Br = new UnCondInst(SplitBlock);
-            block->push_back(Br);
+            auto *br = new UnCondInst(splitBlock);
+            block->push_back(br);
         }
-        BasicBlock::List<Function, BasicBlock>::iterator Block_Pos(block);
-        Block_Pos.InsertAfter(SplitBlock);
-        ++Block_Pos;
-        std::vector<BasicBlock *> blocks = CopyBlocks(inst);
+
+        BasicBlock::List<Function, BasicBlock>::iterator blockPos(block);
+        blockPos.InsertAfter(splitBlock);
+        ++blockPos;
+
+        // 拷贝被调用函数体
+        std::vector<BasicBlock *> blocks = cloneBlocks(inst);
+
+        // 处理调用跳转
         if (inst->GetUserUseList()[0]->usee != func)
         {
-            UnCondInst *Br = new UnCondInst(blocks[0]);
-            block->push_back(Br);
+            auto *br = new UnCondInst(blocks[0]);
+            block->push_back(br);
         }
         else
         {
             delete block->GetBack();
-            UnCondInst *Br = new UnCondInst(blocks[0]);
-            block->push_back(Br);
+            auto *br = new UnCondInst(blocks[0]);
+            block->push_back(br);
         }
 
+        // 把 AllocaInst 移到函数入口块
         for (auto it = blocks[0]->begin(); it != blocks[0]->end();)
         {
-            auto shouldmvinst = dynamic_cast<AllocaInst *>(*it);
+            auto *allocaInst = dynamic_cast<AllocaInst *>(*it);
             ++it;
-            if (shouldmvinst)
+            if (allocaInst)
             {
-                BasicBlock *front_block = func->GetFront();
-                shouldmvinst->EraseFromManager();
-                front_block->push_front(shouldmvinst);
+                BasicBlock *entryBlock = func->GetFront();
+                allocaInst->EraseFromManager();
+                entryBlock->push_front(allocaInst);
             }
         }
-        for (BasicBlock *block_ : blocks)
-            Block_Pos.InsertBefore(block_);
+
+        // 插入拷贝出来的基本块
+        for (BasicBlock *blk : blocks)
+        {
+            blockPos.InsertBefore(blk);
+        }
+
+        // 返回值处理
         if (inst->GetTypeEnum() != IR_DataType::IR_Value_VOID)
         {
-            PhiInst *Phi = PhiInst::Create(SplitBlock->GetFront(), SplitBlock, inst->GetType());
-            HandleRetPhi(SplitBlock, Phi, blocks);
-            if (Phi->GetUserUseList().size() == 1)
+            PhiInst *phi = PhiInst::Create(splitBlock->GetFront(), splitBlock, inst->GetType());
+            fixReturnPhi(splitBlock, phi, blocks);
+
+            if (phi->GetUserUseList().size() == 1)
             {
-                Value *val = Phi->GetUserUseList()[0]->usee;
+                Value *val = phi->GetUserUseList()[0]->usee;
                 inst->ReplaceAllUseWith(val);
-                delete Phi;
+                delete phi;
             }
             else
-                inst->ReplaceAllUseWith(Phi);
+            {
+                inst->ReplaceAllUseWith(phi);
+            }
         }
         else
-            HandleVoidRet(SplitBlock, blocks);
-        auto &&inlined_func = inst->GetOperand(0)->as<Function>();
-        if (inlined_func->GetValUseListSize() == 0)
-            m->EraseFunction(inlined_func);
+        {
+            fixVoidReturn(splitBlock, blocks);
+        }
+
+        // 删除无用的被调函数
+        auto *callee = inst->GetOperand(0)->as<Function>();
+        if (callee->GetValUseListSize() == 0)
+        {
+            module->EraseFunction(callee);
+        }
+
+        // 删除 call 指令本身
         delete inst;
     }
+
     return modified;
 }
 
-std::vector<BasicBlock *> Inliner::CopyBlocks(Instruction *inst)
+std::vector<BasicBlock *> Inliner::cloneBlocks(Instruction *inst)
 {
-    Function *Func = dynamic_cast<Function *>(inst->GetUserUseList()[0]->usee);
-    std::unordered_map<Operand, Operand> OperandMapping;
+    auto *calleeFunc = dynamic_cast<Function *>(inst->GetUserUseList()[0]->usee);
+    assert(calleeFunc != nullptr);
 
-    std::vector<BasicBlock *> copied_bbs;
-    int num = 1;
-    for (auto &param : Func->GetParams())
+    std::unordered_map<Operand, Operand> operandMap;
+
+    // 参数映射：callee 参数 -> call 指令的操作数
+    const auto &params = calleeFunc->GetParams();
+    int idx = 1; // 第 0 个操作数是函数本身
+    for (auto &param : params)
     {
-        Value *Param = param.get();
-        OperandMapping[Param] = inst->GetUserUseList()[num]->usee;
-        num++;
+        Value *paramVal = param.get();
+        operandMap[paramVal] = inst->GetUserUseList()[idx]->usee;
+        ++idx;
     }
-    for (BasicBlock *block : *Func)
-        copied_bbs.push_back(block->clone(OperandMapping));
-    return copied_bbs;
+
+    // 克隆每个基本块
+    std::vector<BasicBlock *> clonedBlocks;
+    for (BasicBlock *block : *calleeFunc)
+    {
+        clonedBlocks.push_back(block->clone(operandMap));
+    }
+
+    return clonedBlocks;
 }
 
-void Inliner::HandleVoidRet(BasicBlock *spiltBlock, std::vector<BasicBlock *> &blocks)
+void Inliner::fixVoidReturn(BasicBlock *splitBlock, std::vector<BasicBlock *> &blocks)
 {
     for (BasicBlock *block : blocks)
     {
         Instruction *inst = block->GetBack();
         if (dynamic_cast<RetInst *>(inst))
         {
-            UnCondInst *Br = new UnCondInst(spiltBlock);
+            auto *br = new UnCondInst(splitBlock);
             inst->DropAllUsesOfThis();
             inst->EraseFromManager();
-            block->push_back(Br);
+            block->push_back(br);
         }
     }
 }
 
-void Inliner::HandleRetPhi(BasicBlock *RetBlock, PhiInst *Phi, std::vector<BasicBlock *> &blocks)
+void Inliner::fixReturnPhi(BasicBlock *splitBlock, PhiInst *phi, std::vector<BasicBlock *> &blocks)
 {
     for (BasicBlock *block : blocks)
     {
         Instruction *inst = block->GetBack();
-        if (dynamic_cast<RetInst *>(inst))
+        if (auto *retInst = dynamic_cast<RetInst *>(inst))
         {
-            Phi->addIncoming(inst->GetUserUseList()[0]->usee, block);
-            UnCondInst *Br = new UnCondInst(RetBlock);
-            inst->DropAllUsesOfThis();
-            inst->EraseFromManager();
-            block->push_back(Br);
+            // 将返回值加入 Phi 节点
+            assert(!retInst->GetUserUseList().empty());
+            phi->addIncoming(retInst->GetUserUseList()[0]->usee, block);
+
+            // 替换 ret 为无条件跳转到 splitBlock
+            auto *br = new UnCondInst(splitBlock);
+            retInst->DropAllUsesOfThis();
+            retInst->EraseFromManager();
+            block->push_back(br);
         }
     }
 }

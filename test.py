@@ -7,7 +7,7 @@ import difflib
 import re
 
 compiler_path = "./build/compiler"
-test_folder="./testcase/"
+test_folder="./testcases/"
 # python3 test.py -O1
 #额外参数
 extra_args = sys.argv[1:]

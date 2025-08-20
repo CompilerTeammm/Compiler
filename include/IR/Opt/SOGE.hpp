@@ -1,15 +1,17 @@
 #pragma once
 #include "Passbase.hpp"
 #include "../../lib/CFG.hpp"
-
-
-class SOGE: public _PassBase<SOGE, Module> 
-{
+class StoreOnlyGlobalElim : public _PassBase<StoreOnlyGlobalElim, Module> {
 public:
-  SOGE(Module *m): module(m){ StoreOnlyGlobal.clear();}
-  bool run();
+    explicit StoreOnlyGlobalElim(Module* m) : module(m) {
+        storeOnlyGlobals.clear();
+    }
+
+    bool run();
+
 private:
-  std::vector<Var *> StoreOnlyGlobal;
-  Module *module;
-  void ScanStoreOnlyGlobal();
+    std::vector<Var*> storeOnlyGlobals;
+    Module* module;
+
+    void scanStoreOnlyGlobals();
 };

@@ -68,35 +68,35 @@ public:
         {
             // 启用全部中端优化
             enabledPasses = {
-                "SSE",
+                // "SSE",
                 // 前期规范化
                 "mem2reg",
-                "sccp",
-                "SCFG",
-                "ConstantHoist",
+                // "sccp",
+                // "SCFG",
+                // "ConstantHoist",
                 // "ECE",
                 // 过程间优化
-                "inline",
+                // "inline",
 
                 "SOGE",
-                "G2L",
-                // 局部清理
-                "DAE",
-                "TRE",
-                "DCE",
-                "ExprReorder",
-                "sccp",
-                "SCFG",
+                // "G2L",
+                // // 局部清理
+                // "DAE",
+                // "TRE",
+                // "DCE",
+                // "ExprReorder",
+                // "sccp",
+                // "SCFG",
 
-                //"GVN",
-                "DCE",
-                // 循环优化
-                "LoopSimplify",
-                "Lcssa",
-                "LICM",
-                "LoopRotate",
-                //"LoopUnroll",
-                "LoopDeletion",
+                // //"GVN",
+                // "DCE",
+                // // 循环优化
+                // "LoopSimplify",
+                // "Lcssa",
+                // "LICM",
+                // "LoopRotate",
+                // //"LoopUnroll",
+                // "LoopDeletion",
                 //"SSR",
 
                 // 数据流优化
@@ -226,7 +226,7 @@ public:
             }
             if (tag == "SOGE")
             {
-                SOGE sogePass(&Singleton<Module>());
+                StoreOnlyGlobalElim sogePass(&Singleton<Module>());
                 sogePass.run();
             }
             if (tag == "G2L")
@@ -240,7 +240,7 @@ public:
                 for (auto &function : funcVec)
                 {
                     auto fun = function.get();
-                    ECE ECEpass(fun);
+                    EdgeCriticalElim ECEpass(fun);
                     ECEpass.run();
                 }
             }
@@ -284,7 +284,7 @@ public:
                 for (auto &function : funcVec)
                 {
                     auto fun = function.get();
-                    TRE TREPass(fun);
+                    TailRecElim TREPass(fun);
                     TREPass.run();
                 }
             }

@@ -2,11 +2,13 @@
 #include "Passbase.hpp"
 #include "../../lib/CFG.hpp"
 
-class TRE : public _PassBase<TRE, Function>{
+class TailRecElim : public _PassBase<TailRecElim, Function> {
     Function* func;
-    static std::vector<std::pair<CallInst*,RetInst*>> TailCallPairs(Function*);
-    std::pair<BasicBlock*,BasicBlock*> HoistAllocas();
-    public:
+
+    std::pair<BasicBlock*, BasicBlock*> liftAllocas();
+    static std::vector<std::pair<CallInst*, RetInst*>> collectTailCalls(Function* f);
+
+public:
+    explicit TailRecElim(Function* f) : func(f) {}
     bool run();
-    TRE(Function* _func):func(_func){}
 };
