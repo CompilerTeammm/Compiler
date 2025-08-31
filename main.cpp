@@ -10,15 +10,17 @@
 #include "Log/log.hpp"
 #include <filesystem>
 
-
-// 输入指令是 compiler -S -o test.s test.sy
+#define OPT
+#define backend
 
 extern FILE *yyin;
+extern int optind, opterr, optopt;
+extern char *optargi;
 std::string asmoutput_path;
 void copyFile(const std::string &sourcePath, const std::string &destinationPath) {
   std::ifstream source(sourcePath, std::ios::binary);
   std::ofstream destination(destinationPath, std::ios::binary);
-  destination << source.rdbuf();
+//   destination << source.rdbuf();
 }
 
 // hu1 add it:解析 --test=xxx,yyy
@@ -69,11 +71,7 @@ int main(int argc, char **argv) {
            PM.SetLevel(O1);
            optimization_set = true;
        }
-       //识别hu1的test(非线性)
-       else if(arg=="hu1"){
-         PM.SetLevel(hu1_test);
-         optimization_set = true;
-       }
+   
        // 识别 --test=xxx,yyy
        else if (arg.rfind("--test=", 0) == 0) {
            std::string param = arg.substr(7); // 去掉前缀 "--test="
@@ -88,22 +86,58 @@ int main(int argc, char **argv) {
    }
    
    PM.Run();
-   
-   asmoutput_path = argv[3];
-   size_t lastPointPos = asmoutput_path.find_last_of(".");
-   asmoutput_path = asmoutput_path.substr(0, lastPointPos) + ".s";
+#endif
 
-   yyin = fopen(argv[4], "r");
-   yy::parser parse;
-   parse();
-   Singleton<CompUnit *>()->codegen();
+   Singleton<Module>().Test();
+   fflush(stdout);
+   fclose(stdout);
 
+#ifdef backend
+   // 后端
    freopen(asmoutput_path.c_str(), "w", stdout);
    TransModule RISCVAsm;
    RISCVAsm.run(&Singleton<Module>());
 
    fflush(stdout);
    fclose(stdout);
+#endif
 
    return 0;
 }
+
+// #include "./include/lib/CoreClass.hpp"
+// #include "./yacc/parser.hpp"
+// #include <fstream>
+// #include <getopt.h>
+// #include <iostream>
+// #include <memory>
+// #include "include/IR/Opt/PassManager.hpp"
+// #include "include/MyBackend/MIR.hpp"
+// #include "include/MyBackend/Translate.hpp"
+// #include "Log/log.hpp"
+// #include <filesystem>
+
+// 输入指令是 compiler -S -o test.s test.sy
+
+// extern FILE *yyin;
+// std::string asmoutput_path;
+// int main(int argc, char **argv){
+   
+//    asmoutput_path = argv[3];
+//    size_t lastPointPos = asmoutput_path.find_last_of(".");
+//    asmoutput_path = asmoutput_path.substr(0, lastPointPos) + ".s";
+
+//    yyin = fopen(argv[4], "r");
+//    yy::parser parse;
+//    parse();
+//    Singleton<CompUnit *>()->codegen();
+
+//    freopen(asmoutput_path.c_str(), "w", stdout);
+//    TransModule RISCVAsm;
+//    RISCVAsm.run(&Singleton<Module>());
+
+//    fflush(stdout);
+//    fclose(stdout);
+
+//    return 0;
+// }

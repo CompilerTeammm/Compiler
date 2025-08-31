@@ -267,11 +267,11 @@ public:
             }
             if (tag == "CondMerge")
             {
-                for (auto &function : funcVec)
-                {
-                    auto fun = function.get();
-                    CondMerge(fun, AM).run();
-                }
+                // for (auto &function : funcVec)
+                // {
+                //     auto fun = function.get();
+                //     CondMerge(fun, AM).run();
+                // }
             }
             if (tag == "DAE")
             {
